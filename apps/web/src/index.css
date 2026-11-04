@@ -29,6 +29,10 @@
     --input: 20 18% 86%;
     --ring: 337 67% 42%;
     --radius: 0.875rem;
+    /* Gráficos: paleta validada (CVD/contraste) para fundo claro */
+    --chart-1: #b4235a;
+    --chart-2: #6d5bd0;
+    --chart-grid: #ece6e3;
   }
   .dark {
     --background: 337 12% 8%;
@@ -55,6 +59,10 @@
     --border: 337 8% 20%;
     --input: 337 8% 24%;
     --ring: 337 70% 62%;
+    /* Gráficos: paleta validada para o fundo escuro */
+    --chart-1: #d45c8a;
+    --chart-2: #8c7ae6;
+    --chart-grid: #2e2629;
   }
   * {
     @apply border-border;

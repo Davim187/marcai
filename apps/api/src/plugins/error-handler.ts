@@ -1,4 +1,4 @@
-import type { FastifyError, FastifyInstance } from 'fastify'
+import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { Prisma } from '@prisma/client'
 import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod'
 import { ZodError } from 'zod'
@@ -18,9 +18,19 @@ export function isOverlapError(err: unknown): boolean {
   )
 }
 
+type Fallback = (request: FastifyRequest, reply: FastifyReply) => Promise<unknown>
+let notFoundFallback: Fallback | null = null
+/** Permite que o servidor do SPA responda às rotas que não são da API. */
+export function setNotFoundFallback(fn: Fallback) {
+  notFoundFallback = fn
+}
+
 export function registerErrorHandler(app: FastifyInstance) {
-  app.setNotFoundHandler((request, reply) => {
-    reply.status(404).send({
+  app.setNotFoundHandler(async (request, reply) => {
+    if (notFoundFallback && request.method === 'GET' && !request.url.startsWith('/api/')) {
+      return notFoundFallback(request, reply)
+    }
+    return reply.status(404).send({
       error: 'NAO_ENCONTRADO',
       message: `Rota não encontrada: ${request.method} ${request.url}`,
     })

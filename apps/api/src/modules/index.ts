@@ -1,5 +1,9 @@
 import type { FastifyInstance } from 'fastify'
+import { accountRoutes } from './account/account.routes'
+import { adminRoutes } from './admin/admin.routes'
 import { authRoutes } from './auth/auth.routes'
+import { reportRoutes } from './reports/report.routes'
+import { seoRoutes } from './seo/spa'
 import { billingRoutes, billingWebhookRoutes } from './billing/billing.routes'
 import { customerAreaRoutes } from './booking/customer-area.routes'
 import { bookingPanelRoutes } from './booking/panel.routes'
@@ -21,6 +25,7 @@ export async function registerModules(app: FastifyInstance) {
     at: new Date().toISOString(),
   }))
   await registerUploadStatic(app)
+  await seoRoutes(app)
   await app.register(authRoutes, { prefix: '/api/auth' })
   await app.register(tenantRoutes, { prefix: '/api/tenant' })
   await app.register(serviceRoutes, { prefix: '/api/services' })
@@ -37,4 +42,7 @@ export async function registerModules(app: FastifyInstance) {
   await app.register(whatsappWebhookRoutes, { prefix: '/api/webhooks' })
   await app.register(billingRoutes, { prefix: '/api/billing' })
   await app.register(billingWebhookRoutes, { prefix: '/api/webhooks' })
+  await app.register(reportRoutes, { prefix: '/api/reports' })
+  await app.register(adminRoutes, { prefix: '/api/admin' })
+  await app.register(accountRoutes, { prefix: '/api/account' })
 }
