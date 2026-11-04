@@ -3,6 +3,7 @@ import { normalizeBrazilianMobile, OPEN_BOOKING_STATUSES } from '@marcai/shared'
 import { badRequest, conflict } from '../../lib/errors'
 import { parseCsv } from '../../lib/csv'
 import type { TenantDb } from '../../lib/tenant-db'
+import { prisma } from '../../lib/prisma'
 
 export interface CustomerStats {
   totalSpentCents: number
@@ -205,6 +206,24 @@ export async function anonymizeCustomer(db: TenantDb, customerId: string) {
       cancelReason: 'Dados do cliente excluídos (LGPD)',
     },
   })
+  // Mensagens para a cliente na fila: cancela as pendentes e apaga telefone/e-mail de todas
+  const bookingIds = (
+    await db.booking.findMany({ where: { customerId }, select: { id: true } })
+  ).map((b) => b.id)
+  if (bookingIds.length) {
+    const customerJobs = {
+      bookingId: { in: bookingIds },
+      kind: { startsWith: 'customer_' },
+    } satisfies Prisma.NotificationJobWhereInput
+    await prisma.notificationJob.updateMany({
+      where: { ...customerJobs, status: { in: ['pending', 'processing'] } },
+      data: { status: 'canceled', dedupeKey: null, lastError: 'Cliente excluída (LGPD)' },
+    })
+    await prisma.notificationJob.updateMany({
+      where: customerJobs,
+      data: { payload: {} },
+    })
+  }
   await db.bookingFieldAnswer.deleteMany({ where: { booking: { customerId } } })
   await db.booking.updateMany({ where: { customerId }, data: { notes: null } })
   await db.customer.update({

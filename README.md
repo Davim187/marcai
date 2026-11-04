@@ -110,7 +110,11 @@ O arquivo [`apps/api/.env.example`](apps/api/.env.example) lista e comenta todas
    - Toda notificação é conferida pela assinatura `x-signature` (HMAC-SHA256, janela de 15 min) e o pagamento é **buscado na API do Mercado Pago** pelo id: o corpo da notificação nunca é usado. Pagamento com valor menor que a fatura é ignorado.
    - Os eventos são idempotentes (`WebhookEvent`): `trial`/`past_due` → `active` quando paga; a rotina diária marca faturas vencidas e `active` → `past_due` quando o período acaba (carência de 7 dias antes do modo somente leitura).
 
-Em desenvolvimento, `BILLING_PROVIDER=fake` mostra o botão **Simular pagamento**, que percorre o mesmo fluxo do webhook. A cobrança fica atrás da interface `BillingProvider` (`apps/api/src/modules/billing/provider.ts`).
+   - **Estorno ou contestação** desconta o mês pago (volta para o teste ou para "em atraso"). Pagamento pelo link de uma fatura cancelada é aceito; um segundo pagamento da mesma fatura fica registrado na auditoria (`invoice.duplicate_payment`) para estorno.
+   - Cartão recusado: a tela oferece **Cadastrar outro cartão** e **Pagar este mês por PIX** (sem desligar o cartão).
+   - O registro do evento e a aplicação acontecem na mesma transação: se algo falhar, o reenvio do Mercado Pago processa de novo.
+
+Em desenvolvimento, `BILLING_PROVIDER=fake` mostra o botão **Simular pagamento** (só com a API em localhost ou `ALLOW_FAKE_BILLING=true`, nunca em produção), que percorre o mesmo fluxo do webhook. A cobrança fica atrás da interface `BillingProvider` (`apps/api/src/modules/billing/provider.ts`).
 
 ### WhatsApp: Evolution API (número da própria profissional, via QR Code)
 
@@ -124,7 +128,7 @@ Em desenvolvimento, `BILLING_PROVIDER=fake` mostra o botão **Simular pagamento*
 
 - **Resend:** configure `RESEND_API_KEY` e um `EMAIL_FROM` com domínio verificado.
 - **SMTP** (Gmail com senha de app, Hostinger, Zoho, Amazon SES...): configure `SMTP_HOST`, `SMTP_PORT` (587 ou 465), `SMTP_SECURE` (`true` na 465), `SMTP_USER` e `SMTP_PASS`.
-- Sem nenhum dos dois, os e-mails só aparecem no log. A tela **Notificações** avisa quando isso acontece e tem o botão **Enviar e-mail de teste**.
+- Sem nenhum dos dois, os e-mails só aparecem no log (em produção, a API nem sobe sem um deles). A tela **Notificações** avisa quando isso acontece e tem o botão **Enviar e-mail de teste**.
 
 O que sai por e-mail: novo agendamento, cancelamento e remarcação (para a dona e a profissional), confirmação, lembrete, cancelamento e remarcação (para a cliente que informou e-mail), resumo do dia, cobrança (fatura disponível, pagamento confirmado, cartão recusado) e aviso de WhatsApp desconectado.
 

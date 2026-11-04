@@ -70,7 +70,7 @@ describe('Mercado Pago: assinatura do webhook', () => {
     expect(p().verifyWebhook(req({ 'x-signature': sign('123', 'r1'), 'x-request-id': 'r2' }))).toBe(
       false,
     )
-    const old = Date.now() - 60 * 60_000
+    const old = Date.now() - 4 * 24 * 60 * 60_000
     expect(
       p().verifyWebhook(req({ 'x-signature': sign('123', 'r1', old), 'x-request-id': 'r1' })),
     ).toBe(false)

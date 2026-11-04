@@ -21,6 +21,7 @@ export interface TenantSummary {
     trialEndsAt: string | null
     currentPeriodEnd: string | null
     trialDaysLeft: number
+    billingType: string | null
   } | null
   effectivePlan: PlanId
   access: 'full' | 'grace' | 'blocked'

@@ -24,7 +24,11 @@ export async function enablePush(publicKey: string) {
     )
   const permission = await Notification.requestPermission()
   if (permission !== 'granted')
-    throw new Error('Você não permitiu as notificações. Libere nas configurações do navegador.')
+    throw new Error(
+      /iPhone|iPad/.test(navigator.userAgent)
+        ? 'As notificações estão bloqueadas. Vá em Ajustes → Notificações → (nome do app) e ative "Permitir Notificações".'
+        : 'As notificações estão bloqueadas. Clique no cadeado ao lado do endereço do site → Notificações → Permitir, e tente de novo.',
+    )
   const reg =
     (await navigator.serviceWorker.getRegistration()) ??
     (await navigator.serviceWorker.register('/sw.js'))

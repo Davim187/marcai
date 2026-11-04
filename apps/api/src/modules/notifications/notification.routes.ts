@@ -86,8 +86,9 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
       schema: { tags: ['notificações'], params: z.object({ id: z.string() }) },
     },
     async (request) => {
-      await ctx(request).db.notification.updateMany({
-        where: { id: request.params.id },
+      const c = ctx(request)
+      await c.db.notification.updateMany({
+        where: { id: request.params.id, ...(await notificationScope(c)) },
         data: { readAt: new Date() },
       })
       return { ok: true }
@@ -107,6 +108,8 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
       reply.hijack()
       const res = reply.raw
       res.writeHead(200, {
+        // Mantém os cabeçalhos já definidos (CORS com credenciais, segurança)
+        ...(reply.getHeaders() as Record<string, string>),
         'content-type': 'text/event-stream; charset=utf-8',
         'cache-control': 'no-cache, no-transform',
         connection: 'keep-alive',
@@ -131,7 +134,7 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
       }
       const heartbeat = setInterval(() => res.write(`: ping\n\n`), 25_000)
       sseHub.on(`tenant:${tenantId}`, send)
-      request.raw.on('close', () => {
+      res.on('close', () => {
         clearInterval(heartbeat)
         sseHub.off(`tenant:${tenantId}`, send)
       })
@@ -323,7 +326,11 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
 
   app.post(
     '/push/test',
-    { onRequest: requireTenant, schema: { tags: ['notificações'] } },
+    {
+      onRequest: requireTenant,
+      config: { rateLimit: { max: 5, timeWindow: '10 minutes' } },
+      schema: { tags: ['notificações'] },
+    },
     async (request) => {
       const c = ctx(request)
       await channels.push.send({
@@ -397,7 +404,11 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
 
   app.post(
     '/whatsapp/test',
-    { onRequest: proOnly, schema: { tags: ['notificações'] } },
+    {
+      onRequest: proOnly,
+      config: { rateLimit: { max: 5, timeWindow: '10 minutes' } },
+      schema: { tags: ['notificações'] },
+    },
     async (request) => {
       const c = ctx(request)
       if (!c.tenant.notifyPhone) throw badRequest('Cadastre o número que vai receber os avisos')
@@ -414,7 +425,11 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
   /** Manda um e-mail de teste para quem está logado (confere a configuração de e-mail). */
   app.post(
     '/email/test',
-    { onRequest: requireOwner, schema: { tags: ['notificações'] } },
+    {
+      onRequest: requireOwner,
+      config: { rateLimit: { max: 5, timeWindow: '10 minutes' } },
+      schema: { tags: ['notificações'] },
+    },
     async (request) => {
       const c = ctx(request)
       await channels.email.send({

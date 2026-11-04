@@ -397,6 +397,8 @@ export const customerRescheduleSchema = z.object({ startsAt: z.coerce.date() })
 export const changePlanSchema = z.object({
   plan: z.enum(['essencial', 'pro']),
   billingType: z.enum(['PIX', 'BOLETO', 'CREDIT_CARD', 'UNDEFINED']).default('UNDEFINED'),
+  /** Cadastrar outro cartão (ex.: o anterior foi recusado) */
+  newCard: z.boolean().optional(),
 })
 
 // ---------- Admin ----------

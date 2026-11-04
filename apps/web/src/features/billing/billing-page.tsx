@@ -12,7 +12,7 @@ import {
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { toast } from 'sonner'
-import { formatBRL, type PlanDefinition, type PlanId } from '@marcai/shared'
+import { DAY_MS, formatBRL, GRACE_DAYS, type PlanDefinition, type PlanId } from '@marcai/shared'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -53,6 +53,7 @@ interface Overview {
     invoiceUrl: string | null
     billingType: string | null
     description: string | null
+    processingSince: string | null
   }>
   provider: 'mercadopago' | 'fake'
   plans: PlanDefinition[]
@@ -149,7 +150,7 @@ export default function BillingPage() {
 
   const after = { invalidate: [['billing']], onSuccess: () => refresh() }
   const subscribe = useApiMutation(
-    (vars: { plan: PlanId; billingType: string }) =>
+    (vars: { plan: PlanId; billingType: string; newCard?: boolean }) =>
       api<{ checkoutUrl: string | null }>('/billing/subscribe', { body: vars }),
     {
       ...after,
@@ -177,6 +178,10 @@ export default function BillingPage() {
       api<{ checkoutUrl: string }>(`/billing/invoices/${id}/checkout`, { method: 'POST' }),
     { onSuccess: (res) => window.location.assign(res.checkoutUrl) },
   )
+  const payOnce = useApiMutation(() => api('/billing/pay-once', { body: { billingType: 'PIX' } }), {
+    ...after,
+    success: 'Fatura PIX gerada. Clique em "Pagar" para abrir o PIX.',
+  })
   const fakePay = useApiMutation(
     (id: string) => api(`/billing/fake/pay/${id}`, { method: 'POST' }),
     { ...after, success: 'Pagamento simulado com sucesso' },
@@ -190,6 +195,30 @@ export default function BillingPage() {
   const hasPaid = !!sub?.billingType && sub.status !== 'canceled'
   const pending = data.invoices.find((i) => i.status === 'pending' || i.status === 'overdue')
   const isCard = sub?.billingType === 'CREDIT_CARD'
+  const date = (d: string) => fmt(d, 'UTC', 'dd/MM/yyyy')
+  const methodLabel = METHODS.find((m) => m.id === sub?.billingType)?.label
+  const statusText = (() => {
+    if (!sub) return ''
+    if (sub.status === 'trial') {
+      const left = tenant.subscription?.trialDaysLeft ?? 0
+      if (left <= 0) return 'Seu teste grátis terminou. Escolha um plano para continuar.'
+      const base = `Faltam ${left} ${left === 1 ? 'dia' : 'dias'} de teste grátis (até ${date(sub.trialEndsAt!)}). Durante o teste, tudo do Pro fica liberado.`
+      return sub.billingType
+        ? `${base} Nada é cobrado antes disso: a primeira cobrança é em ${date(sub.trialEndsAt!)}${methodLabel ? `, no ${methodLabel}` : ''}.`
+        : base
+    }
+    if (sub.status === 'canceled')
+      return sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > new Date()
+        ? `Cancelada. Você continua com acesso até ${date(sub.currentPeriodEnd)}.`
+        : 'Cancelada. Escolha um plano abaixo para voltar a receber agendamentos.'
+    if (sub.status === 'past_due' && sub.currentPeriodEnd) {
+      const limit = new Date(new Date(sub.currentPeriodEnd).getTime() + GRACE_DAYS * DAY_MS)
+      return `Venceu em ${date(sub.currentPeriodEnd)}. Pague até ${date(limit.toISOString())} para sua página de agendamento não sair do ar.`
+    }
+    if (sub.currentPeriodEnd)
+      return `Ativa até ${date(sub.currentPeriodEnd)}.${isCard ? ' A renovação é cobrada automaticamente no cartão.' : methodLabel ? ` A próxima fatura (${methodLabel}) aparece aqui ${5} dias antes.` : ''}`
+    return ''
+  })()
 
   return (
     <div className="space-y-6">
@@ -203,22 +232,15 @@ export default function BillingPage() {
               </p>
               <Badge variant={st.variant}>{st.label}</Badge>
             </div>
-            <p className="text-muted-foreground mt-1 text-sm">
-              {sub?.status === 'trial' && tenant.subscription
-                ? tenant.subscription.trialDaysLeft > 0
-                  ? `Faltam ${tenant.subscription.trialDaysLeft} dias de teste grátis (até ${fmt(sub.trialEndsAt!, tenant.timezone, 'dd/MM/yyyy')}). Durante o teste, tudo do Pro fica liberado.`
-                  : 'Seu teste grátis terminou. Escolha um plano para continuar.'
-                : sub?.status === 'canceled'
-                  ? `Cancelada. Acesso até ${sub.currentPeriodEnd ? fmt(sub.currentPeriodEnd, tenant.timezone, 'dd/MM/yyyy') : 'o fim do período'}.`
-                  : sub?.currentPeriodEnd
-                    ? `Próxima renovação em ${fmt(sub.currentPeriodEnd, tenant.timezone, 'dd/MM/yyyy')}${sub.billingType ? ` · ${METHODS.find((m) => m.id === sub.billingType)?.label ?? 'a escolher'}` : ''}.`
-                    : ''}
-            </p>
+            <p className="text-muted-foreground mt-1 text-sm">{statusText}</p>
           </div>
-          {pending && !isCard && (
+          {pending && (
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => pay.mutate(pending.id)} loading={pay.isPending}>
-                <ExternalLink /> Pagar {formatBRL(pending.amountCents)}
+                <ExternalLink />{' '}
+                {pending.processingSince
+                  ? 'Abrir pagamento'
+                  : `Pagar ${formatBRL(pending.amountCents)}`}
               </Button>
               {data.provider === 'fake' && (
                 <Button
@@ -238,7 +260,42 @@ export default function BillingPage() {
               </a>
             </Button>
           )}
+          {isCard && sub?.status === 'past_due' && !pending && (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() =>
+                  subscribe.mutate({ plan: sub.plan, billingType: 'CREDIT_CARD', newCard: true })
+                }
+                loading={subscribe.isPending}
+              >
+                <CreditCard /> Cadastrar outro cartão
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => payOnce.mutate()}
+                loading={payOnce.isPending}
+              >
+                <QrCode /> Pagar este mês por PIX
+              </Button>
+            </div>
+          )}
         </CardContent>
+        {hasPaid && (
+          <div className="flex flex-wrap gap-2 border-t px-5 py-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setMethod(
+                  sub?.billingType && sub.billingType !== 'UNDEFINED' ? sub.billingType : 'PIX',
+                )
+                setMethodOpen(true)
+              }}
+            >
+              Trocar forma de pagamento
+            </Button>
+          </div>
+        )}
       </Card>
 
       {isCard && data.cardCheckoutUrl && (
@@ -311,20 +368,6 @@ export default function BillingPage() {
           <CardTitle className="flex items-center gap-2">
             <Receipt className="text-primary h-4 w-4" /> Faturas
           </CardTitle>
-          {hasPaid && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setMethod(
-                  sub?.billingType && sub.billingType !== 'UNDEFINED' ? sub.billingType : 'PIX',
-                )
-                setMethodOpen(true)
-              }}
-            >
-              Trocar forma de pagamento
-            </Button>
-          )}
         </CardHeader>
         <CardContent>
           {!data.invoices.length ? (
@@ -334,18 +377,28 @@ export default function BillingPage() {
           ) : (
             <div className="divide-y">
               {data.invoices.map((i) => (
-                <div key={i.id} className="flex items-center gap-3 py-3 text-sm">
-                  <div className="flex-1">
+                <div
+                  key={i.id}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3 text-sm"
+                >
+                  <div className="min-w-0 flex-1 basis-48">
                     <p className="font-medium">{i.description ?? 'Mensalidade'}</p>
                     <p className="text-muted-foreground">
-                      Vencimento {fmt(i.dueDate, 'UTC', 'dd/MM/yyyy')}
-                      {i.paidAt && ` · paga em ${fmt(i.paidAt, 'UTC', 'dd/MM/yyyy')}`}
+                      {i.paidAt
+                        ? `Paga em ${date(i.paidAt)}`
+                        : i.status === 'pending'
+                          ? `Vence em ${date(i.dueDate)} · pode pagar agora ou até o vencimento`
+                          : `Venceu em ${date(i.dueDate)}`}
                     </p>
                   </div>
                   <span className="font-semibold tabular-nums">{formatBRL(i.amountCents)}</span>
-                  <Badge variant={INVOICE[i.status]?.variant ?? 'muted'}>
-                    {INVOICE[i.status]?.label ?? i.status}
-                  </Badge>
+                  {i.processingSince && (i.status === 'pending' || i.status === 'overdue') ? (
+                    <Badge variant="default">Pagamento em análise</Badge>
+                  ) : (
+                    <Badge variant={INVOICE[i.status]?.variant ?? 'muted'}>
+                      {INVOICE[i.status]?.label ?? i.status}
+                    </Badge>
+                  )}
                   {(i.status === 'pending' || i.status === 'overdue') && (
                     <Button
                       size="sm"
@@ -381,12 +434,13 @@ export default function BillingPage() {
             <DialogTitle>Assinar o plano {choosing === 'pro' ? 'Pro' : 'Essencial'}</DialogTitle>
             <DialogDescription>
               {sub?.status === 'trial' && (tenant.subscription?.trialDaysLeft ?? 0) > 0
-                ? `Nada é cobrado agora: a primeira cobrança vem no fim do teste grátis.`
+                ? `O teste grátis continua até ${date(sub.trialEndsAt!)}. Com PIX ou boleto, a fatura já aparece aqui e você pode pagar quando quiser até essa data; no cartão, a primeira cobrança é nesse dia.`
                 : 'A cobrança é mensal e você pode cancelar quando quiser.'}
             </DialogDescription>
           </DialogHeader>
           <MethodPicker value={method} onChange={setMethod} />
           <MethodHint method={method} />
+          <SwitchWarning from={sub?.billingType ?? null} to={method} hasOpenInvoice={!!pending} />
           <DialogFooter>
             <Button variant="ghost" onClick={() => setChoosing(null)}>
               Voltar
@@ -408,6 +462,7 @@ export default function BillingPage() {
           </DialogHeader>
           <MethodPicker value={method} onChange={setMethod} />
           <MethodHint method={method} />
+          <SwitchWarning from={sub?.billingType ?? null} to={method} hasOpenInvoice={!!pending} />
           <DialogFooter>
             <Button
               onClick={() => sub && subscribe.mutate({ plan: sub.plan, billingType: method })}
@@ -422,7 +477,11 @@ export default function BillingPage() {
         open={cancelOpen}
         onOpenChange={setCancelOpen}
         title="Cancelar a assinatura?"
-        description="Cobranças futuras são canceladas no Mercado Pago. Você continua com acesso até o fim do período pago; depois disso, sua página de agendamento sai do ar."
+        description={
+          sub?.status === 'trial'
+            ? `Nada mais será cobrado. Você continua usando até o fim do teste grátis (${sub.trialEndsAt ? date(sub.trialEndsAt) : ''}); depois disso, sua página de agendamento sai do ar.`
+            : `Nada mais será cobrado. Você continua com acesso até ${sub?.currentPeriodEnd ? date(sub.currentPeriodEnd) : 'o fim do período pago'}; depois disso, sua página de agendamento sai do ar.`
+        }
         confirmLabel="Cancelar assinatura"
         destructive
         loading={cancel.isPending}
@@ -470,6 +529,31 @@ function MethodHint({ method }: { method: string }) {
         {text} Pagamento processado pelo Mercado Pago: seus dados de cartão não passam pelo nosso
         sistema.
       </span>
+    </p>
+  )
+}
+
+/** Avisos ao trocar a forma de pagamento (evita pagar duas vezes). */
+function SwitchWarning({
+  from,
+  to,
+  hasOpenInvoice,
+}: {
+  from: string | null
+  to: string
+  hasOpenInvoice: boolean
+}) {
+  let text: string | null = null
+  if (from === 'CREDIT_CARD' && to !== 'CREDIT_CARD')
+    text =
+      'A cobrança automática no cartão será cancelada no Mercado Pago. Daqui em diante, você paga cada mês pela fatura.'
+  else if (to === 'CREDIT_CARD' && from !== 'CREDIT_CARD' && hasOpenInvoice)
+    text =
+      'A fatura em aberto será cancelada e o cartão passa a pagar. Se você já abriu o PIX ou o boleto dessa fatura, não pague mais por lá.'
+  if (!text) return null
+  return (
+    <p className="border-warning/40 bg-warning/10 rounded-lg border p-3 text-sm" role="note">
+      {text}
     </p>
   )
 }

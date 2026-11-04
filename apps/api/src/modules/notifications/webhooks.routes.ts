@@ -55,7 +55,17 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (app) => {
     )
       .flatMap((e) => e.changes ?? [])
       .flatMap((c) => c.value?.statuses ?? [])
-    if (statuses.length) request.log.info({ statuses }, 'Status de mensagens da Meta')
+    // Só id e status: o telefone da cliente não vai para o log
+    if (statuses.length)
+      request.log.info(
+        {
+          statuses: (statuses as Array<{ id?: string; status?: string }>).map((st) => ({
+            id: st.id,
+            status: st.status,
+          })),
+        },
+        'Status de mensagens da Meta',
+      )
     return { ok: true }
   })
 }

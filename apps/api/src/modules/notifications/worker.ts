@@ -50,6 +50,14 @@ async function resolveMessage(job: NotificationJob): Promise<OutboundMessage | n
     return { ...payload, body: await renderForCustomer(b, 'customer_reminder') }
   }
   if (job.kind === 'daily_summary') return buildDailySummary(job.tenantId!, payload)
+  // LGPD: cliente excluída não recebe mais nada (nem o que já estava na fila ou em retry)
+  if (job.kind.startsWith('customer_') && job.bookingId) {
+    const b = await prisma.booking.findUnique({
+      where: { id: job.bookingId },
+      select: { customer: { select: { deletedAt: true } } },
+    })
+    if (!b || b.customer.deletedAt) return null
+  }
   return payload
 }
 
@@ -215,17 +223,20 @@ export async function scheduleDailySummaries(now = new Date()) {
         message: { ...base, to: t.notifyPhone },
       })
     }
-    await enqueue({
-      channel: 'push',
-      kind: 'daily_summary',
-      dedupeKey: `daily:push:${t.id}:${date}`,
-      message: base,
+    // A agenda inteira do dia é só para a gestão (donas), não para as profissionais
+    const owners = await prisma.tenantMember.findMany({
+      where: { tenantId: t.id, role: 'owner' },
+      include: { user: { select: { email: true } } },
     })
-    if (t.notifyEmail) {
-      const owners = await prisma.tenantMember.findMany({
-        where: { tenantId: t.id, role: 'owner' },
-        include: { user: { select: { email: true } } },
+    for (const o of owners) {
+      await enqueue({
+        channel: 'push',
+        kind: 'daily_summary',
+        dedupeKey: `daily:push:${t.id}:${date}:${o.userId}`,
+        message: { ...base, to: o.userId },
       })
+    }
+    if (t.notifyEmail) {
       for (const o of owners) {
         await enqueue({
           channel: 'email',

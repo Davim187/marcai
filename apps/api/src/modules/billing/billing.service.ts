@@ -4,8 +4,9 @@ import { env } from '../../config/env'
 import { audit } from '../../lib/audit'
 import { badRequest, notFound } from '../../lib/errors'
 import { logger } from '../../lib/logger'
-import { emailLayout, sendEmail } from '../../lib/mailer'
 import { prisma } from '../../lib/prisma'
+import { channels } from '../notifications/channels/registry'
+import { enqueue } from '../notifications/queue'
 import { FakeBillingProvider } from './fake'
 import { MercadoPagoBillingProvider } from './mercadopago'
 import type { BillingEvent, BillingProvider, BillingType } from './provider'
@@ -23,8 +24,10 @@ export function resetBillingProvider() {
   provider = null
 }
 
+type Tx = Prisma.TransactionClient
+
 const OPEN_INVOICE = ['pending', 'overdue'] as const
-/** Dias de tolerância depois do vencimento em que o link de pagamento continua válido. */
+/** Dias depois do vencimento em que o link de pagamento continua válido. */
 const CHECKOUT_GRACE_DAYS = 7
 
 /** Datas de cobrança ficam ao meio-dia UTC (evita "pular" de dia por causa do fuso). */
@@ -32,15 +35,21 @@ function atNoon(date: Date) {
   return new Date(`${date.toISOString().slice(0, 10)}T12:00:00Z`)
 }
 
-/** Mesmo dia do mês seguinte (31/01 → 28/02 ou 29/02). */
-export function addOneMonth(date: Date) {
+function shiftMonths(date: Date, months: number, anchorDay: number) {
   const d = new Date(date)
-  const day = d.getUTCDate()
   d.setUTCDate(1)
-  d.setUTCMonth(d.getUTCMonth() + 1)
+  d.setUTCMonth(d.getUTCMonth() + months)
   const lastDay = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate()
-  d.setUTCDate(Math.min(day, lastDay))
+  d.setUTCDate(Math.min(anchorDay, lastDay))
   return d
+}
+
+/**
+ * Mês seguinte, preservando o dia de cobrança: com dia 31, vai 31/01 → 28/02 → 31/03
+ * (e não fica preso no 28).
+ */
+export function addOneMonth(date: Date, anchorDay = date.getUTCDate()) {
+  return shiftMonths(date, 1, anchorDay)
 }
 
 /** Próximo vencimento: fim do teste, fim do período pago ou hoje (o que vier depois). */
@@ -54,6 +63,8 @@ export function nextDueDate(
 
 const planDescription = (plan: PlanId, tenantName: string) =>
   `${env.APP_NAME} ${PLANS[plan].name} — ${tenantName}`
+
+const formatDate = (d: Date) => d.toISOString().slice(0, 10).split('-').reverse().join('/')
 
 async function ensureSubscription(tenant: Tenant & { subscription: Subscription | null }) {
   return (
@@ -72,6 +83,28 @@ function openInvoice(subscriptionId: string) {
   })
 }
 
+/** Invalida o link do Mercado Pago (para ninguém pagar uma fatura que mudou ou foi cancelada). */
+async function expireCheckout(invoice: Pick<Invoice, 'id' | 'checkoutId'>) {
+  if (!invoice.checkoutId) return
+  await billingProvider()
+    .expireCheckout(invoice.checkoutId)
+    .catch((err) =>
+      logger.warn({ err, invoiceId: invoice.id }, 'Falha ao expirar link de pagamento'),
+    )
+}
+
+/** Cancela as faturas em aberto (exceto as com pagamento em análise) e invalida os links. */
+async function cancelOpenInvoices(subscriptionId: string) {
+  const open = await prisma.invoice.findMany({
+    where: { subscriptionId, status: { in: [...OPEN_INVOICE] }, processingSince: null },
+  })
+  for (const inv of open) await expireCheckout(inv)
+  await prisma.invoice.updateMany({
+    where: { id: { in: open.map((i) => i.id) } },
+    data: { status: 'canceled', checkoutId: null, invoiceUrl: null, checkoutExpiresAt: null },
+  })
+}
+
 /** Cria a fatura do próximo vencimento, se ainda não existir (idempotente). */
 async function ensureOpenInvoice(
   sub: Subscription,
@@ -85,6 +118,7 @@ async function ensureOpenInvoice(
     if (existing.amountCents === amountCents && existing.billingType === billingType)
       return existing
     // Mudou o plano ou a forma de pagamento: o link antigo deixa de valer
+    await expireCheckout(existing)
     return prisma.invoice.update({
       where: { id: existing.id },
       data: {
@@ -93,6 +127,7 @@ async function ensureOpenInvoice(
         description: planDescription(plan, tenantName),
         checkoutId: null,
         invoiceUrl: null,
+        checkoutExpiresAt: null,
       },
     })
   }
@@ -114,9 +149,54 @@ async function ensureOpenInvoice(
   }
 }
 
+/** Id do cartão, se for deste provedor (dados de um provedor antigo são ignorados). */
+function cardOf(sub: Subscription) {
+  return sub.providerSubscriptionId && sub.provider === billingProvider().name
+    ? sub.providerSubscriptionId
+    : null
+}
+
+/**
+ * Desliga o cartão: primeiro limpa no banco (o webhook "cancelada" que chega em seguida não
+ * encontra mais a assinatura e não a derruba) e depois cancela no Mercado Pago.
+ * Se o Mercado Pago falhar, restaura e avisa: nunca fica um cartão cobrando escondido.
+ */
+async function detachCard(sub: Subscription) {
+  if (!sub.providerSubscriptionId) return sub
+  const cardId = cardOf(sub)
+  const cleared = await prisma.subscription.update({
+    where: { id: sub.id },
+    data: { providerSubscriptionId: null, providerCheckoutUrl: null },
+  })
+  if (!cardId) return cleared
+  try {
+    await billingProvider().cancelCardSubscription(cardId)
+  } catch (err) {
+    await prisma.subscription.update({
+      where: { id: sub.id },
+      data: { providerSubscriptionId: cardId, providerCheckoutUrl: sub.providerCheckoutUrl },
+    })
+    logger.error({ err, subscriptionId: sub.id }, 'Falha ao cancelar o cartão no Mercado Pago')
+    throw badRequest(
+      'Não conseguimos falar com o Mercado Pago agora. Tente de novo em alguns minutos.',
+      'MERCADO_PAGO_INDISPONIVEL',
+    )
+  }
+  return cleared
+}
+
+/** Status ao reativar uma assinatura cancelada: mantém o que já foi pago. */
+function reactivatedStatus(sub: Subscription) {
+  const now = new Date()
+  if (sub.currentPeriodEnd && sub.currentPeriodEnd > now) return 'active' as const
+  if (!sub.currentPeriodEnd && sub.trialEndsAt && sub.trialEndsAt > now) return 'trial' as const
+  return 'past_due' as const
+}
+
 /**
  * Contrata ou troca de plano/forma de pagamento.
  * - Cartão: cria a assinatura automática no Mercado Pago e devolve o link para autorizar.
+ *   `newCard` força um cartão novo (ex.: o anterior foi recusado).
  * - PIX/boleto: garante a fatura do próximo vencimento (o link é gerado ao clicar em "Pagar").
  * Nada é cobrado antes do fim do teste grátis.
  */
@@ -125,51 +205,51 @@ export async function subscribe(opts: {
   owner: { email: string }
   plan: PlanId
   billingType: BillingType
+  newCard?: boolean
 }) {
   const p = billingProvider()
   const { tenant, plan, billingType } = opts
   let sub = await ensureSubscription(tenant)
-  const description = planDescription(plan, tenant.name)
   const amountCents = PLANS[plan].priceCents
+  const wasCanceled = sub.status === 'canceled'
   let checkoutUrl: string | null = null
-  const hasActiveCard =
-    sub.billingType === 'CREDIT_CARD' && !!sub.providerSubscriptionId && sub.status !== 'canceled'
+  const currentCard = !wasCanceled && sub.billingType === 'CREDIT_CARD' ? cardOf(sub) : null
 
   if (billingType === 'CREDIT_CARD') {
-    if (hasActiveCard) {
-      await p.updateCardSubscriptionAmount(sub.providerSubscriptionId!, amountCents)
+    if (currentCard && !opts.newCard) {
+      if (sub.plan !== plan) await p.updateCardSubscriptionAmount(currentCard, amountCents)
       checkoutUrl = sub.providerCheckoutUrl
     } else {
+      // Nunca deixa dois cartões ativos: cancela o anterior (autorizado ou não) antes
+      sub = await detachCard(sub)
       const card = await p.createCardSubscription({
         tenantId: tenant.id,
-        description,
+        description: planDescription(plan, tenant.name),
         amountCents,
         payerEmail: opts.owner.email,
         startDate: nextDueDate(sub),
       })
       checkoutUrl = card.checkoutUrl
-      // O cartão vai pagar: faturas em aberto (PIX/boleto) deixam de valer
-      await prisma.invoice.updateMany({
-        where: {
-          subscriptionId: sub.id,
-          status: { in: [...OPEN_INVOICE] },
-          providerPaymentId: null,
-        },
-        data: { status: 'canceled' },
-      })
+      // Grava tudo de uma vez: id do cartão e forma de pagamento nunca ficam desencontrados
       sub = await prisma.subscription.update({
         where: { id: sub.id },
-        data: { providerSubscriptionId: card.id, providerCheckoutUrl: card.checkoutUrl },
+        data: {
+          providerSubscriptionId: card.id,
+          providerCheckoutUrl: card.checkoutUrl,
+          billingType: 'CREDIT_CARD',
+          plan,
+          provider: p.name,
+        },
       })
+      // O cartão vai pagar: faturas PIX/boleto em aberto deixam de valer (e o link expira)
+      await cancelOpenInvoices(sub.id)
     }
   } else {
-    if (hasActiveCard) {
-      await p.cancelCardSubscription(sub.providerSubscriptionId!)
-      sub = await prisma.subscription.update({
-        where: { id: sub.id },
-        data: { providerSubscriptionId: null, providerCheckoutUrl: null },
-      })
-    }
+    sub = await detachCard(sub)
+    sub = await prisma.subscription.update({
+      where: { id: sub.id },
+      data: { plan, billingType, provider: p.name },
+    })
     await ensureOpenInvoice(sub, plan, tenant.name, billingType)
   }
 
@@ -180,14 +260,27 @@ export async function subscribe(opts: {
       billingType,
       provider: p.name,
       canceledAt: null,
-      // Reativar uma assinatura cancelada exige pagamento
-      ...(sub.status === 'canceled' ? { status: 'past_due' } : {}),
+      ...(wasCanceled ? { status: reactivatedStatus(sub) } : {}),
     },
   })
   return { subscription: updated, checkoutUrl }
 }
 
-/** Link de pagamento de uma fatura (criado na hora do clique, sempre válido). */
+/**
+ * Cartão recusado (ou quem prefere pagar avulso): gera a fatura PIX/boleto deste mês
+ * sem mexer na assinatura do cartão.
+ */
+export async function payOnce(tenantId: string, billingType: 'PIX' | 'BOLETO') {
+  const sub = await prisma.subscription.findUnique({
+    where: { tenantId },
+    include: { tenant: true },
+  })
+  if (!sub) throw notFound('Assinatura não encontrada')
+  if (sub.status === 'canceled') throw badRequest('Reative a assinatura escolhendo um plano.')
+  return ensureOpenInvoice(sub, sub.plan, sub.tenant.name, billingType)
+}
+
+/** Link de pagamento de uma fatura (gerado na hora do clique e renovado quando expira). */
 export async function invoiceCheckout(tenantId: string, invoiceId: string, payerEmail: string) {
   const invoice = await prisma.invoice.findFirst({
     where: { id: invoiceId, tenantId },
@@ -201,7 +294,12 @@ export async function invoiceCheckout(tenantId: string, invoiceId: string, payer
         : 'Essa fatura não pode mais ser paga.',
     )
   }
-  if (invoice.checkoutId && invoice.invoiceUrl) return { checkoutUrl: invoice.invoiceUrl }
+  const stillValid =
+    invoice.checkoutId &&
+    invoice.invoiceUrl &&
+    invoice.checkoutExpiresAt &&
+    invoice.checkoutExpiresAt.getTime() > Date.now() + 60 * 60_000
+  if (stillValid) return { checkoutUrl: invoice.invoiceUrl! }
   const expiresAt = new Date(
     Math.max(invoice.dueDate.getTime() + CHECKOUT_GRACE_DAYS * DAY_MS, Date.now() + 3 * DAY_MS),
   )
@@ -217,7 +315,11 @@ export async function invoiceCheckout(tenantId: string, invoiceId: string, payer
   })
   await prisma.invoice.update({
     where: { id: invoice.id },
-    data: { checkoutId: checkout.checkoutId, invoiceUrl: checkout.checkoutUrl },
+    data: {
+      checkoutId: checkout.checkoutId,
+      invoiceUrl: checkout.checkoutUrl,
+      checkoutExpiresAt: expiresAt,
+    },
   })
   return { checkoutUrl: checkout.checkoutUrl }
 }
@@ -225,153 +327,243 @@ export async function invoiceCheckout(tenantId: string, invoiceId: string, payer
 export async function cancelSubscription(tenantId: string, actorUserId: string) {
   const sub = await prisma.subscription.findUnique({ where: { tenantId } })
   if (!sub) throw notFound('Assinatura não encontrada')
-  if (sub.providerSubscriptionId && sub.billingType === 'CREDIT_CARD') {
-    await billingProvider().cancelCardSubscription(sub.providerSubscriptionId)
-  }
+  await detachCard(sub)
+  await cancelOpenInvoices(sub.id)
   await prisma.subscription.update({
     where: { id: sub.id },
-    data: { status: 'canceled', canceledAt: new Date(), providerCheckoutUrl: null },
-  })
-  await prisma.invoice.updateMany({
-    where: { subscriptionId: sub.id, status: { in: [...OPEN_INVOICE] } },
-    data: { status: 'canceled' },
+    data: { status: 'canceled', canceledAt: new Date() },
   })
   await audit({ action: 'subscription.canceled', tenantId, actorUserId })
 }
 
-/** Estende o período pago em 1 mês a partir do maior entre: fim atual, vencimento ou agora. */
+/** Novo fim do período: 1 mês depois do maior entre o fim atual e o vencimento pago. */
 function extendedPeriodEnd(sub: Subscription, reference: Date) {
-  const now = new Date()
-  const candidates = [sub.currentPeriodEnd, reference, now].filter(Boolean) as Date[]
-  const base = new Date(Math.max(...candidates.map((d) => d.getTime())))
-  return addOneMonth(atNoon(base))
+  const candidates = [sub.currentPeriodEnd, reference].filter(Boolean) as Date[]
+  const base = atNoon(new Date(Math.max(...candidates.map((d) => d.getTime()))))
+  const anchor = sub.billingDay ?? reference.getUTCDate()
+  let end = addOneMonth(base, anchor)
+  // Assinatura parada há muito tempo: o novo período começa hoje
+  if (end.getTime() < Date.now()) end = addOneMonth(atNoon(new Date()), anchor)
+  return { end, anchor }
+}
+
+interface Outcome {
+  result: { ok?: true; ignored?: true; duplicated?: true }
+  tenantId?: string
+  notify?: { title: string; body: string }
+  audit?: { action: string; entity?: string; entityId?: string; metadata?: Prisma.InputJsonValue }
 }
 
 /**
- * Processa um evento de cobrança (idempotente: o mesmo evento nunca é aplicado duas vezes).
- * trial/past_due → active quando paga.
+ * Processa um evento de cobrança.
+ * O registro do evento (idempotência) e os efeitos ficam na MESMA transação: se algo falhar,
+ * nada é gravado e o reenvio do Mercado Pago processa de novo. Avisos saem depois do commit.
  */
 export async function handleBillingEvent(evt: BillingEvent, providerName: string) {
+  let outcome: Outcome
   try {
-    await prisma.webhookEvent.create({
-      data: {
-        provider: providerName,
-        eventId: evt.eventId,
-        type: evt.type,
-        payload: evt as Prisma.InputJsonValue,
-      },
+    outcome = await prisma.$transaction(async (tx) => {
+      const seen = await tx.webhookEvent.findUnique({
+        where: { provider_eventId: { provider: providerName, eventId: evt.eventId } },
+      })
+      if (seen) return { result: { duplicated: true as const } }
+      await tx.webhookEvent.create({
+        data: {
+          provider: providerName,
+          eventId: evt.eventId,
+          type: evt.type,
+          payload: evt as Prisma.InputJsonValue,
+        },
+      })
+      return applyEvent(tx, evt)
     })
   } catch (err) {
+    // Duas entregas simultâneas do mesmo evento: a outra já aplicou
     if ((err as { code?: string }).code === 'P2002') return { duplicated: true }
     throw err
   }
+  if (outcome.tenantId && outcome.audit)
+    await audit({ tenantId: outcome.tenantId, ...outcome.audit })
+  if (outcome.tenantId && outcome.notify)
+    await notifyOwners(outcome.tenantId, outcome.notify.title, outcome.notify.body, evt.eventId)
+  return outcome.result
+}
+
+async function applyEvent(tx: Tx, evt: BillingEvent): Promise<Outcome> {
+  if (evt.type === 'payment_refunded') return applyRefund(tx, evt)
 
   // ---------- Fatura paga pelo checkout (PIX, boleto, cartão avulso) ----------
   if (evt.invoiceId) {
-    const invoice = await prisma.invoice.findUnique({
+    const invoice = await tx.invoice.findUnique({
       where: { id: evt.invoiceId },
       include: { subscription: true },
     })
-    if (!invoice) return { ignored: true }
-    if (evt.type === 'payment_confirmed') return confirmInvoicePayment(invoice, evt)
-    if (evt.type === 'payment_refunded') {
-      await prisma.invoice.update({ where: { id: invoice.id }, data: { status: 'refunded' } })
-      await audit({
-        action: 'invoice.refunded',
-        tenantId: invoice.tenantId,
-        entity: 'Invoice',
-        entityId: invoice.id,
+    if (!invoice) return { result: { ignored: true } }
+    const open = (OPEN_INVOICE as readonly string[]).includes(invoice.status)
+    if (evt.type === 'payment_confirmed') return confirmInvoicePayment(tx, invoice, evt)
+    if (evt.type === 'payment_pending' && open) {
+      // Boleto/PIX iniciado: não marca como vencida enquanto o banco compensa
+      await tx.invoice.update({
+        where: { id: invoice.id },
+        data: { processingSince: new Date(), paymentMethod: evt.paymentMethod ?? undefined },
       })
-      return { ok: true }
+      return { result: { ok: true } }
     }
-    if (evt.type === 'payment_failed') {
-      // Recusado: a fatura continua em aberto e a pessoa pode tentar de novo pelo mesmo link
-      return { ok: true }
+    if (evt.type === 'payment_failed' && open) {
+      await tx.invoice.update({ where: { id: invoice.id }, data: { processingSince: null } })
+      return {
+        result: { ok: true },
+        tenantId: invoice.tenantId,
+        notify: {
+          title: 'Pagamento não aprovado',
+          body: 'O pagamento da sua fatura não foi aprovado. Abra a tela de Assinatura e tente de novo pelo botão "Pagar".',
+        },
+      }
     }
-    return { ignored: true }
+    return { result: { ignored: true } }
   }
 
   // ---------- Assinatura automática no cartão ----------
-  if (!evt.providerSubscriptionId) return { ignored: true }
-  const sub = await prisma.subscription.findFirst({
+  if (!evt.providerSubscriptionId) return { result: { ignored: true } }
+  const sub = await tx.subscription.findFirst({
     where: { providerSubscriptionId: evt.providerSubscriptionId },
     include: { tenant: true },
   })
-  if (!sub) return { ignored: true }
+  // Cartão antigo (já trocado ou cancelado por nós): o aviso dele não muda nada
+  if (!sub) return { result: { ignored: true } }
 
   if (evt.type === 'subscription_authorized') {
-    await prisma.subscription.update({
+    await tx.subscription.update({
       where: { id: sub.id },
       data: { billingType: 'CREDIT_CARD', providerCheckoutUrl: null },
     })
-    await notifyOwners(
-      sub.tenantId,
-      'Cartão autorizado',
-      'Sua assinatura no cartão foi autorizada. A cobrança acontece todo mês, automaticamente.',
-    )
-    return { ok: true }
+    return {
+      result: { ok: true },
+      tenantId: sub.tenantId,
+      notify: {
+        title: 'Cartão autorizado',
+        body: 'Sua assinatura no cartão foi autorizada. A mensalidade é cobrada todo mês, automaticamente.',
+      },
+    }
   }
   if (evt.type === 'subscription_canceled') {
-    await prisma.subscription.update({
+    await tx.subscription.update({
       where: { id: sub.id },
       data: { status: 'canceled', canceledAt: new Date(), providerCheckoutUrl: null },
     })
-    return { ok: true }
+    return {
+      result: { ok: true },
+      tenantId: sub.tenantId,
+      notify: {
+        title: 'Assinatura no cartão cancelada',
+        body: 'A cobrança automática no cartão foi cancelada no Mercado Pago. Para continuar, escolha um plano de novo na tela de Assinatura.',
+      },
+    }
   }
   if (evt.type === 'payment_confirmed') {
-    if ((evt.amountCents ?? 0) < PLANS[sub.plan].priceCents) {
-      logger.warn(
-        { evt, plan: sub.plan },
-        'Cobrança no cartão com valor menor que o plano: ignorada',
-      )
-      return { ignored: true }
+    if (!evt.providerPaymentId || !evt.amountCents) return { result: { ignored: true } }
+    const already = await tx.invoice.findUnique({
+      where: { providerPaymentId: evt.providerPaymentId },
+    })
+    if (already) return { result: { ignored: true } }
+    // O valor vem da API do Mercado Pago (de uma assinatura criada por nós): registra o que
+    // foi pago, mesmo que seja o valor do plano anterior durante uma troca.
+    const paidAt = evt.paidAt ? new Date(evt.paidAt) : new Date()
+    const dueDate = await freeDueDate(tx, sub.id, nextDueDate(sub, paidAt))
+    const { end, anchor } = extendedPeriodEnd(sub, dueDate)
+    await tx.invoice.create({
+      data: {
+        tenantId: sub.tenantId,
+        subscriptionId: sub.id,
+        providerPaymentId: evt.providerPaymentId,
+        amountCents: evt.amountCents,
+        status: 'paid',
+        billingType: 'CREDIT_CARD',
+        paymentMethod: evt.paymentMethod ?? 'credit_card',
+        dueDate,
+        paidAt,
+        description: planDescription(sub.plan, sub.tenant.name),
+      },
+    })
+    await tx.subscription.update({
+      where: { id: sub.id },
+      data: { status: 'active', currentPeriodEnd: end, billingDay: sub.billingDay ?? anchor },
+    })
+    return {
+      result: { ok: true },
+      tenantId: sub.tenantId,
+      audit:
+        evt.amountCents < PLANS[sub.plan].priceCents
+          ? {
+              action: 'invoice.amount_mismatch',
+              metadata: { paid: evt.amountCents, plan: sub.plan },
+            }
+          : undefined,
+      notify: {
+        title: 'Pagamento confirmado',
+        body: `Recebemos o pagamento da sua assinatura ${PLANS[sub.plan].name}. Ela está ativa até ${formatDate(end)}. Obrigado!`,
+      },
     }
-    const dueDate = nextDueDate(sub)
-    await prisma.$transaction([
-      prisma.invoice.upsert({
-        where: { providerPaymentId: evt.providerPaymentId! },
-        create: {
-          tenantId: sub.tenantId,
-          subscriptionId: sub.id,
-          providerPaymentId: evt.providerPaymentId!,
-          amountCents: evt.amountCents ?? PLANS[sub.plan].priceCents,
-          status: 'paid',
-          billingType: 'CREDIT_CARD',
-          paymentMethod: evt.paymentMethod ?? 'credit_card',
-          dueDate: await freeDueDate(sub.id, dueDate),
-          paidAt: evt.paidAt ? new Date(evt.paidAt) : new Date(),
-          description: planDescription(sub.plan, sub.tenant.name),
-        },
-        update: { status: 'paid' },
-      }),
-      prisma.subscription.update({
-        where: { id: sub.id },
-        data: { status: 'active', currentPeriodEnd: extendedPeriodEnd(sub, dueDate) },
-      }),
-    ])
-    await notifyOwners(
-      sub.tenantId,
-      'Pagamento confirmado',
-      `Recebemos o pagamento da sua assinatura ${PLANS[sub.plan].name}. Obrigado por continuar com a gente!`,
-    )
-    return { ok: true }
   }
   if (evt.type === 'payment_failed') {
-    await notifyOwners(
-      sub.tenantId,
-      'Não conseguimos cobrar no cartão',
-      'O Mercado Pago recusou a cobrança da sua assinatura. Atualize o cartão ou pague por PIX para não interromper sua agenda.',
-    )
-    return { ok: true }
+    return {
+      result: { ok: true },
+      tenantId: sub.tenantId,
+      notify: {
+        title: 'Não conseguimos cobrar no cartão',
+        body: 'O Mercado Pago recusou a cobrança da sua assinatura. Abra a tela de Assinatura para cadastrar outro cartão ou pagar este mês por PIX.',
+      },
+    }
   }
-  return { ignored: true }
+  return { result: { ignored: true } }
+}
+
+/** Estorno ou contestação: a fatura vira "estornada" e o mês pago é descontado. */
+async function applyRefund(tx: Tx, evt: BillingEvent): Promise<Outcome> {
+  if (!evt.providerPaymentId) return { result: { ignored: true } }
+  const invoice = await tx.invoice.findUnique({
+    where: { providerPaymentId: evt.providerPaymentId },
+    include: { subscription: true },
+  })
+  if (!invoice || invoice.status !== 'paid') return { result: { ignored: true } }
+  await tx.invoice.update({ where: { id: invoice.id }, data: { status: 'refunded' } })
+  const sub = invoice.subscription
+  if (sub.currentPeriodEnd) {
+    const now = Date.now()
+    const end = shiftMonths(
+      sub.currentPeriodEnd,
+      -1,
+      sub.billingDay ?? sub.currentPeriodEnd.getUTCDate(),
+    )
+    // O mês estornado era o primeiro pago: volta para o teste (se ainda houver) ou atraso
+    const backToTrial = !!sub.trialEndsAt && end.getTime() <= sub.trialEndsAt.getTime()
+    const data: Prisma.SubscriptionUpdateInput = backToTrial
+      ? {
+          currentPeriodEnd: null,
+          status: sub.trialEndsAt!.getTime() > now ? 'trial' : 'past_due',
+        }
+      : {
+          currentPeriodEnd: end,
+          ...(end.getTime() <= now && sub.status === 'active' ? { status: 'past_due' } : {}),
+        }
+    await tx.subscription.update({ where: { id: sub.id }, data })
+  }
+  return {
+    result: { ok: true },
+    tenantId: invoice.tenantId,
+    audit: { action: 'invoice.refunded', entity: 'Invoice', entityId: invoice.id },
+    notify: {
+      title: 'Pagamento estornado',
+      body: 'Um pagamento da sua assinatura foi estornado e o período correspondente foi descontado. Se você não reconhece esse estorno, fale com a gente.',
+    },
+  }
 }
 
 /** Vencimento livre para a fatura (a mesma assinatura não pode ter dois no mesmo dia). */
-async function freeDueDate(subscriptionId: string, desired: Date) {
+async function freeDueDate(tx: Tx, subscriptionId: string, desired: Date) {
   let date = desired
   for (let i = 0; i < 31; i++) {
-    const taken = await prisma.invoice.findFirst({ where: { subscriptionId, dueDate: date } })
+    const taken = await tx.invoice.findFirst({ where: { subscriptionId, dueDate: date } })
     if (!taken) return date
     date = new Date(date.getTime() + DAY_MS)
   }
@@ -379,57 +571,106 @@ async function freeDueDate(subscriptionId: string, desired: Date) {
 }
 
 async function confirmInvoicePayment(
+  tx: Tx,
   invoice: Invoice & { subscription: Subscription },
   evt: BillingEvent,
-) {
-  if (invoice.status === 'paid') return { ok: true }
+): Promise<Outcome> {
   // O valor pago precisa cobrir a fatura (protege contra checkout adulterado)
   if ((evt.amountCents ?? 0) < invoice.amountCents) {
     logger.warn(
       { invoiceId: invoice.id, paid: evt.amountCents, expected: invoice.amountCents },
       'Pagamento menor que a fatura: ignorado',
     )
-    return { ignored: true }
+    return {
+      result: { ignored: true },
+      tenantId: invoice.tenantId,
+      audit: {
+        action: 'invoice.underpaid',
+        entity: 'Invoice',
+        entityId: invoice.id,
+        metadata: { paid: evt.amountCents ?? 0, expected: invoice.amountCents },
+      },
+    }
+  }
+  // Atualização condicional: duas confirmações simultâneas nunca estendem o período duas vezes.
+  // Fatura cancelada também é aceita: a pessoa pagou pelo link antigo, o dinheiro conta.
+  const changed = await tx.invoice.updateMany({
+    where: { id: invoice.id, status: { in: ['pending', 'overdue', 'canceled'] } },
+    data: {
+      status: 'paid',
+      paidAt: evt.paidAt ? new Date(evt.paidAt) : new Date(),
+      providerPaymentId: evt.providerPaymentId ?? undefined,
+      paymentMethod: evt.paymentMethod ?? undefined,
+      processingSince: null,
+    },
+  })
+  if (!changed.count) {
+    // Já estava paga: um segundo pagamento pelo mesmo link fica registrado para estorno
+    const duplicate = !!evt.providerPaymentId && evt.providerPaymentId !== invoice.providerPaymentId
+    return {
+      result: { ignored: true },
+      tenantId: invoice.tenantId,
+      audit: duplicate
+        ? {
+            action: 'invoice.duplicate_payment',
+            entity: 'Invoice',
+            entityId: invoice.id,
+            metadata: { providerPaymentId: evt.providerPaymentId ?? null },
+          }
+        : undefined,
+    }
   }
   const sub = invoice.subscription
-  await prisma.$transaction([
-    prisma.invoice.update({
-      where: { id: invoice.id },
-      data: {
-        status: 'paid',
-        paidAt: evt.paidAt ? new Date(evt.paidAt) : new Date(),
-        providerPaymentId: evt.providerPaymentId ?? undefined,
-        paymentMethod: evt.paymentMethod ?? undefined,
-      },
-    }),
-    prisma.subscription.update({
-      where: { id: sub.id },
-      data: { status: 'active', currentPeriodEnd: extendedPeriodEnd(sub, invoice.dueDate) },
-    }),
-  ])
-  await notifyOwners(
-    invoice.tenantId,
-    'Pagamento confirmado',
-    'Recebemos o pagamento da sua assinatura. Obrigado por continuar com a gente!',
-  )
-  return { ok: true }
+  const { end, anchor } = extendedPeriodEnd(sub, invoice.dueDate)
+  await tx.subscription.update({
+    where: { id: sub.id },
+    data: {
+      status: 'active',
+      canceledAt: null,
+      currentPeriodEnd: end,
+      billingDay: sub.billingDay ?? anchor,
+    },
+  })
+  return {
+    result: { ok: true },
+    tenantId: invoice.tenantId,
+    notify: {
+      title: 'Pagamento confirmado',
+      body: `Recebemos o pagamento da sua assinatura. Ela está ativa até ${formatDate(end)}. Obrigado por continuar com a gente!`,
+    },
+  }
 }
 
-export async function notifyOwners(
-  tenantId: string,
-  title: string,
-  body: string,
-  url = `${env.APP_URL}/painel/assinatura`,
-) {
-  const owners = await prisma.tenantMember.findMany({
-    where: { tenantId, role: 'owner' },
-    include: { user: { select: { email: true } } },
-  })
-  for (const owner of owners) {
-    const { html, text } = emailLayout({ title, body, cta: { label: 'Ver assinatura', url } })
-    await sendEmail({ to: owner.user.email, subject: title, html, text }).catch((err) =>
-      logger.error({ err, tenantId }, 'Falha ao enviar e-mail de cobrança'),
-    )
+/** Avisa as donas no painel e por e-mail (pela fila: com repetição em caso de falha). */
+export async function notifyOwners(tenantId: string, title: string, body: string, dedupe?: string) {
+  try {
+    await channels.inapp.send({
+      tenantId,
+      title,
+      body,
+      url: '/painel/assinatura',
+      type: 'billing',
+    })
+    const owners = await prisma.tenantMember.findMany({
+      where: { tenantId, role: 'owner' },
+      include: { user: { select: { email: true } } },
+    })
+    for (const owner of owners) {
+      await enqueue({
+        channel: 'email',
+        kind: 'billing',
+        dedupeKey: dedupe ? `billing:${dedupe}:${owner.userId}` : undefined,
+        message: {
+          tenantId,
+          to: owner.user.email,
+          title,
+          body,
+          url: `${env.APP_URL}/painel/assinatura`,
+        },
+      })
+    }
+  } catch (err) {
+    logger.error({ err, tenantId }, 'Falha ao avisar sobre a cobrança')
   }
 }
 

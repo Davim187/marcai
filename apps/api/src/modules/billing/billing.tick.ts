@@ -13,11 +13,17 @@ import { nextDueDate, notifyOwners } from './billing.service'
  */
 export async function runBillingTick(now = new Date()) {
   await prisma.invoice.updateMany({
-    where: { status: 'pending', dueDate: { lt: new Date(now.getTime() - DAY_MS) } },
+    // Pagamento em análise (boleto compensando) não vira "vencida"
+    where: {
+      status: 'pending',
+      processingSince: null,
+      dueDate: { lt: new Date(now.getTime() - DAY_MS) },
+    },
     data: { status: 'overdue' },
   })
   await prisma.subscription.updateMany({
-    where: { status: 'active', currentPeriodEnd: { lt: now } },
+    // Meio dia de tolerância: a cobrança do cartão no dia do vencimento pode chegar mais tarde
+    where: { status: 'active', currentPeriodEnd: { lt: new Date(now.getTime() - DAY_MS / 2) } },
     data: { status: 'past_due' },
   })
   await generateUpcomingInvoices(now)
@@ -58,6 +64,7 @@ export async function generateUpcomingInvoices(now = new Date()) {
       sub.tenantId,
       'Sua fatura está disponível',
       `A fatura da sua assinatura vence em ${dueDate.toISOString().slice(0, 10).split('-').reverse().join('/')}. Pague por PIX ou boleto pelo painel para manter sua agenda no ar.`,
+      `invoice:${sub.id}:${dueDate.toISOString().slice(0, 10)}`,
     )
   }
 }

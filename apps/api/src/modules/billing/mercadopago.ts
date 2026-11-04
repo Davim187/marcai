@@ -36,6 +36,7 @@ interface MpPayment {
     | 'charged_back'
   external_reference?: string | null
   transaction_amount: number
+  currency_id?: string
   date_approved?: string | null
   payment_method_id?: string | null
   payment_type_id?: string | null
@@ -53,13 +54,21 @@ interface MpAuthorizedPayment {
   transaction_amount: number
   payment?: { id: number; status: MpPayment['status'] } | null
   status?: string
+  currency_id?: string
+  debit_date?: string | null
+  date_created?: string | null
 }
+
+const REPLAY_WINDOW_MS = 3 * 24 * 60 * 60_000
+/** Tópicos que não usamos (merchant_order, IPN antigo): respondemos 200 para não haver reenvio. */
+const IGNORED_TOPICS = new Set(['merchant_order', 'chargebacks', 'point_integration_wh'])
 
 const toCents = (v: number) => Math.round(v * 100)
 const toReais = (cents: number) => Math.round(cents) / 100
 
 function paymentEventType(status: MpPayment['status']): BillingEvent['type'] {
-  if (status === 'approved' || status === 'authorized') return 'payment_confirmed'
+  // "authorized" é só reserva (sem captura): conta como pendente até virar "approved"
+  if (status === 'approved') return 'payment_confirmed'
   if (status === 'refunded' || status === 'charged_back') return 'payment_refunded'
   if (status === 'rejected' || status === 'cancelled') return 'payment_failed'
   return 'payment_pending'
@@ -126,7 +135,7 @@ export class MercadoPagoBillingProvider implements BillingProvider {
         },
         statement_descriptor: env.APP_NAME.slice(0, 13),
       },
-      `checkout-${input.invoiceId}-${input.billingType}-${input.amountCents}`,
+      `checkout-${input.invoiceId}-${input.billingType}-${input.amountCents}-${input.expiresAt.getTime()}`,
     )
     return { checkoutId: pref.id, checkoutUrl: pref.init_point }
   }
@@ -151,6 +160,13 @@ export class MercadoPagoBillingProvider implements BillingProvider {
       },
     })
     return { id: sub.id, checkoutUrl: sub.init_point }
+  }
+
+  async expireCheckout(checkoutId: string) {
+    await this.call('PUT', `/checkout/preferences/${encodeURIComponent(checkoutId)}`, {
+      expires: true,
+      expiration_date_to: new Date().toISOString(),
+    })
   }
 
   async updateCardSubscriptionAmount(id: string, amountCents: number) {
@@ -180,9 +196,11 @@ export class MercadoPagoBillingProvider implements BillingProvider {
     const ts = parts.ts
     const v1 = parts.v1
     if (!ts || !v1) return false
-    // Recusa notificações antigas (replay): tolerância de 15 minutos
+    // Recusa notificações muito antigas. A janela é larga porque os reenvios do Mercado Pago
+    // podem manter o ts original; repetir uma notificação legítima é inofensivo (idempotência +
+    // o pagamento é sempre consultado na API).
     const tsMs = ts.length > 11 ? Number(ts) : Number(ts) * 1000
-    if (!Number.isFinite(tsMs) || Math.abs(Date.now() - tsMs) > 15 * 60_000) return false
+    if (!Number.isFinite(tsMs) || Math.abs(Date.now() - tsMs) > REPLAY_WINDOW_MS) return false
     const dataId = notificationDataId(req)
     let manifest = ''
     // O Mercado Pago assina o id em minúsculas quando ele é alfanumérico
@@ -191,6 +209,13 @@ export class MercadoPagoBillingProvider implements BillingProvider {
     manifest += `ts:${ts};`
     const expected = createHmac('sha256', env.MP_WEBHOOK_SECRET).update(manifest).digest('hex')
     return safeEqual(expected, v1)
+  }
+
+  /** Notificações que dispensam processamento (e não trazem x-signature, no caso do IPN antigo). */
+  shouldIgnore(req: WebhookRequest) {
+    const topic = String(req.query.topic ?? req.query.type ?? '')
+    const legacyIpn = req.query.topic !== undefined && !req.headers['x-signature']
+    return legacyIpn || IGNORED_TOPICS.has(topic)
   }
 
   async resolveWebhook(req: WebhookRequest): Promise<BillingEvent | null> {
@@ -204,6 +229,7 @@ export class MercadoPagoBillingProvider implements BillingProvider {
       const p = await this.call<MpPayment>('GET', `/v1/payments/${encodeURIComponent(dataId)}`)
       const ref = p.external_reference ?? ''
       if (!ref.startsWith(INVOICE_REF)) return null // pagamento que não é de fatura nossa
+      if (p.currency_id && p.currency_id !== 'BRL') return null
       return {
         eventId: `payment:${p.id}:${p.status}`,
         type: paymentEventType(p.status),
@@ -245,7 +271,7 @@ export class MercadoPagoBillingProvider implements BillingProvider {
         providerSubscriptionId: ap.preapproval_id,
         providerPaymentId: ap.payment?.id ? String(ap.payment.id) : `ap-${ap.id}`,
         amountCents: toCents(ap.transaction_amount),
-        paidAt: new Date().toISOString(),
+        paidAt: ap.debit_date ?? ap.date_created ?? new Date().toISOString(),
         paymentMethod: 'credit_card',
       }
     }

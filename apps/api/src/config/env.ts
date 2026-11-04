@@ -44,6 +44,8 @@ const schema = z.object({
   META_WA_TEMPLATE_NAME: z.string().default('marcai_aviso'),
   META_WA_TEMPLATE_LANG: z.string().default('pt_BR'),
   BILLING_PROVIDER: z.enum(['fake', 'mercadopago']).default('fake'),
+  /** Libera o "Simular pagamento" fora do localhost (homologação). Nunca em produção. */
+  ALLOW_FAKE_BILLING: bool,
   MP_API_URL: z.string().default('https://api.mercadopago.com'),
   /** Access token da conta do Mercado Pago (TEST-... no modo de testes, APP_USR-... em produção) */
   MP_ACCESS_TOKEN: z.string().optional(),
@@ -84,6 +86,11 @@ function productionProblems(e: z.infer<typeof schema>): string[] {
   ) {
     problems.push(
       'Com o Mercado Pago, defina MP_ACCESS_TOKEN e MP_WEBHOOK_SECRET (assinatura secreta do webhook)',
+    )
+  }
+  if (!e.RESEND_API_KEY && !e.SMTP_HOST) {
+    problems.push(
+      'Configure o envio de e-mail (RESEND_API_KEY ou SMTP_HOST): sem isso, avisos e recuperação de senha não chegam',
     )
   }
   if (e.WHATSAPP_PROVIDER === 'evolution' && (e.EVOLUTION_WEBHOOK_SECRET?.length ?? 0) < 16) {

@@ -526,6 +526,8 @@ model Subscription {
   providerSubscriptionId String?
   /// Link para autorizar o cartão no Mercado Pago (enquanto a assinatura estiver pendente)
   providerCheckoutUrl    String?
+  /// Dia do mês da cobrança (1–31), fixo: 31/01 → 28/02 → 31/03
+  billingDay          Int?
   /// PIX | BOLETO | CREDIT_CARD | UNDEFINED (deixa a pessoa escolher no checkout)
   billingType            String?
   canceledAt             DateTime?
@@ -544,6 +546,10 @@ model Invoice {
   providerPaymentId String?       @unique
   /// Id do checkout (preferência do Mercado Pago) gerado para pagar esta fatura
   checkoutId        String?
+  /// Até quando o link de pagamento vale (depois disso, um novo é gerado)
+  checkoutExpiresAt DateTime?
+  /// Pagamento iniciado e em análise no provedor (ex.: boleto aguardando compensação)
+  processingSince   DateTime?
   /// Meio de pagamento efetivamente usado (pix, boleto, cartão…)
   paymentMethod     String?
   amountCents       Int

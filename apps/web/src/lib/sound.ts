@@ -56,10 +56,11 @@ export function onSoundReady(fn: () => void) {
 export function playChime(): boolean {
   const c = getContext()
   if (!c) return false
-  if (c.state === 'suspended') {
-    // Tenta retomar (funciona se já houve um gesto antes); se não, fica para o próximo aviso
+  if (c.state !== 'running') {
+    // "suspended" (sem gesto ainda) ou "interrupted" (Safari): tenta retomar; se não der,
+    // avisa que não tocou
     c.resume().catch(() => undefined)
-    if (c.state === 'suspended') return false
+    if ((c.state as string) !== 'running') return false
   }
   const notes = [880, 1318.5]
   notes.forEach((freq, i) => {

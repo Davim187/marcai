@@ -14,8 +14,18 @@ import {
   cancelSubscription,
   handleBillingEvent,
   invoiceCheckout,
+  payOnce,
   subscribe,
 } from './billing.service'
+
+/**
+ * O "Simular pagamento" só existe com o provedor fake, fora de produção e com a API em
+ * localhost (ou liberado explicitamente): um deploy sem NODE_ENV não vira cobrança grátis.
+ */
+function fakeBillingAllowed() {
+  if (billingProvider().name !== 'fake' || isProd) return false
+  return env.ALLOW_FAKE_BILLING || /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(env.API_URL)
+}
 
 export const billingRoutes: FastifyPluginAsyncZod = async (app) => {
   app.addHook('onRequest', async (request) => {
@@ -46,6 +56,7 @@ export const billingRoutes: FastifyPluginAsyncZod = async (app) => {
         owner,
         plan: request.body.plan,
         billingType: request.body.billingType,
+        newCard: request.body.newCard,
       })
       await audit({
         action: 'subscription.plan_changed',
@@ -67,6 +78,18 @@ export const billingRoutes: FastifyPluginAsyncZod = async (app) => {
     },
   )
 
+  /** Paga este mês por PIX/boleto sem desligar o cartão (ex.: cartão recusado). */
+  app.post(
+    '/pay-once',
+    {
+      schema: {
+        tags: ['assinatura'],
+        body: z.object({ billingType: z.enum(['PIX', 'BOLETO']).default('PIX') }),
+      },
+    },
+    async (request) => payOnce(ctx(request).tenantId, request.body.billingType),
+  )
+
   app.post('/cancel', { schema: { tags: ['assinatura'] } }, async (request) => {
     await cancelSubscription(ctx(request).tenantId, request.auth!.user.id)
     return { ok: true }
@@ -83,8 +106,7 @@ export const billingRoutes: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (request) => {
-      if (billingProvider().name !== 'fake' || isProd)
-        throw forbidden('Disponível só no modo de testes')
+      if (!fakeBillingAllowed()) throw forbidden('Disponível só no modo de testes')
       const c = ctx(request)
       const inv = await c.db.invoice.findFirst({ where: { id: request.params.invoiceId } })
       if (!inv) throw notFound('Fatura não encontrada')
@@ -118,6 +140,7 @@ export const billingWebhookRoutes: FastifyPluginAsync = async (app) => {
       body: request.body,
       rawBody: request.rawBody ?? Buffer.alloc(0),
     }
+    if (p.shouldIgnore?.(req)) return reply.status(200).send({ ignored: true })
     if (!p.verifyWebhook(req)) throw forbidden('Assinatura do webhook inválida')
     const evt = await p.resolveWebhook(req)
     if (!evt) return reply.status(200).send({ ignored: true })

@@ -43,7 +43,7 @@ export class EmailRejectedError extends Error {}
 export async function sendEmail(msg: EmailMessage): Promise<{ id: string | null }> {
   const address = env.EMAIL_FROM.match(/<(.+)>/)?.[1] ?? env.EMAIL_FROM
   // O nome do remetente vira cabeçalho: tira aspas e quebras de linha
-  const safeName = msg.fromName?.replace(/["<>\r\n]/g, '').trim()
+  const safeName = msg.fromName?.replace(/["<>\\\r\n]/g, '').trim()
   const from = safeName ? `"${safeName}" <${address}>` : env.EMAIL_FROM
   const transport = emailTransport()
   if (transport === 'log') {
@@ -53,7 +53,7 @@ export async function sendEmail(msg: EmailMessage): Promise<{ id: string | null 
   if (transport === 'smtp') {
     try {
       const info = await smtpClient().sendMail({
-        from,
+        from: safeName ? { name: safeName, address } : env.EMAIL_FROM,
         to: msg.to,
         subject: msg.subject,
         html: msg.html,

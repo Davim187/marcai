@@ -58,21 +58,20 @@ export async function setConnectionStatus(
   status: 'connected' | 'connecting' | 'disconnected',
   phone?: string,
 ) {
-  const before = await prisma.whatsAppConnection.findUnique({ where: { tenantId } })
-  if (!before) return
-  await prisma.whatsAppConnection.update({
-    where: { tenantId },
-    data: {
-      status,
-      ...(phone ? { phone } : {}),
-      ...(status === 'connected' && before.status !== 'connected'
-        ? { connectedAt: new Date() }
-        : {}),
-    },
+  // Atualização condicional: só a chamada que derrubou uma conexão ativa dispara o alerta
+  const dropped =
+    status === 'disconnected'
+      ? await prisma.whatsAppConnection.updateMany({
+          where: { tenantId, status: 'connected' },
+          data: { status },
+        })
+      : { count: 0 }
+  await prisma.whatsAppConnection.updateMany({
+    where: { tenantId, status: { not: status } },
+    data: { status, ...(status === 'connected' ? { connectedAt: new Date() } : {}) },
   })
-  if (before.status === 'connected' && status === 'disconnected') {
-    await onWhatsAppDisconnected(tenantId).catch(() => undefined)
-  }
+  if (phone) await prisma.whatsAppConnection.updateMany({ where: { tenantId }, data: { phone } })
+  if (dropped.count) await onWhatsAppDisconnected(tenantId).catch(() => undefined)
 }
 
 async function onWhatsAppDisconnected(tenantId: string) {
@@ -80,7 +79,7 @@ async function onWhatsAppDisconnected(tenantId: string) {
   const { enqueue } = await import('../../queue')
   const title = 'Seu WhatsApp desconectou'
   const body =
-    'As mensagens de WhatsApp pararam de sair. Abra Avisos e notificações no painel e leia o QR Code de novo.'
+    'As mensagens de WhatsApp pararam de sair. No painel, abra Notificações e leia o QR Code de novo.'
   await channels.inapp.send({
     tenantId,
     title,

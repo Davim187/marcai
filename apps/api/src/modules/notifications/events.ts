@@ -19,6 +19,14 @@ export const REMINDER_KINDS = ['customer_reminder', 'customer_reminder_email']
 
 export { canNotify }
 
+/**
+ * Remetente dos e-mails para a cliente. No SaaS, "Studio X via Marcaí": deixa claro quem
+ * envia e impede que um estabelecimento se passe por outra marca usando o nosso domínio.
+ */
+function senderName(t: Tenant) {
+  return env.APP_MODE === 'single_tenant' ? t.name : `${t.name} via ${env.APP_NAME}`
+}
+
 async function recipients(b: FullBooking) {
   // Donas + a profissional do agendamento (se tiver acesso ao painel)
   const members = await prisma.tenantMember.findMany({
@@ -129,7 +137,7 @@ async function notifyCustomer(
         title,
         body: text,
         url: `${env.APP_URL}/a/${b.cancelToken}`,
-        fromName: t.name,
+        fromName: senderName(t),
         color: t.primaryColor,
       },
     })
@@ -172,7 +180,7 @@ async function scheduleReminder(b: FullBooking & { tenant: TenantWithSub }) {
         ...base,
         to: b.customer.email,
         url: `${env.APP_URL}/a/${b.cancelToken}`,
-        fromName: t.name,
+        fromName: senderName(t),
         color: t.primaryColor,
       },
     })

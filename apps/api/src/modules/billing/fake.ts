@@ -25,6 +25,7 @@ export class FakeBillingProvider implements BillingProvider {
       checkoutUrl: `${env.APP_URL}/painel/assinatura?cartao=ok`,
     }
   }
+  async expireCheckout() {}
   async updateCardSubscriptionAmount() {}
   async cancelCardSubscription() {}
   /** Só aceita com MP_WEBHOOK_SECRET definido e nunca em produção. */

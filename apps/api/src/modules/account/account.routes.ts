@@ -91,9 +91,15 @@ export const accountRoutes: FastifyPluginAsyncZod = async (app) => {
           sub.billingType === 'CREDIT_CARD' &&
           sub.status !== 'canceled'
         )
+          // Se o Mercado Pago falhar, a exclusão para: nunca deixa um cartão cobrando sem conta
           await billingProvider()
             .cancelCardSubscription(sub.providerSubscriptionId)
-            .catch(() => undefined)
+            .catch(() => {
+              throw badRequest(
+                'Não conseguimos cancelar a cobrança no cartão agora. Tente de novo em alguns minutos.',
+                'MERCADO_PAGO_INDISPONIVEL',
+              )
+            })
         await prisma.tenant.delete({ where: { id: m.tenantId } })
         await audit({ action: 'tenant.deleted', tenantId: m.tenantId, actorUserId: userId })
       }

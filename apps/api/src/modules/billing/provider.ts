@@ -64,8 +64,12 @@ export interface BillingProvider {
   createCheckout(input: CheckoutInput): Promise<{ checkoutId: string; checkoutUrl: string }>
   /** Assinatura automática no cartão. Devolve o link para a pessoa autorizar. */
   createCardSubscription(input: CardSubscriptionInput): Promise<{ id: string; checkoutUrl: string }>
+  /** Invalida um link de pagamento (ex.: a fatura foi cancelada ou trocou de valor). */
+  expireCheckout(checkoutId: string): Promise<void>
   updateCardSubscriptionAmount(id: string, amountCents: number): Promise<void>
   cancelCardSubscription(id: string): Promise<void>
+  /** Notificações que não interessam e podem receber 200 direto (sem verificar). */
+  shouldIgnore?(req: WebhookRequest): boolean
   /** Confere a autenticidade da notificação (assinatura/segredo). */
   verifyWebhook(req: WebhookRequest): boolean
   /**

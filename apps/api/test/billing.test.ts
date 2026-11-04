@@ -208,7 +208,17 @@ describe('assinatura e cobrança', () => {
     expect(await prisma.invoice.count({ where: { tenantId: tenant.id, status: 'pending' } })).toBe(
       0,
     )
-    // Reativar exige pagamento
+    // Reativar durante o teste mantém os dias de teste que sobraram
+    await agent.post('/api/billing/subscribe', { plan: 'pro', billingType: 'PIX' })
+    expect(
+      (await prisma.subscription.findUniqueOrThrow({ where: { tenantId: tenant.id } })).status,
+    ).toBe('trial')
+    // Sem teste nem período pago: reativar exige pagamento
+    await agent.post('/api/billing/cancel')
+    await prisma.subscription.update({
+      where: { tenantId: tenant.id },
+      data: { trialEndsAt: new Date(Date.now() - day) },
+    })
     await agent.post('/api/billing/subscribe', { plan: 'pro', billingType: 'PIX' })
     expect(
       (await prisma.subscription.findUniqueOrThrow({ where: { tenantId: tenant.id } })).status,
