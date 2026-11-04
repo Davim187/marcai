@@ -13,7 +13,7 @@ import {
   TEMPLATE_META,
 } from '@marcai/shared'
 import { env } from '../../config/env'
-import { badRequest } from '../../lib/errors'
+import { badRequest, conflict } from '../../lib/errors'
 import { prisma } from '../../lib/prisma'
 import {
   ctx,
@@ -101,7 +101,8 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
       schema: { tags: ['notificações'], summary: 'SSE de avisos em tempo real' },
     },
     (request, reply) => {
-      const { tenantId } = ctx(request)
+      const c = ctx(request)
+      const { tenantId } = c
       reply.hijack()
       const res = reply.raw
       res.writeHead(200, {
@@ -111,8 +112,22 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
         'x-accel-buffering': 'no',
       })
       res.write(`retry: 5000\n\n`)
-      const send = (payload: unknown) =>
+      const write = (payload: unknown) =>
         res.write(`event: notification\ndata: ${JSON.stringify(payload)}\n\n`)
+      // Mesmo escopo da listagem: profissional só recebe avisos dos próprios agendamentos
+      const send = (payload: unknown) => {
+        if (c.role === 'owner') return write(payload)
+        const bookingId = (payload as { notification?: { bookingId?: string | null } }).notification
+          ?.bookingId
+        if (!bookingId) return write(payload)
+        c.db.booking
+          .findFirst({
+            where: { id: bookingId, professionalId: c.professionalId ?? '__sem_agenda__' },
+            select: { id: true },
+          })
+          .then((own) => own && write(payload))
+          .catch(() => undefined)
+      }
       const heartbeat = setInterval(() => res.write(`: ping\n\n`), 25_000)
       sseHub.on(`tenant:${tenantId}`, send)
       request.raw.on('close', () => {
@@ -202,9 +217,20 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
     { onRequest: requireOwner, schema: { tags: ['notificações'], body: messageTemplateSchema } },
     async (request) => {
       const c = ctx(request)
+      // Variável que não existe iria literal para o cliente ("Oi {nome_da_cliente}")
+      const allowed = new Set(TEMPLATE_META[request.body.key].variables)
+      const unknown = [...request.body.body.matchAll(/\{([a-z_]+)\}/g)]
+        .map((m) => m[1]!)
+        .filter((v) => !allowed.has(v))
+      if (unknown.length) {
+        throw badRequest(
+          `Variável desconhecida: ${[...new Set(unknown)].map((v) => `{${v}}`).join(', ')}. Use só as variáveis da lista.`,
+          'VARIAVEL_DESCONHECIDA',
+        )
+      }
       await c.db.messageTemplate.upsert({
         where: { tenantId_key: { tenantId: c.tenantId, key: request.body.key } },
-        create: { key: request.body.key, body: request.body.body } as never,
+        create: { tenantId: c.tenantId, key: request.body.key, body: request.body.body },
         update: { body: request.body.body },
       })
       return { ok: true }
@@ -247,6 +273,16 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const c = ctx(request)
       const { endpoint, keys } = request.body
+      // Uma inscrição já ligada a outra pessoa só é transferida por quem tem as mesmas chaves
+      // do navegador (ou seja, está de fato naquele aparelho).
+      const existing = await prisma.pushSubscription.findUnique({ where: { endpoint } })
+      if (
+        existing &&
+        existing.userId !== request.auth!.user.id &&
+        (existing.p256dh !== keys.p256dh || existing.auth !== keys.auth)
+      ) {
+        throw conflict('Esse aparelho já está inscrito por outra conta')
+      }
       await prisma.pushSubscription.upsert({
         where: { endpoint },
         create: {

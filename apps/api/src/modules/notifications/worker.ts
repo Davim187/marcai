@@ -8,11 +8,12 @@ import {
   renderTemplate,
   toLocalDate,
   toLocalTime,
+  OPEN_BOOKING_STATUSES,
+  isOpenBooking,
 } from '@marcai/shared'
 import { env } from '../../config/env'
 import { logger as baseLogger } from '../../lib/logger'
 import { prisma } from '../../lib/prisma'
-import { runBillingTick } from '../billing/billing.tick'
 import { channels } from './channels/registry'
 import { PermanentChannelError, type ChannelName, type OutboundMessage } from './channels/types'
 import { canNotify } from './gating'
@@ -43,7 +44,7 @@ async function resolveMessage(job: NotificationJob): Promise<OutboundMessage | n
   if (job.kind === 'customer_reminder') {
     const b = job.bookingId ? await loadFullBooking(job.bookingId) : null
     // Lembrete obsoleto: cancelado, remarcado ou plano sem o recurso
-    if (!b || !['pending', 'confirmed'].includes(b.status)) return null
+    if (!b || !isOpenBooking(b.status)) return null
     if (payload.startsAt && b.startsAt.toISOString() !== payload.startsAt) return null
     if (!canNotify(b.tenant, 'whatsapp_customer')) return null
     return { ...payload, body: await renderForCustomer(b, 'customer_reminder') }
@@ -65,7 +66,7 @@ async function buildDailySummary(
   const bookings = await prisma.booking.findMany({
     where: {
       tenantId,
-      status: { in: ['pending', 'confirmed'] },
+      status: { in: [...OPEN_BOOKING_STATUSES] },
       startsAt: {
         gte: localToUtc(today, 0, tenant.timezone),
         lt: localToUtc(addDaysToDate(today, 1), 0, tenant.timezone),
@@ -217,38 +218,5 @@ export async function scheduleDailySummaries(now = new Date()) {
       dedupeKey: `daily:push:${t.id}:${date}`,
       message: base,
     })
-  }
-}
-
-let lastMinuteTick = 0
-export async function tick(log: FastifyBaseLogger | typeof baseLogger = baseLogger) {
-  await processDueJobs(log)
-  if (Date.now() - lastMinuteTick > 60_000) {
-    lastMinuteTick = Date.now()
-    await scheduleDailySummaries().catch((err) =>
-      log.error({ err }, 'Erro ao agendar resumos diários'),
-    )
-    await runBillingTick().catch((err) => log.error({ err }, 'Erro na rotina de cobrança'))
-  }
-}
-
-/** Loop do worker. Retorna uma função para parar. */
-export function startWorker(log: FastifyBaseLogger | typeof baseLogger = baseLogger): () => void {
-  let stopped = false
-  let timer: NodeJS.Timeout | null = null
-  const loop = async () => {
-    if (stopped) return
-    try {
-      await tick(log)
-    } catch (err) {
-      log.error({ err }, 'Erro no worker de notificações')
-    }
-    if (!stopped) timer = setTimeout(loop, env.WORKER_POLL_MS)
-  }
-  log.info('⚙️  Worker da fila de notificações iniciado')
-  void loop()
-  return () => {
-    stopped = true
-    if (timer) clearTimeout(timer)
   }
 }

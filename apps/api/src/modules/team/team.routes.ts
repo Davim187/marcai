@@ -1,9 +1,9 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { inviteMemberSchema, professionalSchema } from '@marcai/shared'
+import { inviteMemberSchema, OPEN_BOOKING_STATUSES, professionalSchema } from '@marcai/shared'
 import { env } from '../../config/env'
-import { randomToken } from '../../lib/crypto'
-import { badRequest, conflict, notFound } from '../../lib/errors'
+import { hashToken, randomToken } from '../../lib/crypto'
+import { AppError, badRequest, conflict, notFound } from '../../lib/errors'
 import { emailLayout, sendEmail } from '../../lib/mailer'
 import { prisma } from '../../lib/prisma'
 import { ctx, requireOwner, requireTenant } from '../../plugins/auth'
@@ -46,9 +46,10 @@ export const teamRoutes: FastifyPluginAsyncZod = async (app) => {
       const prof = await db.professional.create({
         data: {
           ...data,
+          tenantId,
           sortOrder: count,
           services: { create: services.map((s) => ({ tenantId, serviceId: s.id })) },
-        } as never,
+        },
       })
       // Copia o expediente da primeira profissional como ponto de partida.
       const first = await db.professional.findFirst({
@@ -105,30 +106,63 @@ export const teamRoutes: FastifyPluginAsyncZod = async (app) => {
 
   app.delete(
     '/professionals/:id',
-    { onRequest: requireOwner, schema: { tags: ['equipe'], params: idParam } },
+    {
+      onRequest: requireOwner,
+      schema: {
+        tags: ['equipe'],
+        params: idParam,
+        querystring: z.object({ confirmar: z.enum(['1']).optional() }),
+      },
+    },
     async (request) => {
       const { db } = ctx(request)
+      const professional = await db.professional.findFirst({
+        where: { id: request.params.id, deletedAt: null },
+      })
+      if (!professional) throw notFound('Profissional não encontrado')
       const remaining = await db.professional.count({
-        where: { deletedAt: null, id: { not: request.params.id } },
+        where: { deletedAt: null, id: { not: professional.id } },
       })
       if (!remaining) throw badRequest('É preciso ter pelo menos um profissional')
       const future = await db.booking.count({
         where: {
-          professionalId: request.params.id,
+          professionalId: professional.id,
           startsAt: { gte: new Date() },
-          status: { in: ['pending', 'confirmed'] },
+          status: { in: [...OPEN_BOOKING_STATUSES] },
         },
       })
-      if (future)
+      if (future) {
         throw conflict(
           `Esse profissional tem ${future} agendamento(s) futuro(s). Remarque ou cancele antes de remover.`,
         )
+      }
+      // Serviços ativos que ficariam sem ninguém para atender (some da página pública)
+      const orphans = await db.service.findMany({
+        where: {
+          deletedAt: null,
+          active: true,
+          professionals: {
+            some: { professionalId: professional.id },
+            every: { professionalId: professional.id },
+          },
+        },
+        select: { name: true },
+      })
+      if (orphans.length && !request.query.confirmar) {
+        throw new AppError(
+          409,
+          `Ao remover, ${orphans.length} serviço(s) ficam sem profissional e somem da sua página: ${orphans.map((o) => o.name).join(', ')}.`,
+          'SERVICOS_SEM_PROFISSIONAL',
+          { services: orphans.map((o) => o.name) },
+        )
+      }
       await db.professional.updateMany({
-        where: { id: request.params.id },
+        where: { id: professional.id },
         data: { deletedAt: new Date(), active: false },
       })
+      // Quem tinha acesso por essa agenda perde o vínculo e passa a não ver agenda nenhuma
       await db.tenantMember.updateMany({
-        where: { professionalId: request.params.id },
+        where: { professionalId: professional.id },
         data: { professionalId: null },
       })
       return { ok: true }
@@ -169,15 +203,16 @@ export const teamRoutes: FastifyPluginAsyncZod = async (app) => {
       if (exists) throw conflict('Essa pessoa já faz parte da equipe')
       let professionalId: string | null = null
       if (createProfessional) {
-        const prof = await db.professional.create({ data: { name } as never })
+        const prof = await db.professional.create({ data: { tenantId: db.$tenantId(), name } })
         professionalId = prof.id
       }
-      await db.tenantMember.create({ data: { userId: user.id, role, professionalId } as never })
+      await db.tenantMember.create({
+        data: { tenantId: db.$tenantId(), userId: user.id, role, professionalId },
+      })
 
       let cta = { label: 'Entrar no painel', url: `${env.APP_URL}/entrar` }
       if (isNew) {
         const token = randomToken()
-        const { hashToken } = await import('../../lib/crypto')
         await prisma.passwordResetToken.create({
           data: {
             userId: user.id,

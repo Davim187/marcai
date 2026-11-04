@@ -9,6 +9,10 @@ export interface OutboundMessage {
   /** Remetente exibido no e-mail (nome do estabelecimento) */
   fromName?: string
   color?: string
+  /** Só para o aviso no painel */
+  type?: string
+  bookingId?: string
+  userId?: string | null
 }
 
 export type ChannelName = 'inapp' | 'push' | 'whatsapp' | 'email'

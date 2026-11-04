@@ -5,7 +5,7 @@ import type { NotificationChannel, OutboundMessage } from './types'
 /** Aviso no painel: grava na tabela `Notification` e avisa em tempo real via SSE. */
 export class InAppChannel implements NotificationChannel {
   readonly name = 'inapp' as const
-  async send(msg: OutboundMessage & { type?: string; bookingId?: string; userId?: string | null }) {
+  async send(msg: OutboundMessage) {
     const n = await prisma.notification.create({
       data: {
         tenantId: msg.tenantId,

@@ -70,6 +70,12 @@ const LAST = [
 ]
 
 async function main() {
+  // O seed cria senhas conhecidas (demo1234, admin1234): nunca rodar em produção por engano
+  if (process.env.NODE_ENV === 'production' && process.env.SEED_ALLOW_PRODUCTION !== 'true') {
+    throw new Error(
+      'Seed bloqueado em produção (cria usuários com senhas públicas). Defina SEED_ALLOW_PRODUCTION=true só se souber o que está fazendo.',
+    )
+  }
   console.log('🌱 Limpando dados de demonstração anteriores…')
   await prisma.tenant.deleteMany({ where: { slug: { in: ['studiovertice', 'marylopes'] } } })
   await prisma.user.deleteMany({

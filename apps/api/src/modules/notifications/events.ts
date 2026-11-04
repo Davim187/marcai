@@ -48,7 +48,7 @@ async function notifyProfessional(
         url: `/painel/agenda/${b.id}`,
         type: opts.type,
         bookingId: b.id,
-      } as never)
+      })
       .catch((err) => logger.error({ err }, 'Falha ao criar notificação no painel'))
   }
   const members = await recipients(b)
@@ -106,11 +106,7 @@ async function notifyCustomer(
 ) {
   const t = b.tenant
   const text = await renderForCustomer(b, template, extra)
-  if (
-    t.notifyWhatsappCustomer &&
-    canNotify(t, 'whatsapp_customer') &&
-    !b.customer.phone.startsWith('removida')
-  ) {
+  if (t.notifyWhatsappCustomer && canNotify(t, 'whatsapp_customer') && !b.customer.deletedAt) {
     await enqueue({
       channel: 'whatsapp',
       kind: template,
@@ -257,6 +253,6 @@ export function onBookingConfirmedByCustomer(bookingId: string) {
       url: `/painel/agenda/${b.id}`,
       type: 'booking_confirmed',
       bookingId: b.id,
-    } as never)
+    })
   })
 }

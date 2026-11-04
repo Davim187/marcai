@@ -26,7 +26,7 @@ export const serviceRoutes: FastifyPluginAsyncZod = async (app) => {
       const { db } = ctx(request)
       const count = await db.serviceCategory.count({ where: { deletedAt: null } })
       const cat = await db.serviceCategory.create({
-        data: { name: request.body.name, sortOrder: count } as never,
+        data: { tenantId: db.$tenantId(), name: request.body.name, sortOrder: count },
       })
       return reply.status(201).send(cat)
     },
@@ -118,9 +118,10 @@ export const serviceRoutes: FastifyPluginAsyncZod = async (app) => {
       const service = await db.service.create({
         data: {
           ...data,
+          tenantId,
           sortOrder: count,
           professionals: { create: valid.map((p) => ({ tenantId, professionalId: p.id })) },
-        } as never,
+        },
       })
       return reply.status(201).send(service)
     },

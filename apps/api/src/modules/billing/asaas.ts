@@ -1,12 +1,34 @@
 import { env } from '../../config/env'
 import { safeEqual } from '../../lib/crypto'
-import type {
-  BillingEvent,
-  BillingEventType,
-  BillingProvider,
-  BillingType,
-  ProviderPayment,
+import { z } from 'zod'
+import {
+  billingEventSchema,
+  type BillingEvent,
+  type BillingEventType,
+  type BillingProvider,
+  type BillingType,
+  type ProviderPayment,
 } from './provider'
+
+const asaasWebhookSchema = z.object({
+  id: z.string().max(200).optional(),
+  event: z.string().min(1).max(100),
+  payment: z
+    .object({
+      id: z.string().min(1).max(100),
+      subscription: z.string().max(100).nullish(),
+      value: z.number(),
+      status: z.string().max(50),
+      dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      paymentDate: z.string().nullish(),
+      clientPaymentDate: z.string().nullish(),
+      invoiceUrl: z.string().max(500).nullish(),
+      billingType: z.string().max(30).nullish(),
+      externalReference: z.string().max(100).nullish(),
+    })
+    .optional(),
+  subscription: z.object({ id: z.string().max(100) }).optional(),
+})
 
 interface AsaasPayment {
   id: string
@@ -150,20 +172,16 @@ export class AsaasBillingProvider implements BillingProvider {
   }
 
   parseWebhook(body: unknown): BillingEvent {
-    const b = body as {
-      id?: string
-      event: string
-      payment?: AsaasPayment
-      subscription?: { id: string }
-    }
+    // Corpo validado: evento malformado vira 400, nunca 500 nem gravação parcial.
+    const b = asaasWebhookSchema.parse(body)
     const payment = b.payment ? toPayment(b.payment) : undefined
-    return {
+    return billingEventSchema.parse({
       eventId:
         b.id ?? `${b.event}:${b.payment?.id ?? b.subscription?.id}:${b.payment?.status ?? ''}`,
       rawType: b.event,
       type: EVENT_MAP[b.event] ?? 'other',
       payment,
       subscriptionId: payment?.subscriptionId ?? b.subscription?.id ?? null,
-    }
+    })
   }
 }

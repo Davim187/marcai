@@ -46,7 +46,44 @@ const schema = z.object({
   UPLOAD_DIR: z.string().default('./uploads'),
   MAX_UPLOAD_MB: z.coerce.number().default(5),
   WEB_DIST_DIR: z.string().optional(),
+  /** false (padrão), true, número de proxies (ex.: 1) ou lista de IPs/CIDR confiáveis */
+  TRUST_PROXY: z
+    .string()
+    .optional()
+    .transform((v): boolean | string => (!v || v === 'false' ? false : v === 'true' ? true : v)),
+  SWAGGER_PUBLIC: bool,
 })
+
+const PLACEHOLDER_SECRETS = ['troque-por-um-segredo-aleatorio-de-64-caracteres']
+
+/** Em produção, recusa configurações inseguras em vez de subir com elas. */
+function productionProblems(e: z.infer<typeof schema>): string[] {
+  if (e.NODE_ENV !== 'production') return []
+  const problems: string[] = []
+  if (e.SESSION_SECRET.length < 32 || PLACEHOLDER_SECRETS.includes(e.SESSION_SECRET)) {
+    problems.push(
+      'SESSION_SECRET precisa ser aleatório e ter pelo menos 32 caracteres (openssl rand -hex 32)',
+    )
+  }
+  if (e.APP_MODE === 'saas' && e.BILLING_PROVIDER === 'fake') {
+    problems.push('BILLING_PROVIDER=fake não pode ser usado em produção no modo SaaS')
+  }
+  if (
+    e.BILLING_PROVIDER === 'asaas' &&
+    (!e.ASAAS_API_KEY || !e.ASAAS_WEBHOOK_TOKEN || e.ASAAS_WEBHOOK_TOKEN.length < 16)
+  ) {
+    problems.push(
+      'Com o Asaas, defina ASAAS_API_KEY e um ASAAS_WEBHOOK_TOKEN forte (16+ caracteres)',
+    )
+  }
+  if (e.WHATSAPP_PROVIDER === 'evolution' && (e.EVOLUTION_WEBHOOK_SECRET?.length ?? 0) < 16) {
+    problems.push('Com a Evolution API, defina um EVOLUTION_WEBHOOK_SECRET forte (16+ caracteres)')
+  }
+  if (e.WHATSAPP_PROVIDER === 'meta' && !e.META_WA_APP_SECRET) {
+    problems.push('Com a Meta Cloud API, defina META_WA_APP_SECRET')
+  }
+  return problems
+}
 
 const parsed = schema.safeParse(
   Object.fromEntries(Object.entries(process.env).map(([k, v]) => [k, v === '' ? undefined : v])),
@@ -54,6 +91,14 @@ const parsed = schema.safeParse(
 if (!parsed.success) {
   console.error('❌ Variáveis de ambiente inválidas:', parsed.error.flatten().fieldErrors)
   throw new Error('Configuração inválida. Confira o arquivo .env (veja .env.example).')
+}
+
+const problems = productionProblems(parsed.data)
+if (problems.length) {
+  console.error('❌ Configuração insegura para produção:\n - ' + problems.join('\n - '))
+  throw new Error(
+    'Configuração insegura para produção. Confira o arquivo .env (veja .env.example).',
+  )
 }
 
 export const env = parsed.data

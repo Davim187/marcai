@@ -28,6 +28,29 @@ function policy(b: Awaited<ReturnType<typeof load>>) {
   return { deadline, active, canChange, canConfirm: active && b.startsAt.getTime() > Date.now() }
 }
 
+const STATUS_REASON: Record<string, string> = {
+  canceled: 'Esse agendamento já foi cancelado.',
+  completed: 'Esse atendimento já foi concluído.',
+  no_show: 'Esse horário já passou.',
+}
+
+/** Recusa com o motivo real: agendamento encerrado ou prazo da política. */
+function assertCanChange(
+  b: Awaited<ReturnType<typeof load>>,
+  action: 'Cancelamentos' | 'Remarcações',
+) {
+  const p = policy(b)
+  if (p.canChange) return
+  if (!p.active)
+    throw badRequest(
+      STATUS_REASON[b.status] ?? 'Esse agendamento não pode mais ser alterado.',
+      'AGENDAMENTO_ENCERRADO',
+    )
+  throw forbidden(
+    `${action} pelo link só até ${b.tenant.cancelMinHours}h antes. Fale direto com ${b.tenant.name}.`,
+  )
+}
+
 /** Área da cliente final (sem login), acessada pelo link com token único. */
 export const customerAreaRoutes: FastifyPluginAsyncZod = async (app) => {
   const limit = { rateLimit: { max: 60, timeWindow: '10 minutes' } }
@@ -124,11 +147,7 @@ export const customerAreaRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const b = await load(request.params.token)
       if (b.status === 'canceled') return { ok: true }
-      if (!policy(b).canChange) {
-        throw forbidden(
-          `Cancelamentos pelo link só até ${b.tenant.cancelMinHours}h antes. Fale direto com ${b.tenant.name}.`,
-        )
-      }
+      assertCanChange(b, 'Cancelamentos')
       await cancelBooking({
         tenantId: b.tenantId,
         bookingId: b.id,
@@ -152,11 +171,7 @@ export const customerAreaRoutes: FastifyPluginAsyncZod = async (app) => {
     },
     async (request) => {
       const b = await load(request.params.token)
-      if (!policy(b).canChange) {
-        throw forbidden(
-          `Remarcações pelo link só até ${b.tenant.cancelMinHours}h antes. Fale direto com ${b.tenant.name}.`,
-        )
-      }
+      assertCanChange(b, 'Remarcações')
       const updated = await rescheduleBooking({
         tenant: b.tenant,
         bookingId: b.id,

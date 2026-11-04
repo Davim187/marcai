@@ -1,5 +1,6 @@
 import type { Service, Tenant } from '@prisma/client'
 import {
+  ACTIVE_BOOKING_STATUSES,
   addDaysToDate,
   type AvailabilityInput,
   getAvailableDates,
@@ -9,8 +10,6 @@ import {
   toLocalDate,
 } from '@marcai/shared'
 import { prisma } from '../../lib/prisma'
-
-export const ACTIVE_STATUSES = ['pending', 'confirmed', 'completed'] as const
 
 type TenantRules = Pick<
   Tenant,
@@ -60,7 +59,7 @@ export async function loadAvailabilityInput(opts: {
       where: {
         tenantId: tenant.id,
         professionalId,
-        status: { in: [...ACTIVE_STATUSES] },
+        status: { in: [...ACTIVE_BOOKING_STATUSES] },
         startsAt: { lt: rangeEnd },
         blockedUntil: { gt: rangeStart },
         ...(opts.excludeBookingId ? { id: { not: opts.excludeBookingId } } : {}),
@@ -113,4 +112,21 @@ export async function checkSlot(
     toDate: date,
   })
   return isSlotAvailable(input, opts.startsAt)
+}
+
+/**
+ * Por que um horário não pode ser usado: 'taken' (outra reserva ocupou) ou 'unavailable'
+ * (fora do expediente, bloqueado, no passado ou fora da antecedência). Usado só para
+ * escolher a mensagem certa depois que `checkSlot` falha.
+ */
+export async function slotProblem(
+  opts: Parameters<typeof checkSlot>[0],
+): Promise<'taken' | 'unavailable'> {
+  const date = toLocalDate(opts.startsAt, opts.tenant.timezone)
+  const input = await loadAvailabilityInput({
+    ...opts,
+    fromDate: addDaysToDate(date, -1),
+    toDate: date,
+  })
+  return isSlotAvailable({ ...input, busy: [] }, opts.startsAt) ? 'taken' : 'unavailable'
 }

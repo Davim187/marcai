@@ -52,12 +52,13 @@ export function cookieOptions(maxAgeSeconds?: number) {
 export function setSessionCookies(reply: FastifyReply, token: string, csrfToken: string) {
   const maxAge = env.SESSION_TTL_DAYS * 86_400
   reply.setCookie(SESSION_COOKIE, token, cookieOptions(maxAge))
-  reply.setCookie(CSRF_COOKIE, csrfToken, { ...cookieOptions(maxAge), httpOnly: false })
+  // httpOnly: o front recebe o token pelo corpo de /auth/me e /auth/login (JS de terceiros não lê)
+  reply.setCookie(CSRF_COOKIE, csrfToken, cookieOptions(maxAge))
 }
 
 export function clearSessionCookies(reply: FastifyReply) {
   reply.clearCookie(SESSION_COOKIE, cookieOptions())
-  reply.clearCookie(CSRF_COOKIE, { ...cookieOptions(), httpOnly: false })
+  reply.clearCookie(CSRF_COOKIE, cookieOptions())
 }
 
 /** Lê o cookie de sessão em toda requisição e popula `request.auth`. */

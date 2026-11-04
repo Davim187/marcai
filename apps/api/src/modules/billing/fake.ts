@@ -1,6 +1,11 @@
-import { env } from '../../config/env'
+import { env, isProd } from '../../config/env'
 import { randomToken, safeEqual } from '../../lib/crypto'
-import type { BillingEvent, BillingProvider, ProviderPayment } from './provider'
+import {
+  billingEventSchema,
+  type BillingEvent,
+  type BillingProvider,
+  type ProviderPayment,
+} from './provider'
 
 /**
  * Provedor de cobrança simulado para desenvolvimento e testes. As faturas são criadas
@@ -19,13 +24,12 @@ export class FakeBillingProvider implements BillingProvider {
   async listPayments(): Promise<ProviderPayment[]> {
     return []
   }
+  /** Sem token padrão: só aceita se ASAAS_WEBHOOK_TOKEN estiver definido, e nunca em produção. */
   verifyWebhook(headers: Record<string, string | string[] | undefined>) {
-    return safeEqual(
-      String(headers['asaas-access-token'] ?? ''),
-      env.ASAAS_WEBHOOK_TOKEN ?? 'fake-token',
-    )
+    if (isProd || !env.ASAAS_WEBHOOK_TOKEN) return false
+    return safeEqual(String(headers['asaas-access-token'] ?? ''), env.ASAAS_WEBHOOK_TOKEN)
   }
   parseWebhook(body: unknown): BillingEvent {
-    return body as BillingEvent
+    return billingEventSchema.parse(body)
   }
 }

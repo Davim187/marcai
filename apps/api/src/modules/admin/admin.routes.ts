@@ -59,7 +59,10 @@ export const adminRoutes: FastifyPluginAsyncZod = async (app) => {
     {
       schema: {
         tags: ['admin'],
-        querystring: z.object({ q: z.string().max(80).optional(), status: z.string().optional() }),
+        querystring: z.object({
+          q: z.string().max(80).optional(),
+          status: z.enum(['trial', 'active', 'past_due', 'canceled']).optional(),
+        }),
       },
     },
     async (request) => {
@@ -76,7 +79,7 @@ export const adminRoutes: FastifyPluginAsyncZod = async (app) => {
                 ],
               }
             : {}),
-          ...(status ? { subscription: { status: status as never } } : {}),
+          ...(status ? { subscription: { status } } : {}),
         },
         include: {
           subscription: true,

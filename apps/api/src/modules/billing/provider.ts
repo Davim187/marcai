@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 /**
  * Interface de cobrança. Implementações: Asaas (produção) e Fake (desenvolvimento).
  * Para trocar por Mercado Pago, basta implementar esta interface.
@@ -60,3 +62,35 @@ export interface BillingProvider {
   verifyWebhook(headers: Record<string, string | string[] | undefined>, rawBody: Buffer): boolean
   parseWebhook(body: unknown): BillingEvent
 }
+
+const paymentSchema = z.object({
+  id: z.string().min(1).max(100),
+  subscriptionId: z.string().max(100).nullable(),
+  value: z.number().nonnegative(),
+  status: z.enum(['pending', 'paid', 'overdue', 'refunded', 'canceled']),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  paymentDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}/)
+    .nullable(),
+  invoiceUrl: z.string().url().max(500).nullable(),
+  billingType: z.string().max(30).nullable(),
+  externalReference: z.string().max(100).nullable(),
+})
+
+/** Formato normalizado de evento de cobrança (validado antes de qualquer gravação). */
+export const billingEventSchema = z.object({
+  eventId: z.string().min(1).max(200),
+  type: z.enum([
+    'payment_created',
+    'payment_confirmed',
+    'payment_overdue',
+    'payment_refunded',
+    'payment_deleted',
+    'subscription_deleted',
+    'other',
+  ]),
+  rawType: z.string().min(1).max(100),
+  payment: paymentSchema.optional(),
+  subscriptionId: z.string().max(100).nullable().optional(),
+})

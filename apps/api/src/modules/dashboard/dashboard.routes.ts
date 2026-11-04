@@ -1,10 +1,15 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
-import { addDaysToDate, localToUtc, toLocalDate, weekdayOf } from '@marcai/shared'
+import {
+  addDaysToDate,
+  localToUtc,
+  toLocalDate,
+  weekdayOf,
+  OPEN_BOOKING_STATUSES,
+  ACTIVE_BOOKING_STATUSES,
+} from '@marcai/shared'
 import { ctx, requireTenant } from '../../plugins/auth'
 import { bookingInclude, scopeWhere } from '../booking/panel.routes'
 import { publicUrlFor } from '../tenants/tenant.summary'
-
-const ACTIVE = ['pending', 'confirmed', 'completed'] as const
 
 export const dashboardRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
@@ -32,7 +37,11 @@ export const dashboardRoutes: FastifyPluginAsyncZod = async (app) => {
 
       const revenue = async (from: Date, to: Date) => {
         const r = await c.db.booking.aggregate({
-          where: { ...scope, status: { in: [...ACTIVE] }, startsAt: { gte: from, lt: to } },
+          where: {
+            ...scope,
+            status: { in: [...ACTIVE_BOOKING_STATUSES] },
+            startsAt: { gte: from, lt: to },
+          },
           _sum: { priceCents: true },
           _count: { _all: true },
         })
@@ -54,7 +63,7 @@ export const dashboardRoutes: FastifyPluginAsyncZod = async (app) => {
             where: {
               ...scope,
               startsAt: { gte: new Date(now.getTime() - 15 * 60_000) },
-              status: { in: ['pending', 'confirmed'] },
+              status: { in: [...OPEN_BOOKING_STATUSES] },
             },
             include: bookingInclude,
             orderBy: { startsAt: 'asc' },

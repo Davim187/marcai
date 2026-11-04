@@ -93,7 +93,11 @@ export const scheduleRoutes: FastifyPluginAsyncZod = async (app) => {
       const c = ctx(request)
       if (c.role !== 'owner') assertCanManageProfessional(c, request.body.professionalId)
       const created = await c.db.timeOff.create({
-        data: { ...request.body, professionalId: request.body.professionalId ?? null } as never,
+        data: {
+          ...request.body,
+          tenantId: c.tenantId,
+          professionalId: request.body.professionalId ?? null,
+        },
       })
       return reply.status(201).send(created)
     },
@@ -119,7 +123,11 @@ export const scheduleRoutes: FastifyPluginAsyncZod = async (app) => {
       const c = ctx(request)
       if (c.role !== 'owner') assertCanManageProfessional(c, request.body.professionalId)
       const created = await c.db.recurringBlock.create({
-        data: { ...request.body, professionalId: request.body.professionalId ?? null } as never,
+        data: {
+          ...request.body,
+          tenantId: c.tenantId,
+          professionalId: request.body.professionalId ?? null,
+        },
       })
       return reply.status(201).send(created)
     },
@@ -146,7 +154,7 @@ export const scheduleRoutes: FastifyPluginAsyncZod = async (app) => {
       const { db } = ctx(request)
       const h = await db.holiday.upsert({
         where: { tenantId_date: { tenantId: ctx(request).tenantId, date: request.body.date } },
-        create: { ...request.body, source: 'custom' } as never,
+        create: { ...request.body, tenantId: ctx(request).tenantId, source: 'custom' },
         update: { name: request.body.name, closed: request.body.closed },
       })
       return reply.status(201).send(h)

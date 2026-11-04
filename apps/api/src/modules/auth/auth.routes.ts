@@ -149,6 +149,9 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
     '/change-password',
     { onRequest: requireAuth, schema: { tags: ['auth'], body: changePasswordSchema } },
     async (request) => {
+      if (request.auth!.impersonatorId) {
+        throw forbidden('No modo suporte não é possível alterar a senha da conta')
+      }
       const user = await prisma.user.findUniqueOrThrow({ where: { id: request.auth!.user.id } })
       if (user.passwordHash) {
         const ok = await bcrypt.compare(request.body.currentPassword ?? '', user.passwordHash)
@@ -213,10 +216,19 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
           },
         })
       } else if (!user.googleId) {
+        // Conta criada com senha e e-mail nunca verificado: quem criou pode não ser o dono do
+        // e-mail (pré-sequestro). O Google prova a posse do e-mail, então a senha anterior e as
+        // sessões abertas são descartadas antes de vincular.
+        const unverified = !user.emailVerifiedAt
         user = await prisma.user.update({
           where: { id: user.id },
-          data: { googleId: profile.sub, emailVerifiedAt: user.emailVerifiedAt ?? new Date() },
+          data: {
+            googleId: profile.sub,
+            emailVerifiedAt: user.emailVerifiedAt ?? new Date(),
+            ...(unverified ? { passwordHash: null } : {}),
+          },
         })
+        if (unverified) await prisma.session.deleteMany({ where: { userId: user.id } })
       }
       const { token, csrfToken, session } = await createSession(user.id, {
         userAgent: request.headers['user-agent'],

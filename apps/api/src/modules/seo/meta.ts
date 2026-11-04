@@ -11,10 +11,40 @@ export interface PageMeta {
   noindex?: boolean
 }
 
-const esc = (s: string) =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-const abs = (u: string) =>
-  u.startsWith('http') ? u : `${env.APP_URL}${u.startsWith('/') ? '' : '/'}${u}`
+export const escapeHtml = (s: string) =>
+  s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+const esc = escapeHtml
+
+/** Só aceita caminhos internos ("/x") ou URLs do próprio front/API; o resto vira a imagem padrão. */
+const abs = (u: string) => {
+  if (u.startsWith('/') && !u.startsWith('//')) return `${env.APP_URL}${u}`
+  try {
+    const url = new URL(u)
+    const allowed = [new URL(env.APP_URL).origin, new URL(env.API_URL).origin]
+    if (allowed.includes(url.origin)) return url.toString()
+  } catch {
+    /* URL inválida */
+  }
+  return `${env.APP_URL}/og-default.png`
+}
+
+/** Normaliza o caminho pedido: só o pathname interno, nunca um domínio externo. */
+export function safePath(input: string) {
+  try {
+    const { pathname } = new URL(
+      input.startsWith('/') && !input.startsWith('//') ? input : '/',
+      'http://local',
+    )
+    return pathname.replace(/[^a-zA-Z0-9/_.-]/g, '').replace(/\/{2,}/g, '/') || '/'
+  } catch {
+    return '/'
+  }
+}
 
 const LANDING: Omit<PageMeta, 'url'> = {
   title: 'Marcaí — Sua agenda cheia, sem precisar responder mensagem',
@@ -38,7 +68,7 @@ const STATIC_PAGES: Record<string, Pick<PageMeta, 'title' | 'description'>> = {
 
 /** Monta as meta tags (título, descrição e Open Graph) de cada rota pública. */
 export async function metaForPath(path: string): Promise<PageMeta> {
-  const clean = path.split('?')[0]!.replace(/\/+$/, '') || '/'
+  const clean = safePath(path).replace(/\/+$/, '') || '/'
   const url = abs(clean)
   const single = env.APP_MODE === 'single_tenant'
 

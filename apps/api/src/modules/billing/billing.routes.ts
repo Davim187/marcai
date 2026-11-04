@@ -7,6 +7,7 @@ import { audit } from '../../lib/audit'
 import { forbidden, notFound } from '../../lib/errors'
 import { prisma } from '../../lib/prisma'
 import { ctx, requireOwner } from '../../plugins/auth'
+import { registerRawJsonBody } from '../../plugins/raw-json-body'
 import {
   billingOverview,
   billingProvider,
@@ -120,14 +121,7 @@ export const billingRoutes: FastifyPluginAsyncZod = async (app) => {
 
 /** Webhook de pagamentos (Asaas): valida o token antes de qualquer coisa e é idempotente. */
 export const billingWebhookRoutes: FastifyPluginAsync = async (app) => {
-  app.addContentTypeParser('application/json', { parseAs: 'buffer' }, (request, body, done) => {
-    request.rawBody = body as Buffer
-    try {
-      done(null, (body as Buffer).length ? JSON.parse((body as Buffer).toString('utf8')) : {})
-    } catch (err) {
-      done(err as Error, undefined)
-    }
-  })
+  registerRawJsonBody(app)
   app.post('/asaas', { schema: { hide: true } }, async (request) => {
     const p = billingProvider()
     if (!p.verifyWebhook(request.headers, request.rawBody ?? Buffer.alloc(0)))

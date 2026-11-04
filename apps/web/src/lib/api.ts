@@ -13,13 +13,6 @@ export class ApiError extends Error {
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
 
-function readCookie(name: string) {
-  return document.cookie
-    .split('; ')
-    .find((c) => c.startsWith(`${name}=`))
-    ?.split('=')[1]
-}
-
 let csrfToken: string | undefined
 export function setCsrfToken(token: string | undefined) {
   csrfToken = token
@@ -34,7 +27,7 @@ export async function api<T = unknown>(
   const isForm = opts.body instanceof FormData
   if (opts.body !== undefined && !isForm) headers['content-type'] = 'application/json'
   if (method !== 'GET') {
-    const token = readCookie('marcai_csrf') ?? csrfToken
+    const token = csrfToken
     if (token) headers['x-csrf-token'] = token
   }
   let res: Response
@@ -58,13 +51,28 @@ export async function api<T = unknown>(
   const text = await res.text()
   const data = text ? safeJson(text) : null
   if (!res.ok) {
-    const d = (data ?? {}) as { message?: string; error?: string; fields?: Record<string, string> }
+    const d = (data ?? {}) as {
+      message?: string
+      error?: string
+      fields?: Record<string, string>
+      details?: unknown
+    }
     throw new ApiError(
       res.status,
       d.message ?? 'Algo deu errado. Tente de novo.',
       d.error ?? 'ERRO',
       d.fields,
+      d.details,
     )
+  }
+  // Login/cadastro devolvem o token de CSRF no corpo (o cookie é httpOnly)
+  if (
+    data &&
+    typeof data === 'object' &&
+    'csrfToken' in data &&
+    typeof data.csrfToken === 'string'
+  ) {
+    csrfToken = data.csrfToken
   }
   return data as T
 }
@@ -79,8 +87,11 @@ function safeJson(text: string) {
 
 export const apiUrl = (path: string) => `${BASE}/api${path}`
 
+/** Mensagem amigável em português. Nunca repassa erro técnico cru (ex.: "Invalid time value"). */
 export function errorMessage(err: unknown) {
-  if (err instanceof ApiError) return err.message
-  if (err instanceof Error) return err.message
+  if (err instanceof ApiError) {
+    const first = err.fields && Object.values(err.fields)[0]
+    return err.code === 'VALIDACAO' && first ? `Confira os campos: ${first}` : err.message
+  }
   return 'Algo deu errado. Tente de novo.'
 }
