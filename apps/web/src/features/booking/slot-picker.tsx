@@ -21,7 +21,7 @@ export function SlotPicker({
   maxAdvanceDays,
   selected,
   onSelect,
-  excludeBookingId,
+  token,
 }: {
   slug: string
   serviceId: string
@@ -30,7 +30,7 @@ export function SlotPicker({
   maxAdvanceDays: number
   selected: Slot | null
   onSelect: (slot: Slot) => void
-  excludeBookingId?: string
+  token?: string
 }) {
   const today = todayIn(timezone)
   const [month, setMonth] = useState(today.slice(0, 7))
@@ -54,10 +54,10 @@ export function SlotPicker({
   })
 
   const slots = useQuery({
-    queryKey: ['public-slots', slug, serviceId, professionalId, date, excludeBookingId],
+    queryKey: ['public-slots', slug, serviceId, professionalId, date, token],
     queryFn: () =>
       api<{ slots: Slot[] }>(
-        `/public/t/${slug}/slots?serviceId=${serviceId}&professionalId=${professionalId}&date=${date}${excludeBookingId ? `&excludeBookingId=${excludeBookingId}` : ''}`,
+        `/public/t/${slug}/slots?serviceId=${serviceId}&professionalId=${professionalId}&date=${date}${token ? `&token=${token}` : ''}`,
       ),
     enabled: !!date,
     staleTime: 10_000,

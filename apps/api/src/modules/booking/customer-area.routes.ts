@@ -1,0 +1,169 @@
+import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
+import { z } from 'zod'
+import { customerCancelSchema, customerRescheduleSchema } from '@marcai/shared'
+import { env } from '../../config/env'
+import { badRequest, forbidden, notFound } from '../../lib/errors'
+import { googleCalendarUrl } from '../../lib/ics'
+import { prisma } from '../../lib/prisma'
+import { onBookingConfirmedByCustomer } from '../notifications/events'
+import { cancelBooking, rescheduleBooking } from './booking.service'
+import { bookingLinks } from './public.routes'
+
+const tokenParam = z.object({ token: z.string().min(10).max(64) })
+
+async function load(token: string) {
+  const b = await prisma.booking.findUnique({
+    where: { cancelToken: token },
+    include: { tenant: true, professional: true, customer: true, service: true },
+  })
+  if (!b || b.tenant.deletedAt) throw notFound('Agendamento não encontrado. Confira o link.')
+  return b
+}
+
+/** Política: cancelar/remarcar sozinha só até X horas antes e se ainda estiver ativo. */
+function policy(b: Awaited<ReturnType<typeof load>>) {
+  const deadline = new Date(b.startsAt.getTime() - b.tenant.cancelMinHours * 3_600_000)
+  const active = b.status === 'pending' || b.status === 'confirmed'
+  const canChange = active && Date.now() <= deadline.getTime()
+  return { deadline, active, canChange, canConfirm: active && b.startsAt.getTime() > Date.now() }
+}
+
+/** Área da cliente final (sem login), acessada pelo link com token único. */
+export const customerAreaRoutes: FastifyPluginAsyncZod = async (app) => {
+  const limit = { rateLimit: { max: 60, timeWindow: '10 minutes' } }
+
+  app.get(
+    '/:token',
+    {
+      config: limit,
+      schema: { tags: ['cliente final'], summary: 'Detalhes do agendamento', params: tokenParam },
+    },
+    async (request) => {
+      const b = await load(request.params.token)
+      const p = policy(b)
+      const links = bookingLinks(b.cancelToken)
+      return {
+        id: b.id,
+        status: b.status,
+        startsAt: b.startsAt,
+        endsAt: b.endsAt,
+        serviceId: b.serviceId,
+        serviceName: b.serviceName,
+        priceCents: b.priceCents,
+        priceFrom: b.priceFrom,
+        professionalId: b.professionalId,
+        professionalName: b.professional.name,
+        customerName: b.customer.name.split(' ')[0],
+        customerConfirmedAt: b.customerConfirmedAt,
+        cancelReason: b.cancelReason,
+        canChange: p.canChange,
+        canConfirm: p.canConfirm,
+        changeDeadline: p.deadline,
+        tenant: {
+          slug: b.tenant.slug,
+          name: b.tenant.name,
+          logoUrl: b.tenant.logoUrl,
+          primaryColor: b.tenant.primaryColor,
+          timezone: b.tenant.timezone,
+          address: [b.tenant.address, b.tenant.city].filter(Boolean).join(' - ') || null,
+          whatsapp: b.tenant.whatsapp,
+          cancellationPolicy: b.tenant.cancellationPolicy,
+          cancelMinHours: b.tenant.cancelMinHours,
+          maxAdvanceDays: b.tenant.maxAdvanceDays,
+          whiteLabel: env.APP_MODE === 'single_tenant',
+        },
+        googleCalendarUrl: googleCalendarUrl({
+          uid: b.id,
+          title: `${b.serviceName} — ${b.tenant.name}`,
+          description: links.manageUrl,
+          startsAt: b.startsAt,
+          endsAt: b.endsAt,
+          location: b.tenant.address,
+        }),
+        ...links,
+      }
+    },
+  )
+
+  app.post(
+    '/:token/confirm',
+    {
+      config: limit,
+      schema: { tags: ['cliente final'], summary: 'Confirmar presença', params: tokenParam },
+    },
+    async (request) => {
+      const b = await load(request.params.token)
+      if (!policy(b).canConfirm) throw badRequest('Esse agendamento não pode mais ser confirmado.')
+      if (!b.customerConfirmedAt) {
+        await prisma.booking.update({
+          where: { id: b.id },
+          data: {
+            customerConfirmedAt: new Date(),
+            ...(b.status === 'pending' && !b.tenant.requireConfirmation
+              ? { status: 'confirmed', confirmedAt: new Date() }
+              : {}),
+          },
+        })
+        await onBookingConfirmedByCustomer(b.id)
+      }
+      return { ok: true }
+    },
+  )
+
+  app.post(
+    '/:token/cancel',
+    {
+      config: limit,
+      schema: {
+        tags: ['cliente final'],
+        summary: 'Cancelar',
+        params: tokenParam,
+        body: customerCancelSchema,
+      },
+    },
+    async (request) => {
+      const b = await load(request.params.token)
+      if (b.status === 'canceled') return { ok: true }
+      if (!policy(b).canChange) {
+        throw forbidden(
+          `Cancelamentos pelo link só até ${b.tenant.cancelMinHours}h antes. Fale direto com ${b.tenant.name}.`,
+        )
+      }
+      await cancelBooking({
+        tenantId: b.tenantId,
+        bookingId: b.id,
+        by: 'customer',
+        reason: request.body.reason,
+      })
+      return { ok: true }
+    },
+  )
+
+  app.post(
+    '/:token/reschedule',
+    {
+      config: limit,
+      schema: {
+        tags: ['cliente final'],
+        summary: 'Remarcar',
+        params: tokenParam,
+        body: customerRescheduleSchema,
+      },
+    },
+    async (request) => {
+      const b = await load(request.params.token)
+      if (!policy(b).canChange) {
+        throw forbidden(
+          `Remarcações pelo link só até ${b.tenant.cancelMinHours}h antes. Fale direto com ${b.tenant.name}.`,
+        )
+      }
+      const updated = await rescheduleBooking({
+        tenant: b.tenant,
+        bookingId: b.id,
+        startsAt: request.body.startsAt,
+        by: 'customer',
+      })
+      return { ok: true, startsAt: updated.startsAt, endsAt: updated.endsAt }
+    },
+  )
+}

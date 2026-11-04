@@ -107,13 +107,24 @@ export const publicRoutes: FastifyPluginAsyncZod = async (app) => {
         tags: ['público'],
         summary: 'Horários livres de um dia',
         params: slugParam,
-        querystring: slotsQuerySchema,
+        querystring: slotsQuerySchema
+          .omit({ excludeBookingId: true })
+          .extend({ token: z.string().max(64).optional() }),
       },
     },
     async (request) => {
       const { tenant, available } = await resolvePublicTenant(request.params.slug)
       if (!available) return { slots: [] }
-      const { serviceId, professionalId, date, excludeBookingId } = request.query
+      const { serviceId, professionalId, date, token } = request.query
+      // Na remarcação pela cliente, o próprio horário dela não conta como ocupado.
+      const excludeBookingId = token
+        ? (
+            await prisma.booking.findFirst({
+              where: { cancelToken: token, tenantId: tenant.id },
+              select: { id: true },
+            })
+          )?.id
+        : undefined
       const service = await serviceFor(tenant.id, serviceId, professionalId)
       const slots = await daySlots({ tenant, professionalId, service, date, excludeBookingId })
       return { slots: slots.map((s) => ({ startsAt: s.startsAt.toISOString(), time: s.time })) }
