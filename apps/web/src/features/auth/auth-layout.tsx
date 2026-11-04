@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
-import { Logo } from '@/components/logo'
+import { BrandLogo } from '@/components/brand-logo'
+import { usePublicConfig } from '@/lib/config'
 
 export function AuthLayout({
   title,
@@ -12,11 +13,13 @@ export function AuthLayout({
   children: React.ReactNode
   footer?: React.ReactNode
 }) {
+  const { data: config } = usePublicConfig()
+  const whiteLabel = config?.appMode === 'single_tenant'
   return (
     <div className="flex min-h-dvh">
       <div className="flex flex-1 flex-col px-4 py-8 sm:px-8">
         <Link to="/" className="mb-10 self-start" aria-label="Página inicial">
-          <Logo />
+          <BrandLogo />
         </Link>
         <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center pb-16">
           <h1 className="text-2xl font-bold">{title}</h1>
@@ -25,7 +28,13 @@ export function AuthLayout({
           {footer && <div className="text-muted-foreground mt-6 text-center text-sm">{footer}</div>}
         </div>
       </div>
-      <div className="relative hidden flex-1 overflow-hidden bg-gradient-to-br from-[#FBEAF0] via-[#F7DCE6] to-[#F1CBD9] lg:block">
+      <div
+        className={
+          whiteLabel
+            ? 'hidden'
+            : 'relative hidden flex-1 overflow-hidden bg-gradient-to-br from-[#FBEAF0] via-[#F7DCE6] to-[#F1CBD9] lg:block'
+        }
+      >
         <div className="absolute inset-0 flex flex-col justify-center px-16">
           <p className="max-w-md text-4xl font-extrabold leading-tight text-[#2B2024]">
             Sua agenda cheia, sem precisar responder mensagem.

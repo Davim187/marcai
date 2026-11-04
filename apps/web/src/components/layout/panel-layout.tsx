@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { useEffect } from 'react'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
-import { Logo } from '../logo'
+import { BrandLogo } from '../brand-logo'
 import { Avatar } from '../ui/avatar'
 import { Button } from '../ui/button'
 import {
@@ -113,7 +113,7 @@ export default function PanelLayout() {
       {/* Sidebar desktop */}
       <aside className="bg-card fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r lg:flex">
         <div className="flex h-16 items-center px-5">
-          <Logo />
+          <BrandLogo />
         </div>
         <div className="bg-background mx-3 mb-4 rounded-xl border p-3">
           <p className="truncate text-sm font-semibold">{tenant.name}</p>

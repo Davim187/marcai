@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { authRoutes } from './auth/auth.routes'
+import { billingRoutes, billingWebhookRoutes } from './billing/billing.routes'
 import { customerAreaRoutes } from './booking/customer-area.routes'
 import { bookingPanelRoutes } from './booking/panel.routes'
 import { publicRoutes } from './booking/public.routes'
@@ -34,4 +35,6 @@ export async function registerModules(app: FastifyInstance) {
   await app.register(dashboardRoutes, { prefix: '/api/dashboard' })
   await app.register(notificationRoutes, { prefix: '/api/notifications' })
   await app.register(whatsappWebhookRoutes, { prefix: '/api/webhooks' })
+  await app.register(billingRoutes, { prefix: '/api/billing' })
+  await app.register(billingWebhookRoutes, { prefix: '/api/webhooks' })
 }

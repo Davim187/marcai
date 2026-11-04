@@ -43,11 +43,27 @@ export const publicRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
     '/config',
     { schema: { tags: ['público'], summary: 'Configuração pública da instalação' } },
-    async () => ({
-      appMode: env.APP_MODE,
-      appName: env.APP_NAME,
-      singleTenantSlug: env.APP_MODE === 'single_tenant' ? (env.SINGLE_TENANT_SLUG ?? null) : null,
-    }),
+    async () => {
+      if (env.APP_MODE !== 'single_tenant')
+        return { appMode: env.APP_MODE, appName: env.APP_NAME, singleTenantSlug: null, brand: null }
+      // Modo exclusivo: a marca exibida é a do estabelecimento (sem menção ao Marcaí).
+      const t = env.SINGLE_TENANT_SLUG
+        ? await prisma.tenant.findUnique({ where: { slug: env.SINGLE_TENANT_SLUG } })
+        : null
+      return {
+        appMode: env.APP_MODE,
+        appName: t?.name ?? env.APP_NAME,
+        singleTenantSlug: env.SINGLE_TENANT_SLUG ?? null,
+        brand: t
+          ? {
+              name: t.name,
+              logoUrl: t.logoUrl,
+              faviconUrl: t.faviconUrl,
+              primaryColor: t.primaryColor,
+            }
+          : null,
+      }
+    },
   )
 
   app.get(
