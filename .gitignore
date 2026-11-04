@@ -11,3 +11,6 @@ apps/api/uploads/*
 !apps/api/uploads/.gitkeep
 dev-dist
 *.tsbuildinfo
+
+# Cópias temporárias de agentes (git worktrees)
+.claude/worktrees/
