@@ -3,8 +3,8 @@ import { z } from 'zod'
 import { env } from '../../config/env'
 import { hmacSha256Hex, safeEqual } from '../../lib/crypto'
 import { forbidden } from '../../lib/errors'
-import { prisma } from '../../lib/prisma'
 import { registerRawJsonBody } from '../../plugins/raw-json-body'
+import { setConnectionStatus } from './channels/whatsapp'
 
 /** Webhooks do WhatsApp. Todos verificam assinatura/segredo antes de processar. */
 export const whatsappWebhookRoutes: FastifyPluginAsync = async (app) => {
@@ -25,14 +25,7 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (app) => {
       const status =
         state === 'open' ? 'connected' : state === 'connecting' ? 'connecting' : 'disconnected'
       const phone = typeof body.data?.wuid === 'string' ? body.data.wuid.split('@')[0] : undefined
-      await prisma.whatsAppConnection.updateMany({
-        where: { tenantId },
-        data: {
-          status,
-          ...(phone ? { phone } : {}),
-          ...(status === 'connected' ? { connectedAt: new Date() } : {}),
-        },
-      })
+      await setConnectionStatus(tenantId, status, phone)
     }
     return { ok: true }
   })

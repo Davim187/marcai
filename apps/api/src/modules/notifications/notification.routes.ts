@@ -13,6 +13,7 @@ import {
   TEMPLATE_META,
 } from '@marcai/shared'
 import { env } from '../../config/env'
+import { emailTransport } from '../../lib/mailer'
 import { badRequest, conflict } from '../../lib/errors'
 import { prisma } from '../../lib/prisma'
 import {
@@ -25,7 +26,7 @@ import {
 import { pushEnabled } from './channels/push'
 import { channels } from './channels/registry'
 import { sseHub } from './channels/sse-hub'
-import { whatsappProvider } from './channels/whatsapp'
+import { setConnectionStatus, whatsappProvider } from './channels/whatsapp'
 
 /** Profissional (não dona) vê só os avisos dos próprios agendamentos. */
 async function notificationScope(c: TenantContext): Promise<Prisma.NotificationWhereInput> {
@@ -157,6 +158,8 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
         reminderHours: t.reminderHours,
         features: { whatsapp: c.can('whatsapp_professional') },
         pushConfig: { enabled: pushEnabled(), publicKey: env.VAPID_PUBLIC_KEY ?? null },
+        /** resend | smtp | log (log = e-mails não saem de verdade: falta configurar) */
+        emailTransport: emailTransport(),
         whatsapp: {
           provider: provider.name,
           perTenantNumber: provider.perTenantNumber,
@@ -373,15 +376,7 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
       const existing = await prisma.whatsAppConnection.findUnique({
         where: { tenantId: c.tenantId },
       })
-      if (existing && existing.status !== r.status) {
-        await prisma.whatsAppConnection.update({
-          where: { tenantId: c.tenantId },
-          data: {
-            status: r.status,
-            connectedAt: r.status === 'connected' ? new Date() : existing.connectedAt,
-          },
-        })
-      }
+      if (existing && existing.status !== r.status) await setConnectionStatus(c.tenantId, r.status)
       return r
     },
   )
@@ -413,6 +408,25 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
         body: `✅ Teste do ${env.APP_MODE === 'single_tenant' ? c.tenant.name : env.APP_NAME}: seus avisos de agendamento vão chegar aqui!`,
       })
       return { ok: true }
+    },
+  )
+
+  /** Manda um e-mail de teste para quem está logado (confere a configuração de e-mail). */
+  app.post(
+    '/email/test',
+    { onRequest: requireOwner, schema: { tags: ['notificações'] } },
+    async (request) => {
+      const c = ctx(request)
+      await channels.email.send({
+        tenantId: c.tenantId,
+        to: request.auth!.user.email,
+        title: 'Teste de e-mail',
+        body: `✅ Os e-mails de ${c.tenant.name} estão funcionando. Novos agendamentos, cancelamentos e o resumo do dia chegam por aqui.`,
+        url: `${env.APP_URL}/painel/notificacoes`,
+        fromName: env.APP_MODE === 'single_tenant' ? c.tenant.name : env.APP_NAME,
+        color: c.tenant.primaryColor,
+      })
+      return { ok: true, transport: emailTransport(), to: request.auth!.user.email }
     },
   )
 }

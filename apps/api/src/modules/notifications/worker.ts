@@ -41,12 +41,12 @@ async function claimJobs(): Promise<NotificationJob[]> {
 /** Jobs especiais são montados na hora do envio (dados sempre atualizados). */
 async function resolveMessage(job: NotificationJob): Promise<OutboundMessage | null> {
   const payload = job.payload as unknown as OutboundMessage & { startsAt?: string }
-  if (job.kind === 'customer_reminder') {
+  if (job.kind === 'customer_reminder' || job.kind === 'customer_reminder_email') {
     const b = job.bookingId ? await loadFullBooking(job.bookingId) : null
-    // Lembrete obsoleto: cancelado, remarcado ou plano sem o recurso
-    if (!b || !isOpenBooking(b.status)) return null
+    // Lembrete obsoleto: cancelado, remarcado, cliente excluída ou plano sem o recurso
+    if (!b || !isOpenBooking(b.status) || b.customer.deletedAt) return null
     if (payload.startsAt && b.startsAt.toISOString() !== payload.startsAt) return null
-    if (!canNotify(b.tenant, 'whatsapp_customer')) return null
+    if (job.kind === 'customer_reminder' && !canNotify(b.tenant, 'whatsapp_customer')) return null
     return { ...payload, body: await renderForCustomer(b, 'customer_reminder') }
   }
   if (job.kind === 'daily_summary') return buildDailySummary(job.tenantId!, payload)
@@ -147,7 +147,8 @@ async function fallbackToEmail(job: NotificationJob) {
     where: { tenantId: job.tenantId, role: 'owner' },
     include: { user: true, tenant: true },
   })
-  if (!owner) return
+  // Se o e-mail já está ligado, a profissional já recebeu por lá
+  if (!owner || owner.tenant.notifyEmail) return
   const p = job.payload as unknown as OutboundMessage
   await enqueue({
     channel: 'email',
@@ -182,6 +183,8 @@ export async function scheduleDailySummaries(now = new Date()) {
       timezone: true,
       notifyPhone: true,
       notifyWhatsappProfessional: true,
+      notifyEmail: true,
+      primaryColor: true,
       name: true,
     },
   })
@@ -218,5 +221,19 @@ export async function scheduleDailySummaries(now = new Date()) {
       dedupeKey: `daily:push:${t.id}:${date}`,
       message: base,
     })
+    if (t.notifyEmail) {
+      const owners = await prisma.tenantMember.findMany({
+        where: { tenantId: t.id, role: 'owner' },
+        include: { user: { select: { email: true } } },
+      })
+      for (const o of owners) {
+        await enqueue({
+          channel: 'email',
+          kind: 'daily_summary',
+          dedupeKey: `daily:email:${t.id}:${date}:${o.userId}`,
+          message: { ...base, to: o.user.email, fromName: t.name, color: t.primaryColor },
+        })
+      }
+    }
   }
 }

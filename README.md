@@ -33,7 +33,7 @@ O mesmo código roda em dois modos:
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Monorepo                          | pnpm workspaces · TypeScript strict · ESLint + Prettier · Husky + lint-staged · GitHub Actions                                                                                                                           |
 | Front (`apps/web`)                | React 19 · Vite · React Router 7 · TanStack Query · Tailwind CSS + componentes no estilo shadcn/ui (Radix) · lucide-react · React Hook Form + Zod · date-fns(-tz) · Framer Motion · Recharts · dnd-kit · vite-plugin-pwa |
-| Back (`apps/api`)                 | Node.js · Fastify 5 · Prisma 6 · PostgreSQL 16 · Zod (fastify-type-provider-zod) · Swagger/OpenAPI · Resend · Web Push (VAPID)                                                                                           |
+| Back (`apps/api`)                 | Node.js · Fastify 5 · Prisma 6 · PostgreSQL 16 · Zod (fastify-type-provider-zod) · Swagger/OpenAPI · Resend/SMTP · Web Push (VAPID)                                                                                      |
 | Compartilhado (`packages/shared`) | Schemas Zod, motor de disponibilidade, planos/feature gating, feriados, paleta de cores, templates de mensagem, presets                                                                                                  |
 | Testes                            | Vitest (unitários e de integração com Postgres real) · Playwright (E2E)                                                                                                                                                  |
 
@@ -82,20 +82,20 @@ Sem chaves configuradas, **tudo funciona em modo de simulação**: e-mails e men
 
 O arquivo [`apps/api/.env.example`](apps/api/.env.example) lista e comenta todas. As principais:
 
-| Variável                        | Para que serve                                                                            |
-| ------------------------------- | ----------------------------------------------------------------------------------------- |
-| `APP_MODE`                      | `saas` (padrão) ou `single_tenant`                                                        |
-| `APP_URL` / `API_URL`           | URLs públicas do front e da API (links em mensagens, CORS, callbacks)                     |
-| `DATABASE_URL`                  | PostgreSQL                                                                                |
-| `SESSION_SECRET`                | Segredo do hash dos tokens de sessão (`openssl rand -hex 32`)                             |
-| `COOKIE_SAMESITE`               | `lax` com front e API no mesmo domínio (recomendado); `none` se forem domínios diferentes |
-| `GOOGLE_CLIENT_ID/SECRET`       | Login com Google (opcional)                                                               |
-| `RESEND_API_KEY` / `EMAIL_FROM` | E-mails transacionais                                                                     |
-| `VAPID_PUBLIC_KEY/PRIVATE_KEY`  | Web Push (`npx web-push generate-vapid-keys`)                                             |
-| `WHATSAPP_PROVIDER`             | `console`, `evolution` ou `meta`                                                          |
-| `BILLING_PROVIDER`              | `fake` ou `mercadopago`                                                                   |
-| `RUN_WORKER_IN_API`             | Roda o worker da fila dentro da API (prático no dev)                                      |
-| `WEB_DIST_DIR`                  | Faz a API servir o build do front, com as meta tags Open Graph injetadas                  |
+| Variável                       | Para que serve                                                                            |
+| ------------------------------ | ----------------------------------------------------------------------------------------- |
+| `APP_MODE`                     | `saas` (padrão) ou `single_tenant`                                                        |
+| `APP_URL` / `API_URL`          | URLs públicas do front e da API (links em mensagens, CORS, callbacks)                     |
+| `DATABASE_URL`                 | PostgreSQL                                                                                |
+| `SESSION_SECRET`               | Segredo do hash dos tokens de sessão (`openssl rand -hex 32`)                             |
+| `COOKIE_SAMESITE`              | `lax` com front e API no mesmo domínio (recomendado); `none` se forem domínios diferentes |
+| `GOOGLE_CLIENT_ID/SECRET`      | Login com Google (opcional)                                                               |
+| `RESEND_API_KEY` / `SMTP_*`    | E-mails transacionais (Resend ou qualquer SMTP) e `EMAIL_FROM`                            |
+| `VAPID_PUBLIC_KEY/PRIVATE_KEY` | Web Push (`npx web-push generate-vapid-keys`)                                             |
+| `WHATSAPP_PROVIDER`            | `console`, `evolution` ou `meta`                                                          |
+| `BILLING_PROVIDER`             | `fake` ou `mercadopago`                                                                   |
+| `RUN_WORKER_IN_API`            | Roda o worker da fila dentro da API (prático no dev)                                      |
+| `WEB_DIST_DIR`                 | Faz a API servir o build do front, com as meta tags Open Graph injetadas                  |
 
 ## Configurando integrações
 
@@ -117,6 +117,20 @@ Em desenvolvimento, `BILLING_PROVIDER=fake` mostra o botão **Simular pagamento*
 1. Suba a [Evolution API](https://doc.evolution-api.com) (self-hosted, Docker) e defina a `AUTHENTICATION_API_KEY` dela.
 2. Configure `WHATSAPP_PROVIDER=evolution`, `EVOLUTION_API_URL`, `EVOLUTION_API_KEY` e um `EVOLUTION_WEBHOOK_SECRET` aleatório.
 3. No painel, em **Notificações → Conexão do WhatsApp**, a profissional clica em _Conectar WhatsApp_ e lê o QR Code. A API cria a instância `marcai-{tenantId}` e registra o webhook `{API_URL}/api/webhooks/evolution?token=SEGREDO`, que mantém o status da conexão atualizado.
+4. O botão **Enviar teste** manda uma mensagem para o número cadastrado. Se o celular desconectar, a dona recebe um aviso no painel e por e-mail para ler o QR Code de novo. Antes de desistir de um envio, a API confere o status direto na Evolution (caso um webhook tenha se perdido). Números sem WhatsApp falham de vez, sem repetir.
+5. Compatível com a Evolution API **v2** (`/message/sendText` com `{ number, text }`).
+
+### E-mail (Resend ou SMTP)
+
+- **Resend:** configure `RESEND_API_KEY` e um `EMAIL_FROM` com domínio verificado.
+- **SMTP** (Gmail com senha de app, Hostinger, Zoho, Amazon SES...): configure `SMTP_HOST`, `SMTP_PORT` (587 ou 465), `SMTP_SECURE` (`true` na 465), `SMTP_USER` e `SMTP_PASS`.
+- Sem nenhum dos dois, os e-mails só aparecem no log. A tela **Notificações** avisa quando isso acontece e tem o botão **Enviar e-mail de teste**.
+
+O que sai por e-mail: novo agendamento, cancelamento e remarcação (para a dona e a profissional), confirmação, lembrete, cancelamento e remarcação (para a cliente que informou e-mail), resumo do dia, cobrança (fatura disponível, pagamento confirmado, cartão recusado) e aviso de WhatsApp desconectado.
+
+### Som no painel
+
+Com **Tocar um som** ligado, o painel toca um aviso a cada notificação nova (agendamento, cancelamento, remarcação, presença confirmada), mesmo com a aba em segundo plano, e mostra o número de avisos não lidos no título da aba. Os navegadores só liberam áudio depois do primeiro clique na página: até lá, o sino mostra um aviso para clicar. O botão **Testar som** confere se o som está funcionando.
 
 ### WhatsApp: Meta Cloud API (número oficial da plataforma)
 
@@ -191,7 +205,7 @@ Para vender o sistema exclusivo a um cliente:
 - [x] Reserva à prova de concorrência (exclusion constraint `tsrange` + `btree_gist`) com teste de requisições simultâneas
 - [x] Painel: dashboard, agenda dia/semana/mês com arrastar e soltar, agendamento manual, bloqueio pela agenda, lista com filtros e ações, clientes com histórico, tags e importação/exportação CSV
 - [x] Equipe com permissões de dona e profissional (a profissional vê só a própria agenda)
-- [x] Notificações in-app (SSE + polling), Web Push, e-mail e WhatsApp (Evolution, Meta e console), com fila, retry, backoff e fallback por e-mail
+- [x] Notificações in-app (SSE + polling), Web Push, e-mail e WhatsApp (Evolution, Meta e console), com fila, retry, backoff, som no painel, alerta de WhatsApp desconectado e e-mail por Resend ou SMTP
 - [x] Mensagens editáveis com variáveis e pré-visualização; lembrete configurável; resumo diário às 07:00
 - [x] Área da cliente por token: ver, confirmar presença, remarcar e cancelar, respeitando a política
 - [x] Planos Essencial/Pro, teste de 30 dias, Mercado Pago (PIX, boleto, cartão), webhooks idempotentes e com verificação, carência de 7 dias e modo somente leitura

@@ -2,7 +2,7 @@ import { env } from '../../../../config/env'
 import { prisma } from '../../../../lib/prisma'
 import { PermanentChannelError, type NotificationChannel, type OutboundMessage } from '../types'
 import { ConsoleWhatsAppProvider } from './console'
-import { EvolutionApiProvider } from './evolution'
+import { EvolutionApiProvider, InstanceGoneError } from './evolution'
 import { MetaCloudApiProvider } from './meta'
 import type { WhatsAppProvider } from './provider'
 
@@ -18,18 +18,92 @@ export function whatsappProvider(): WhatsAppProvider {
   }
   return provider
 }
+/** Testes: volta a escolher o provedor pela configuração atual. */
+export function resetWhatsappProvider() {
+  provider = null
+}
 
 export class WhatsAppChannel implements NotificationChannel {
   readonly name = 'whatsapp' as const
   async send(msg: OutboundMessage) {
     if (!msg.to) throw new PermanentChannelError('Telefone de destino ausente')
+    if (!msg.body.trim()) throw new PermanentChannelError('Mensagem vazia')
     const p = whatsappProvider()
     if (p.perTenantNumber && p.name !== 'console') {
       const conn = await prisma.whatsAppConnection.findUnique({ where: { tenantId: msg.tenantId } })
-      if (conn?.status !== 'connected')
-        throw new PermanentChannelError('WhatsApp do estabelecimento não está conectado')
+      if (!conn) throw new PermanentChannelError('WhatsApp do estabelecimento não está conectado')
+      if (conn.status !== 'connected') {
+        // O status salvo pode estar velho (webhook perdido): confere na hora
+        const live = await p.status(msg.tenantId)
+        if (live.status !== 'connected')
+          throw new PermanentChannelError('WhatsApp do estabelecimento não está conectado')
+        await setConnectionStatus(msg.tenantId, 'connected')
+      }
     }
-    await p.sendText({ tenantId: msg.tenantId, to: msg.to, text: msg.body })
+    try {
+      await p.sendText({ tenantId: msg.tenantId, to: msg.to, text: msg.body })
+    } catch (err) {
+      if (err instanceof InstanceGoneError) await setConnectionStatus(msg.tenantId, 'disconnected')
+      throw err
+    }
+  }
+}
+
+/**
+ * Atualiza o status da conexão. Quando cai (estava conectado e desconectou), avisa a dona
+ * no painel e por e-mail: sem isso, as mensagens param de sair sem ninguém perceber.
+ */
+export async function setConnectionStatus(
+  tenantId: string,
+  status: 'connected' | 'connecting' | 'disconnected',
+  phone?: string,
+) {
+  const before = await prisma.whatsAppConnection.findUnique({ where: { tenantId } })
+  if (!before) return
+  await prisma.whatsAppConnection.update({
+    where: { tenantId },
+    data: {
+      status,
+      ...(phone ? { phone } : {}),
+      ...(status === 'connected' && before.status !== 'connected'
+        ? { connectedAt: new Date() }
+        : {}),
+    },
+  })
+  if (before.status === 'connected' && status === 'disconnected') {
+    await onWhatsAppDisconnected(tenantId).catch(() => undefined)
+  }
+}
+
+async function onWhatsAppDisconnected(tenantId: string) {
+  const { channels } = await import('../registry')
+  const { enqueue } = await import('../../queue')
+  const title = 'Seu WhatsApp desconectou'
+  const body =
+    'As mensagens de WhatsApp pararam de sair. Abra Avisos e notificações no painel e leia o QR Code de novo.'
+  await channels.inapp.send({
+    tenantId,
+    title,
+    body,
+    url: '/painel/notificacoes',
+    type: 'whatsapp_disconnected',
+  })
+  const owners = await prisma.tenantMember.findMany({
+    where: { tenantId, role: 'owner' },
+    include: { user: { select: { email: true } } },
+  })
+  for (const o of owners) {
+    await enqueue({
+      channel: 'email',
+      kind: 'whatsapp_disconnected',
+      message: {
+        tenantId,
+        to: o.user.email,
+        title,
+        body,
+        url: `${env.APP_URL}/painel/notificacoes`,
+      },
+    })
   }
 }
 

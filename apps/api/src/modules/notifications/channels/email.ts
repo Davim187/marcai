@@ -1,4 +1,4 @@
-import { emailLayout, sendEmail } from '../../../lib/mailer'
+import { EmailRejectedError, emailLayout, sendEmail } from '../../../lib/mailer'
 import { PermanentChannelError, type NotificationChannel, type OutboundMessage } from './types'
 
 export class EmailChannel implements NotificationChannel {
@@ -13,6 +13,11 @@ export class EmailChannel implements NotificationChannel {
       brandName: msg.fromName,
       color: msg.color,
     })
-    await sendEmail({ to: msg.to, subject: msg.title, html, text, fromName: msg.fromName })
+    try {
+      await sendEmail({ to: msg.to, subject: msg.title, html, text, fromName: msg.fromName })
+    } catch (err) {
+      if (err instanceof EmailRejectedError) throw new PermanentChannelError(err.message)
+      throw err
+    }
   }
 }

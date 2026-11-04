@@ -1,5 +1,14 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { BellRing, CheckCircle2, Lock, MessageCircle, RotateCcw, Smartphone } from 'lucide-react'
+import {
+  BellRing,
+  CheckCircle2,
+  Lock,
+  Mail,
+  MessageCircle,
+  RotateCcw,
+  Smartphone,
+  Volume2,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
@@ -23,6 +32,7 @@ import { SwitchRow } from '@/components/ui/switch'
 import { api, errorMessage } from '@/lib/api'
 import { useApiMutation, qk } from '@/lib/queries'
 import { useRefreshSession, useTenant } from '@/lib/session'
+import { playChime } from '@/lib/sound'
 import { cn } from '@/lib/utils'
 import { currentPushSubscription, disablePush, enablePush, pushSupported } from './push'
 
@@ -37,6 +47,7 @@ interface Settings {
   features: { whatsapp: boolean }
   pushConfig: { enabled: boolean; publicKey: string | null }
   whatsapp: { provider: string; perTenantNumber: boolean; status: string; phone: string | null }
+  emailTransport: 'resend' | 'smtp' | 'log'
 }
 interface Template {
   key: string
@@ -110,11 +121,23 @@ export default function NotificationSettingsPage() {
             <SwitchRow
               id="sound"
               label="Tocar um som"
-              description="Enquanto o painel estiver aberto."
+              description="Enquanto o painel estiver aberto (mesmo em outra aba)."
               checked={v.sound}
               onCheckedChange={(c) => set('sound', c)}
               disabled={!isOwner}
             />
+            <div className="flex justify-end pb-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  if (!playChime())
+                    toast.error('O navegador bloqueou o som. Verifique se a aba não está no mudo.')
+                }}
+              >
+                <Volume2 /> Testar som
+              </Button>
+            </div>
             <SwitchRow
               id="push"
               label="Notificação no celular"
@@ -135,11 +158,12 @@ export default function NotificationSettingsPage() {
             <SwitchRow
               id="email"
               label="Por e-mail"
-              description="Usado quando o WhatsApp não está disponível."
+              description="Novos agendamentos, cancelamentos, remarcações e o resumo do dia."
               checked={v.email}
               onCheckedChange={(c) => set('email', c)}
               disabled={!isOwner}
             />
+            {isOwner && <EmailTestRow transport={data.emailTransport} />}
             {pro && v.whatsappProfessional && (
               <div className="pt-3">
                 <Field label="WhatsApp que recebe os avisos" htmlFor="notifyPhone">
@@ -166,7 +190,7 @@ export default function NotificationSettingsPage() {
               <SwitchRow
                 id="wacli"
                 label="Confirmação e lembrete no WhatsApp"
-                description="Com links para confirmar presença ou remarcar. Diminui muito as faltas."
+                description="Com links para confirmar presença ou remarcar. Diminui muito as faltas. Quem informou e-mail recebe também por e-mail."
                 badge={proBadge}
                 checked={pro && v.whatsappCustomer}
                 onCheckedChange={(c) => set('whatsappCustomer', c)}
@@ -522,5 +546,27 @@ function TemplatesCard({ canEdit }: { canEdit: boolean }) {
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function EmailTestRow({ transport }: { transport: Settings['emailTransport'] }) {
+  const test = useApiMutation(
+    () => api<{ to: string }>('/notifications/email/test', { method: 'POST' }),
+    { success: (r) => `E-mail de teste enviado para ${r.to}` },
+  )
+  return (
+    <div className="space-y-2 py-3 text-sm">
+      {transport === 'log' && (
+        <p className="border-warning/40 bg-warning/10 rounded-lg border p-3">
+          O servidor ainda não tem um serviço de e-mail configurado (Resend ou SMTP): os e-mails
+          ficam só no registro e não chegam a ninguém.
+        </p>
+      )}
+      <div className="flex justify-end">
+        <Button variant="ghost" size="sm" onClick={() => test.mutate()} loading={test.isPending}>
+          <Mail /> Enviar e-mail de teste
+        </Button>
+      </div>
+    </div>
   )
 }

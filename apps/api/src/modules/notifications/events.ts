@@ -15,6 +15,8 @@ import { cancelJobs, enqueue } from './queue'
 
 type TenantWithSub = Tenant & { subscription: Subscription | null }
 
+export const REMINDER_KINDS = ['customer_reminder', 'customer_reminder_email']
+
 export { canNotify }
 
 async function recipients(b: FullBooking) {
@@ -69,16 +71,16 @@ async function notifyProfessional(
     }
   }
   const text = await renderForProfessional(b, opts.template, opts.extra)
-  const waOk =
-    t.notifyWhatsappProfessional && !!t.notifyPhone && canNotify(t, 'whatsapp_professional')
-  if (waOk) {
+  // WhatsApp (Pro, número conectado) e e-mail são independentes: os dois saem se ligados.
+  if (t.notifyWhatsappProfessional && !!t.notifyPhone && canNotify(t, 'whatsapp_professional')) {
     await enqueue({
       channel: 'whatsapp',
       kind: `professional_${opts.type}`,
       bookingId: b.id,
       message: { tenantId: t.id, to: t.notifyPhone!, title: opts.title, body: text, url: link },
     })
-  } else if (t.notifyEmail) {
+  }
+  if (t.notifyEmail) {
     for (const m of members) {
       await enqueue({
         channel: 'email',
@@ -105,15 +107,18 @@ async function notifyCustomer(
   extra?: Record<string, string>,
 ) {
   const t = b.tenant
+  if (b.customer.deletedAt) return
   const text = await renderForCustomer(b, template, extra)
-  if (t.notifyWhatsappCustomer && canNotify(t, 'whatsapp_customer') && !b.customer.deletedAt) {
+  if (t.notifyWhatsappCustomer && canNotify(t, 'whatsapp_customer')) {
     await enqueue({
       channel: 'whatsapp',
       kind: template,
       bookingId: b.id,
       message: { tenantId: t.id, to: b.customer.phone, title, body: text },
     })
-  } else if (b.customer.email) {
+  }
+  // E-mail para a cliente sempre que ela informou um (confirmação, cancelamento, remarcação)
+  if (b.customer.email) {
     await enqueue({
       channel: 'email',
       kind: template,
@@ -131,28 +136,47 @@ async function notifyCustomer(
   }
 }
 
-/** Agenda o lembrete X horas antes (o texto é montado na hora do envio). */
+/** Agenda o lembrete X horas antes, por WhatsApp e/ou e-mail (o texto é montado na hora do envio). */
 async function scheduleReminder(b: FullBooking & { tenant: TenantWithSub }) {
-  await cancelJobs(b.id, ['customer_reminder'])
+  await cancelJobs(b.id, REMINDER_KINDS)
   const t = b.tenant
-  if (!t.notifyWhatsappCustomer || !canNotify(t, 'whatsapp_customer')) return
-  const runAt = new Date(b.startsAt.getTime() - t.reminderHours * 3_600_000)
-  // Se já passou do momento ideal mas falta mais de 1h, envia agora; senão, não envia.
+  // Se falta menos de 1h, não faz sentido lembrar
   if (b.startsAt.getTime() - Date.now() < 3_600_000) return
-  await enqueue({
-    channel: 'whatsapp',
-    kind: 'customer_reminder',
-    bookingId: b.id,
-    runAt: runAt.getTime() < Date.now() ? new Date() : runAt,
-    dedupeKey: `reminder:${b.id}:${b.startsAt.toISOString()}`,
-    message: {
-      tenantId: t.id,
-      to: b.customer.phone,
-      title: 'Lembrete',
-      body: '',
-      startsAt: b.startsAt.toISOString(),
-    },
-  })
+  const target = new Date(b.startsAt.getTime() - t.reminderHours * 3_600_000)
+  // Se já passou do momento ideal, envia agora
+  const runAt = target.getTime() < Date.now() ? new Date() : target
+  const base = {
+    tenantId: t.id,
+    title: `Lembrete: ${b.serviceName}`,
+    body: '',
+    startsAt: b.startsAt.toISOString(),
+  }
+  if (t.notifyWhatsappCustomer && canNotify(t, 'whatsapp_customer') && !b.customer.deletedAt) {
+    await enqueue({
+      channel: 'whatsapp',
+      kind: 'customer_reminder',
+      bookingId: b.id,
+      runAt,
+      dedupeKey: `reminder:${b.id}:${b.startsAt.toISOString()}`,
+      message: { ...base, to: b.customer.phone },
+    })
+  }
+  if (b.customer.email && !b.customer.deletedAt) {
+    await enqueue({
+      channel: 'email',
+      kind: 'customer_reminder_email',
+      bookingId: b.id,
+      runAt,
+      dedupeKey: `reminder-email:${b.id}:${b.startsAt.toISOString()}`,
+      message: {
+        ...base,
+        to: b.customer.email,
+        url: `${env.APP_URL}/a/${b.cancelToken}`,
+        fromName: t.name,
+        color: t.primaryColor,
+      },
+    })
+  }
 }
 
 async function load(bookingId: string) {
@@ -198,7 +222,7 @@ export function onBookingCanceled(bookingId: string, by: 'customer' | 'professio
   return safely('booking.canceled', async () => {
     const b = await load(bookingId)
     if (!b) return
-    await cancelJobs(b.id, ['customer_reminder'])
+    await cancelJobs(b.id, REMINDER_KINDS)
     if (by === 'customer') {
       await notifyProfessional(b, {
         type: 'booking_canceled',

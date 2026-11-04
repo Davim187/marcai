@@ -1,3 +1,4 @@
+import nodemailer, { type Transporter } from 'nodemailer'
 import { Resend } from 'resend'
 import { env } from '../config/env'
 import { logger } from './logger'
@@ -11,30 +12,73 @@ export interface EmailMessage {
 }
 
 let resend: Resend | null = null
-function client() {
-  if (!env.RESEND_API_KEY) return null
-  resend ??= new Resend(env.RESEND_API_KEY)
-  return resend
+let smtp: Transporter | null = null
+
+/** Qual serviço de e-mail está configurado (para a tela de diagnóstico). */
+export function emailTransport(): 'resend' | 'smtp' | 'log' {
+  if (env.RESEND_API_KEY) return 'resend'
+  if (env.SMTP_HOST) return 'smtp'
+  return 'log'
 }
 
-/** Envia e-mail pelo Resend. Sem chave configurada, apenas registra no log (modo dev). */
+function smtpClient() {
+  smtp ??= nodemailer.createTransport({
+    host: env.SMTP_HOST,
+    port: env.SMTP_PORT,
+    secure: env.SMTP_SECURE,
+    auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS ?? '' } : undefined,
+    connectionTimeout: 15_000,
+    socketTimeout: 20_000,
+  })
+  return smtp
+}
+
+/** Erros que não adianta repetir (endereço recusado). */
+export class EmailRejectedError extends Error {}
+
+/**
+ * Envia e-mail pelo Resend ou por SMTP. Sem nenhum configurado, apenas registra no log
+ * (modo dev). Erros lançam exceção para a fila tentar de novo.
+ */
 export async function sendEmail(msg: EmailMessage): Promise<{ id: string | null }> {
-  const c = client()
-  const from = msg.fromName
-    ? `${msg.fromName} <${env.EMAIL_FROM.match(/<(.+)>/)?.[1] ?? env.EMAIL_FROM}>`
-    : env.EMAIL_FROM
-  if (!c) {
+  const address = env.EMAIL_FROM.match(/<(.+)>/)?.[1] ?? env.EMAIL_FROM
+  // O nome do remetente vira cabeçalho: tira aspas e quebras de linha
+  const safeName = msg.fromName?.replace(/["<>\r\n]/g, '').trim()
+  const from = safeName ? `"${safeName}" <${address}>` : env.EMAIL_FROM
+  const transport = emailTransport()
+  if (transport === 'log') {
     logger.info({ to: msg.to, subject: msg.subject, text: msg.text }, '📧 [e-mail simulado]')
     return { id: null }
   }
-  const { data, error } = await c.emails.send({
+  if (transport === 'smtp') {
+    try {
+      const info = await smtpClient().sendMail({
+        from,
+        to: msg.to,
+        subject: msg.subject,
+        html: msg.html,
+        text: msg.text,
+      })
+      return { id: info.messageId ?? null }
+    } catch (err) {
+      const code = (err as { responseCode?: number }).responseCode ?? 0
+      // 550/553: caixa inexistente ou endereço recusado
+      if (code === 550 || code === 553) throw new EmailRejectedError((err as Error).message)
+      throw err
+    }
+  }
+  resend ??= new Resend(env.RESEND_API_KEY)
+  const { data, error } = await resend.emails.send({
     from,
     to: msg.to,
     subject: msg.subject,
     html: msg.html,
     text: msg.text,
   })
-  if (error) throw new Error(`Falha ao enviar e-mail: ${error.message}`)
+  if (error) {
+    if (error.name === 'validation_error') throw new EmailRejectedError(error.message)
+    throw new Error(`Falha ao enviar e-mail: ${error.message}`)
+  }
   return { id: data?.id ?? null }
 }
 

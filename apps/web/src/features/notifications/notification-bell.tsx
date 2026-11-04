@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { api, apiUrl } from '@/lib/api'
 import { useTenant } from '@/lib/session'
+import { installSoundUnlock, onSoundReady, playChime, soundReady } from '@/lib/sound'
 import { cn } from '@/lib/utils'
 
 interface NotificationDTO {
@@ -22,57 +23,59 @@ interface NotificationDTO {
   createdAt: string
 }
 
-/** Som curto e discreto gerado na hora (sem arquivo de áudio). */
-function playChime() {
-  try {
-    const ctx = new AudioContext()
-    const notes = [880, 1318.5]
-    notes.forEach((freq, i) => {
-      const o = ctx.createOscillator()
-      const g = ctx.createGain()
-      o.type = 'sine'
-      o.frequency.value = freq
-      const t = ctx.currentTime + i * 0.12
-      g.gain.setValueAtTime(0.0001, t)
-      g.gain.exponentialRampToValueAtTime(0.15, t + 0.02)
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35)
-      o.connect(g).connect(ctx.destination)
-      o.start(t)
-      o.stop(t + 0.4)
-    })
-  } catch {
-    /* sem áudio disponível */
-  }
-}
-
 export function NotificationBell() {
   const { tenant } = useTenant()
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [sseOk, setSseOk] = useState(false)
-  const lastSeen = useRef<string | null>(null)
+  // Ids já vistos: o primeiro carregamento não toca nada; depois, cada aviso novo toca uma vez
+  const seen = useRef<Set<string> | null>(null)
+  const [soundBlocked, setSoundBlocked] = useState(false)
   const { data } = useQuery({
     queryKey: qk.notifications,
     queryFn: () => api<{ items: NotificationDTO[]; unread: number }>('/notifications'),
-    // Polling de 15s como fallback quando o SSE não está conectado
-    refetchInterval: sseOk ? 120_000 : 15_000,
+    // Polling como rede de segurança: 15s sem SSE, 60s com SSE (caso um evento se perca)
+    refetchInterval: sseOk ? 60_000 : 15_000,
+    refetchIntervalInBackground: true,
   })
 
-  // Detecta avisos novos (SSE ou polling) → toast + som opcional
   useEffect(() => {
-    const newest = data?.items[0]
-    if (!newest) return
-    if (lastSeen.current && newest.id !== lastSeen.current && !newest.readAt) {
-      toast(newest.title, {
-        description: newest.body,
-        action: newest.link ? { label: 'Ver', onClick: () => navigate(newest.link!) } : undefined,
-      })
-      if (tenant.notifySound) playChime()
-      invalidateBookingViews(qc)
+    installSoundUnlock()
+    return onSoundReady(() => setSoundBlocked(false))
+  }, [])
+
+  // Detecta avisos novos (SSE ou polling) → toast + som
+  useEffect(() => {
+    if (!data) return
+    if (!seen.current) {
+      seen.current = new Set(data.items.map((n) => n.id))
+      return
     }
-    lastSeen.current = newest.id
+    const fresh = data.items.filter((n) => !seen.current!.has(n.id) && !n.readAt)
+    data.items.forEach((n) => seen.current!.add(n.id))
+    if (!fresh.length) return
+    const newest = fresh[0]!
+    toast(fresh.length > 1 ? `${fresh.length} novos avisos` : newest.title, {
+      description: fresh.length > 1 ? newest.title : newest.body,
+      action: newest.link ? { label: 'Ver', onClick: () => navigate(newest.link!) } : undefined,
+    })
+    if (tenant.notifySound && !playChime()) setSoundBlocked(true)
+    invalidateBookingViews(qc)
   }, [data, tenant.notifySound, navigate, qc])
+
+  // Contador na aba do navegador: dá para ver de longe que chegou algo
+  const unreadCount = data?.unread ?? 0
+  useEffect(() => {
+    const base = document.title.replace(/^\(\d+\+?\) /, '')
+    document.title = unreadCount ? `(${unreadCount > 9 ? '9+' : unreadCount}) ${base}` : base
+  }, [unreadCount])
+  useEffect(
+    () => () => {
+      document.title = document.title.replace(/^\(\d+\+?\) /, '')
+    },
+    [],
+  )
 
   // Tempo real via SSE
   useEffect(() => {
@@ -80,6 +83,8 @@ export function NotificationBell() {
     const es = new EventSource(apiUrl('/notifications/stream'), { withCredentials: true })
     es.onopen = () => setSseOk(true)
     es.addEventListener('notification', () => qc.invalidateQueries({ queryKey: qk.notifications }))
+    // Ao reconectar, busca o que chegou enquanto estava fora
+    es.addEventListener('open', () => qc.invalidateQueries({ queryKey: qk.notifications }))
     es.onerror = () => setSseOk(false)
     return () => es.close()
   }, [qc])
@@ -127,6 +132,11 @@ export function NotificationBell() {
             </button>
           )}
         </div>
+        {tenant.notifySound && soundBlocked && !soundReady() && (
+          <p className="bg-warning/10 border-b px-4 py-2 text-xs">
+            O navegador bloqueou o som. Clique em qualquer lugar do painel para ativar.
+          </p>
+        )}
         <div className="max-h-[60vh] overflow-y-auto">
           {!data?.items.length ? (
             <p className="text-muted-foreground p-6 text-center text-sm">
