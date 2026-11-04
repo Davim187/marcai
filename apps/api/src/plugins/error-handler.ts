@@ -20,12 +20,10 @@ export function isOverlapError(err: unknown): boolean {
 
 export function registerErrorHandler(app: FastifyInstance) {
   app.setNotFoundHandler((request, reply) => {
-    reply
-      .status(404)
-      .send({
-        error: 'NAO_ENCONTRADO',
-        message: `Rota não encontrada: ${request.method} ${request.url}`,
-      })
+    reply.status(404).send({
+      error: 'NAO_ENCONTRADO',
+      message: `Rota não encontrada: ${request.method} ${request.url}`,
+    })
   })
 
   app.setErrorHandler((error: FastifyError, request, reply) => {
@@ -73,12 +71,10 @@ export function registerErrorHandler(app: FastifyInstance) {
       return reply.status(403).send({ error: 'SEM_PERMISSAO', message: 'Operação não permitida.' })
     }
     if (error.statusCode === 429) {
-      return reply
-        .status(429)
-        .send({
-          error: 'MUITAS_TENTATIVAS',
-          message: 'Muitas tentativas. Aguarde um pouco e tente de novo.',
-        })
+      return reply.status(429).send({
+        error: 'MUITAS_TENTATIVAS',
+        message: 'Muitas tentativas. Aguarde um pouco e tente de novo.',
+      })
     }
     if (error.statusCode && error.statusCode < 500) {
       return reply
@@ -86,11 +82,9 @@ export function registerErrorHandler(app: FastifyInstance) {
         .send({ error: error.code ?? 'ERRO', message: error.message })
     }
     request.log.error({ err: error }, 'Erro inesperado')
-    return reply
-      .status(500)
-      .send({
-        error: 'ERRO_INTERNO',
-        message: 'Algo deu errado do nosso lado. Tente de novo em instantes.',
-      })
+    return reply.status(500).send({
+      error: 'ERRO_INTERNO',
+      message: 'Algo deu errado do nosso lado. Tente de novo em instantes.',
+    })
   })
 }
