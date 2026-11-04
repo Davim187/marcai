@@ -3,6 +3,7 @@ import { generatePalette, hexToHslString } from '@marcai/shared'
 /** Aplica a cor principal do tenant nas variáveis CSS (paleta com contraste AA). */
 export function applyBrandColor(
   hex: string | null | undefined,
+  dark = false,
   el: HTMLElement = document.documentElement,
 ) {
   if (!hex) {
@@ -13,10 +14,15 @@ export function applyBrandColor(
     return
   }
   const p = generatePalette(hex)
-  el.style.setProperty('--primary', hexToHslString(p.primary))
-  el.style.setProperty('--ring', hexToHslString(p.primary))
-  el.style.setProperty('--primary-soft', hexToHslString(p[50]))
-  el.style.setProperty('--primary-foreground', hexToHslString(p.primaryForeground))
+  // No modo escuro: tom mais claro para destaque e um fundo suave escuro.
+  const primary = dark ? p[400] : p.primary
+  el.style.setProperty('--primary', hexToHslString(primary))
+  el.style.setProperty('--ring', hexToHslString(primary))
+  el.style.setProperty('--primary-soft', hexToHslString(dark ? p[900] : p[50]))
+  el.style.setProperty(
+    '--primary-foreground',
+    hexToHslString(dark ? '#1a1014' : p.primaryForeground),
+  )
 }
 
 export function brandStyle(hex: string | null | undefined): React.CSSProperties {

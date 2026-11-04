@@ -81,9 +81,9 @@ export default function PanelLayout() {
   const location = useLocation()
 
   useEffect(() => {
-    applyBrandColor(tenant.primaryColor)
+    applyBrandColor(tenant.primaryColor, theme === 'dark')
     return () => applyBrandColor(null)
-  }, [tenant.primaryColor])
+  }, [tenant.primaryColor, theme])
 
   useEffect(() => {
     window.scrollTo({ top: 0 })

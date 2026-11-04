@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { CalendarSearch, MessageCircle, Search } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import {
   BOOKING_STATUS_LABELS,
@@ -59,7 +59,8 @@ export default function BookingsPage() {
   }
 
   const today = todayIn(tz)
-  const now = new Date().toISOString()
+  // Fixa o "agora" por período escolhido (senão a chave da query muda a cada render)
+  const now = useMemo(() => new Date().toISOString(), [period]) // eslint-disable-line react-hooks/exhaustive-deps
   const dateFilter =
     period === 'upcoming'
       ? `&from=${now}`

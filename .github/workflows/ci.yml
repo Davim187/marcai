@@ -63,7 +63,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @marcai/web exec playwright install --with-deps chromium
-      - run: pnpm db:deploy && pnpm db:seed
       - run: pnpm test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()

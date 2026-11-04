@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'node:path'
 
+const apiTarget = process.env.VITE_API_PROXY ?? 'http://localhost:3333'
+
 export default defineConfig({
   plugins: [
     react(),
@@ -34,10 +36,11 @@ export default defineConfig({
   ],
   resolve: { alias: { '@': path.resolve(__dirname, 'src') } },
   server: {
-    port: 5173,
+    port: Number(process.env.VITE_PORT ?? 5173),
+    strictPort: true,
     proxy: {
-      '/api': { target: 'http://localhost:3333', changeOrigin: false },
-      '/uploads': { target: 'http://localhost:3333', changeOrigin: false },
+      '/api': { target: apiTarget, changeOrigin: false },
+      '/uploads': { target: apiTarget, changeOrigin: false },
     },
   },
   build: {

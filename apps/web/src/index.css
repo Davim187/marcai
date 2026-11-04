@@ -34,7 +34,11 @@
     --chart-2: #6d5bd0;
     --chart-grid: #ece6e3;
   }
+  :root {
+    color-scheme: light;
+  }
   .dark {
+    color-scheme: dark;
     --background: 337 12% 8%;
     --foreground: 20 20% 95%;
     --card: 337 10% 11%;
@@ -81,6 +85,14 @@
   h2,
   h3 {
     @apply tracking-tight;
+  }
+}
+
+@layer components {
+  .select-chevron {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23888' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-repeat: no-repeat;
   }
 }
 
