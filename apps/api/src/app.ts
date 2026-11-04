@@ -44,6 +44,8 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
   await app.register(rateLimit, {
     global: false,
     max: 300,
+    // Nos testes automatizados o limite só vale quando o teste pede explicitamente.
+    allowList: (req) => isTest && !req.headers['x-test-rate-limit'],
     timeWindow: '1 minute',
     errorResponseBuilder: (_req, ctx) => ({
       statusCode: 429,

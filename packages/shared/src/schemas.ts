@@ -214,7 +214,7 @@ export const publicBookingSchema = z.object({
     errorMap: () => ({ message: 'Precisamos do seu consentimento para salvar seus dados' }),
   }),
   /** Honeypot anti-bot: precisa vir vazio. */
-  website: z.string().max(0).optional().or(z.literal('')),
+  website: z.string().max(500).optional(),
 })
 export type PublicBookingInput = z.infer<typeof publicBookingSchema>
 

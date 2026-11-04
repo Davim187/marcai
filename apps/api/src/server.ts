@@ -6,11 +6,11 @@ import { registerSpa } from './modules/seo/spa'
 async function main() {
   const app = await buildApp()
   await registerSpa(app)
+  let stopWorker: (() => void) | null = null
+  app.addHook('onClose', async () => stopWorker?.())
   await app.listen({ port: env.PORT, host: '0.0.0.0' })
-  if (env.RUN_WORKER_IN_API) {
-    const stop = startWorker(app.log)
-    app.addHook('onClose', async () => stop())
-  }
+  if (env.RUN_WORKER_IN_API) stopWorker = startWorker(app.log)
+
   for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     process.on(signal, () => {
       app.log.info(`Recebido ${signal}, encerrando…`)

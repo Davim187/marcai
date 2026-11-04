@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { authRoutes } from './auth/auth.routes'
+import { publicRoutes } from './booking/public.routes'
 import { formRoutes } from './forms/form.routes'
 import { scheduleRoutes } from './schedule/schedule.routes'
 import { serviceRoutes } from './services/service.routes'
@@ -20,4 +21,5 @@ export async function registerModules(app: FastifyInstance) {
   await app.register(scheduleRoutes, { prefix: '/api/schedule' })
   await app.register(formRoutes, { prefix: '/api/forms' })
   await app.register(uploadRoutes, { prefix: '/api/uploads' })
+  await app.register(publicRoutes, { prefix: '/api/public' })
 }

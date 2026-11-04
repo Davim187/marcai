@@ -5,6 +5,7 @@ export class ApiError extends Error {
     message: string,
     public code: string,
     public fields?: Record<string, string>,
+    public details?: unknown,
   ) {
     super(message)
   }

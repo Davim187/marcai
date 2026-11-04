@@ -95,3 +95,44 @@ export async function createOwner(
   })
   return { agent, tenant, professional, email, slug }
 }
+
+/** Próximo horário livre (a partir de amanhã) para um serviço. */
+export async function nextFreeSlots(slug: string, serviceId: string, professionalId: string) {
+  const app = await getApp()
+  for (let i = 1; i <= 14; i++) {
+    const date = new Date(Date.now() + i * 86_400_000).toISOString().slice(0, 10)
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/public/t/${slug}/slots?serviceId=${serviceId}&professionalId=${professionalId}&date=${date}`,
+    })
+    const slots = res.json().slots as Array<{ startsAt: string; time: string }>
+    if (slots.length >= 4) return { date, slots }
+  }
+  throw new Error('nenhum horário livre encontrado')
+}
+
+let phoneSeq = 0
+export function fakePhone() {
+  phoneSeq++
+  return `(85) 9${String(8000_0000 + phoneSeq).padStart(8, '0')}`
+}
+
+export function bookingPayload(
+  serviceId: string,
+  professionalId: string,
+  startsAt: string,
+  extra: Record<string, unknown> = {},
+) {
+  return {
+    serviceId,
+    professionalId,
+    startsAt,
+    customerName: 'Ana Souza',
+    customerPhone: fakePhone(),
+    notes: 'Quero decoração francesinha',
+    answers: [],
+    consent: true,
+    website: '',
+    ...extra,
+  }
+}
