@@ -4,6 +4,8 @@ import { bookingPanelRoutes } from './booking/panel.routes'
 import { publicRoutes } from './booking/public.routes'
 import { customerRoutes } from './customers/customer.routes'
 import { dashboardRoutes } from './dashboard/dashboard.routes'
+import { notificationRoutes } from './notifications/notification.routes'
+import { whatsappWebhookRoutes } from './notifications/webhooks.routes'
 import { formRoutes } from './forms/form.routes'
 import { scheduleRoutes } from './schedule/schedule.routes'
 import { serviceRoutes } from './services/service.routes'
@@ -28,4 +30,6 @@ export async function registerModules(app: FastifyInstance) {
   await app.register(bookingPanelRoutes, { prefix: '/api/bookings' })
   await app.register(customerRoutes, { prefix: '/api/customers' })
   await app.register(dashboardRoutes, { prefix: '/api/dashboard' })
+  await app.register(notificationRoutes, { prefix: '/api/notifications' })
+  await app.register(whatsappWebhookRoutes, { prefix: '/api/webhooks' })
 }
