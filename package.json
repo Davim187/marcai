@@ -1,0 +1,54 @@
+{
+  "name": "marcai",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Marcaí — Sua agenda cheia, sem precisar responder mensagem.",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "globals": "^15.14.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.3.0",
+    "prettier": "^3.4.2",
+    "prettier-plugin-tailwindcss": "^0.6.9",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.19.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix --max-warnings=0",
+      "prettier --write"
+    ],
+    "*.{json,md,css,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild"
+    ]
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @marcai/api --filter @marcai/web dev",
+    "build": "pnpm -r build",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "test:e2e": "pnpm --filter @marcai/web test:e2e",
+    "db:migrate": "pnpm --filter @marcai/api db:migrate",
+    "db:deploy": "pnpm --filter @marcai/api db:deploy",
+    "db:seed": "pnpm --filter @marcai/api db:seed",
+    "db:reset": "pnpm --filter @marcai/api db:reset",
+    "prepare": "husky || true"
+  }
+}

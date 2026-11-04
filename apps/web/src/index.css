@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 24 33% 98%;
+    --foreground: 337 15% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 337 15% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 337 15% 15%;
+    --primary: 337 67% 42%;
+    --primary-foreground: 0 0% 100%;
+    --primary-soft: 337 70% 96%;
+    --secondary: 20 25% 95%;
+    --secondary-foreground: 337 15% 20%;
+    --muted: 20 20% 95%;
+    --muted-foreground: 337 8% 42%;
+    --accent: 337 50% 95%;
+    --accent-foreground: 337 50% 25%;
+    --destructive: 0 72% 46%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 60% 32%;
+    --success-foreground: 0 0% 100%;
+    --warning: 35 92% 40%;
+    --warning-foreground: 0 0% 100%;
+    --border: 20 18% 89%;
+    --input: 20 18% 86%;
+    --ring: 337 67% 42%;
+    --radius: 0.875rem;
+  }
+  .dark {
+    --background: 337 12% 8%;
+    --foreground: 20 20% 95%;
+    --card: 337 10% 11%;
+    --card-foreground: 20 20% 95%;
+    --popover: 337 10% 11%;
+    --popover-foreground: 20 20% 95%;
+    --primary: 337 70% 62%;
+    --primary-foreground: 337 30% 8%;
+    --primary-soft: 337 30% 16%;
+    --secondary: 337 8% 16%;
+    --secondary-foreground: 20 20% 95%;
+    --muted: 337 8% 16%;
+    --muted-foreground: 20 8% 65%;
+    --accent: 337 15% 18%;
+    --accent-foreground: 20 20% 95%;
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 50% 45%;
+    --success-foreground: 0 0% 8%;
+    --warning: 35 90% 55%;
+    --warning-foreground: 0 0% 8%;
+    --border: 337 8% 20%;
+    --input: 337 8% 24%;
+    --ring: 337 70% 62%;
+  }
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  :focus-visible {
+    @apply ring-ring ring-offset-background outline-none ring-2 ring-offset-2;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply tracking-tight;
+  }
+}
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+}

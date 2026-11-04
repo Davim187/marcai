@@ -1,0 +1,581 @@
+// Marcaí — modelo de dados
+// Todas as datas/horas são salvas em UTC. Conversão para o fuso do tenant só na exibição.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MemberRole {
+  owner
+  professional
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  completed
+  canceled
+  no_show
+}
+
+enum BookingSource {
+  online
+  manual
+}
+
+enum PlanId {
+  essencial
+  pro
+}
+
+enum SubscriptionStatus {
+  trial
+  active
+  past_due
+  canceled
+}
+
+enum InvoiceStatus {
+  pending
+  paid
+  overdue
+  refunded
+  canceled
+}
+
+enum JobStatus {
+  pending
+  processing
+  done
+  failed
+  canceled
+}
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  name           String
+  phone          String?
+  passwordHash   String?
+  googleId       String?   @unique
+  avatarUrl      String?
+  isSuperAdmin   Boolean   @default(false)
+  emailVerifiedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  memberships       TenantMember[]
+  sessions          Session[]
+  passwordResets    PasswordResetToken[]
+  pushSubscriptions PushSubscription[]
+  notifications     Notification[]
+}
+
+model Session {
+  id             String   @id @default(cuid())
+  tokenHash      String   @unique
+  userId         String
+  tenantId       String?
+  impersonatorId String?
+  csrfToken      String
+  userAgent      String?
+  ip             String?
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  lastSeenAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Tenant {
+  id           String  @id @default(cuid())
+  slug         String  @unique
+  name         String
+  businessType String  @default("manicure")
+  bio          String?
+  address      String?
+  city         String?
+  instagram    String?
+  whatsapp     String?
+  primaryColor String  @default("#B4235A")
+  logoUrl      String?
+  coverUrl     String?
+  faviconUrl   String?
+  timezone     String  @default("America/Fortaleza")
+
+  // Regras de agendamento
+  minAdvanceMinutes   Int     @default(120)
+  maxAdvanceDays      Int     @default(30)
+  slotIntervalMinutes Int     @default(30)
+  cancelMinHours      Int     @default(12)
+  cancellationPolicy  String?
+  requireConfirmation Boolean @default(false)
+  reminderHours       Int     @default(24)
+  dailySummaryEnabled Boolean @default(false)
+  loadHolidays        Boolean @default(true)
+
+  // Preferências de notificação
+  notifyInApp                Boolean @default(true)
+  notifyPush                 Boolean @default(true)
+  notifyEmail                Boolean @default(true)
+  notifyWhatsappProfessional Boolean @default(true)
+  notifyWhatsappCustomer     Boolean @default(true)
+  notifySound                Boolean @default(true)
+  notifyPhone                String?
+
+  onboardingCompleted Boolean   @default(false)
+  blocked             Boolean   @default(false)
+  blockedReason       String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+
+  members          TenantMember[]
+  professionals    Professional[]
+  categories       ServiceCategory[]
+  services         Service[]
+  customers        Customer[]
+  bookings         Booking[]
+  formFields       FormField[]
+  workingHours     WorkingHours[]
+  timeOffs         TimeOff[]
+  recurringBlocks  RecurringBlock[]
+  holidays         Holiday[]
+  notifications    Notification[]
+  messageTemplates MessageTemplate[]
+  subscription     Subscription?
+  invoices         Invoice[]
+  whatsappConnection WhatsAppConnection?
+}
+
+model TenantMember {
+  id             String     @id @default(cuid())
+  tenantId       String
+  userId         String
+  role           MemberRole @default(owner)
+  professionalId String?    @unique
+  createdAt      DateTime   @default(now())
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  professional Professional? @relation(fields: [professionalId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, userId])
+}
+
+model Professional {
+  id        String    @id @default(cuid())
+  tenantId  String
+  name      String
+  bio       String?
+  photoUrl  String?
+  active    Boolean   @default(true)
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  tenant          Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member          TenantMember?
+  services        ProfessionalService[]
+  workingHours    WorkingHours[]
+  timeOffs        TimeOff[]
+  recurringBlocks RecurringBlock[]
+  bookings        Booking[]
+
+  @@index([tenantId])
+}
+
+model ServiceCategory {
+  id        String    @id @default(cuid())
+  tenantId  String
+  name      String
+  sortOrder Int       @default(0)
+  deletedAt DateTime?
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  services Service[]
+
+  @@index([tenantId])
+}
+
+model Service {
+  id              String    @id @default(cuid())
+  tenantId        String
+  categoryId      String?
+  name            String
+  description     String?
+  durationMinutes Int
+  priceCents      Int
+  priceFrom       Boolean   @default(false)
+  bufferMinutes   Int       @default(0)
+  photoUrl        String?
+  active          Boolean   @default(true)
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  tenant        Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category      ServiceCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  professionals ProfessionalService[]
+  bookings      Booking[]
+  formFields    FormFieldService[]
+
+  @@index([tenantId])
+}
+
+model ProfessionalService {
+  tenantId       String
+  professionalId String
+  serviceId      String
+
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  service      Service      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([professionalId, serviceId])
+  @@index([tenantId])
+}
+
+model WorkingHours {
+  id             String @id @default(cuid())
+  tenantId       String
+  professionalId String
+  weekday        Int
+  start          String
+  end            String
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, professionalId])
+}
+
+/// Bloqueio pontual (folga, médico). professionalId nulo = vale para todas as profissionais.
+model TimeOff {
+  id             String   @id @default(cuid())
+  tenantId       String
+  professionalId String?
+  startsAt       DateTime
+  endsAt         DateTime
+  reason         String?
+  createdAt      DateTime @default(now())
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  professional Professional? @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, startsAt])
+}
+
+/// Bloqueio semanal recorrente (ex.: almoço).
+model RecurringBlock {
+  id             String  @id @default(cuid())
+  tenantId       String
+  professionalId String?
+  weekday        Int
+  start          String
+  end            String
+  reason         String?
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  professional Professional? @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model Holiday {
+  id       String  @id @default(cuid())
+  tenantId String
+  date     String
+  name     String
+  closed   Boolean @default(true)
+  source   String  @default("custom")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, date])
+}
+
+model Customer {
+  id        String    @id @default(cuid())
+  tenantId  String
+  name      String
+  phone     String
+  email     String?
+  notes     String?
+  tags      String[]  @default([])
+  birthday  String?
+  consentAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@unique([tenantId, phone])
+  @@index([tenantId, name])
+}
+
+model Booking {
+  id                  String        @id @default(cuid())
+  tenantId            String
+  professionalId      String
+  serviceId           String
+  customerId          String
+  startsAt            DateTime
+  endsAt              DateTime
+  /// endsAt + intervalo de limpeza. É o fim do intervalo protegido pela exclusion constraint.
+  blockedUntil        DateTime
+  status              BookingStatus @default(confirmed)
+  source              BookingSource @default(online)
+  serviceName         String
+  durationMinutes     Int
+  priceCents          Int
+  priceFrom           Boolean       @default(false)
+  notes               String?
+  cancelToken         String        @unique
+  cancelReason        String?
+  canceledBy          String?
+  canceledAt          DateTime?
+  confirmedAt         DateTime?
+  customerConfirmedAt DateTime?
+  completedAt         DateTime?
+  rescheduledAt       DateTime?
+  previousStartsAt    DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  professional Professional        @relation(fields: [professionalId], references: [id])
+  service      Service             @relation(fields: [serviceId], references: [id])
+  customer     Customer            @relation(fields: [customerId], references: [id])
+  answers      BookingFieldAnswer[]
+
+  @@index([tenantId, startsAt])
+  @@index([tenantId, customerId])
+  @@index([professionalId, startsAt])
+}
+
+model FormField {
+  id          String    @id @default(cuid())
+  tenantId    String
+  label       String
+  type        String
+  required    Boolean   @default(false)
+  helpText    String?
+  appliesToAll Boolean  @default(true)
+  active      Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  deletedAt   DateTime?
+
+  tenant   Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  options  FormFieldOption[]
+  services FormFieldService[]
+  answers  BookingFieldAnswer[]
+
+  @@index([tenantId])
+}
+
+model FormFieldOption {
+  id        String @id @default(cuid())
+  tenantId  String
+  fieldId   String
+  label     String
+  sortOrder Int    @default(0)
+
+  field FormField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@index([fieldId])
+}
+
+model FormFieldService {
+  tenantId  String
+  fieldId   String
+  serviceId String
+
+  field   FormField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  service Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([fieldId, serviceId])
+  @@index([tenantId])
+}
+
+model BookingFieldAnswer {
+  id        String @id @default(cuid())
+  tenantId  String
+  bookingId String
+  fieldId   String
+  label     String
+  type      String
+  value     Json
+
+  booking Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  field   FormField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, bookingId])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  tenantId  String
+  userId    String?
+  type      String
+  title     String
+  body      String
+  link      String?
+  bookingId String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+}
+
+model NotificationJob {
+  id          String    @id @default(cuid())
+  tenantId    String?
+  channel     String
+  kind        String
+  payload     Json
+  status      JobStatus @default(pending)
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5)
+  runAt       DateTime  @default(now())
+  lockedAt    DateTime?
+  lastError   String?
+  dedupeKey   String?   @unique
+  bookingId   String?
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([status, runAt])
+  @@index([bookingId])
+}
+
+model MessageTemplate {
+  id        String   @id @default(cuid())
+  tenantId  String
+  key       String
+  body      String
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, key])
+}
+
+model WhatsAppConnection {
+  id           String    @id @default(cuid())
+  tenantId     String    @unique
+  provider     String
+  instanceName String?
+  status       String    @default("disconnected")
+  phone        String?
+  connectedAt  DateTime?
+  updatedAt    DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model Subscription {
+  id                     String             @id @default(cuid())
+  tenantId               String             @unique
+  plan                   PlanId             @default(pro)
+  status                 SubscriptionStatus @default(trial)
+  trialEndsAt            DateTime?
+  currentPeriodEnd       DateTime?
+  provider               String             @default("asaas")
+  providerCustomerId     String?
+  providerSubscriptionId String?
+  billingType            String?
+  canceledAt             DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoices Invoice[]
+}
+
+model Invoice {
+  id                String        @id @default(cuid())
+  tenantId          String
+  subscriptionId    String
+  providerPaymentId String        @unique
+  amountCents       Int
+  status            InvoiceStatus @default(pending)
+  billingType       String?
+  dueDate           DateTime
+  paidAt            DateTime?
+  invoiceUrl        String?
+  description       String?
+  createdAt         DateTime      @default(now())
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, dueDate])
+}
+
+/// Idempotência de webhooks (pagamento e WhatsApp).
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  provider    String
+  eventId     String
+  type        String
+  payload     Json
+  processedAt DateTime @default(now())
+
+  @@unique([provider, eventId])
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  tenantId       String?
+  actorUserId    String?
+  impersonatorId String?
+  action         String
+  entity         String?
+  entityId       String?
+  metadata       Json?
+  ip             String?
+  createdAt      DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([action, createdAt])
+}

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!--app-head-->
+    <title>Marcaí — Sua agenda cheia, sem precisar responder mensagem</title>
+    <meta
+      name="description"
+      content="Agendamento online para manicures, cabeleireiras, lash designers e barbeiros. Sua cliente escolhe o horário pelo link na bio e você recebe o aviso na hora."
+    />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:title"
+      content="Marcaí — Sua agenda cheia, sem precisar responder mensagem"
+    />
+    <meta
+      property="og:description"
+      content="Link de agendamento para a bio do Instagram. Sem horário duplicado, com aviso no WhatsApp."
+    />
+    <meta property="og:image" content="/og-default.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <!--/app-head-->
+    <meta name="theme-color" content="#B4235A" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      try {
+        var t = localStorage.getItem('marcai-theme')
+        if (t === 'dark' || (!t && false)) document.documentElement.classList.add('dark')
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
