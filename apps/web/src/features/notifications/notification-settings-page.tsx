@@ -21,7 +21,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SwitchRow } from '@/components/ui/switch'
 import { api, errorMessage } from '@/lib/api'
-import { useApiMutation } from '@/lib/queries'
+import { useApiMutation, qk } from '@/lib/queries'
 import { useRefreshSession, useTenant } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { currentPushSubscription, disablePush, enablePush, pushSupported } from './push'
@@ -54,7 +54,7 @@ export default function NotificationSettingsPage() {
   const isOwner = tenant.role === 'owner'
   const refresh = useRefreshSession()
   const { data, isLoading } = useQuery({
-    queryKey: ['notification-settings'],
+    queryKey: qk.notificationSettings,
     queryFn: () => api<Settings>('/notifications/settings'),
   })
   const [v, setV] = useState<NotificationSettingsInput | null>(null)
@@ -72,7 +72,7 @@ export default function NotificationSettingsPage() {
   }, [data])
   const save = useApiMutation(() => api('/notifications/settings', { method: 'PUT', body: v }), {
     success: 'Preferências salvas',
-    invalidate: [['notification-settings']],
+    invalidate: [qk.notificationSettings],
     onSuccess: () => refresh(),
   })
 
@@ -294,14 +294,14 @@ function WhatsAppCard({ settings }: { settings: Settings }) {
       if (r?.status === 'connected') {
         setQr(null)
         toast.success('WhatsApp conectado! 🎉')
-        qc.invalidateQueries({ queryKey: ['notification-settings'] })
+        qc.invalidateQueries({ queryKey: qk.notificationSettings })
       }
     }, 3000)
     return () => clearInterval(t)
   }, [qr, qc])
   const disconnect = useApiMutation(
     () => api('/notifications/whatsapp/disconnect', { method: 'POST' }),
-    { success: 'WhatsApp desconectado', invalidate: [['notification-settings']] },
+    { success: 'WhatsApp desconectado', invalidate: [qk.notificationSettings] },
   )
   const test = useApiMutation(() => api('/notifications/whatsapp/test', { method: 'POST' }), {
     success: 'Mensagem de teste enviada',
@@ -370,7 +370,7 @@ function WhatsAppCard({ settings }: { settings: Settings }) {
                       { method: 'POST' },
                     )
                     if (r.qrCode) setQr(r.qrCode)
-                    else qc.invalidateQueries({ queryKey: ['notification-settings'] })
+                    else qc.invalidateQueries({ queryKey: qk.notificationSettings })
                   } catch (err) {
                     toast.error(errorMessage(err))
                   } finally {
@@ -410,7 +410,7 @@ function WhatsAppCard({ settings }: { settings: Settings }) {
 
 function TemplatesCard({ canEdit }: { canEdit: boolean }) {
   const { data: templates } = useQuery({
-    queryKey: ['templates'],
+    queryKey: qk.templates,
     queryFn: () => api<Template[]>('/notifications/templates'),
   })
   const [selected, setSelected] = useState<string | null>(null)
@@ -433,11 +433,11 @@ function TemplatesCard({ canEdit }: { canEdit: boolean }) {
   }, [body])
   const save = useApiMutation(
     () => api('/notifications/templates', { method: 'PUT', body: { key: current!.key, body } }),
-    { success: 'Mensagem salva', invalidate: [['templates']] },
+    { success: 'Mensagem salva', invalidate: [qk.templates] },
   )
   const reset = useApiMutation(
     () => api(`/notifications/templates/${current!.key}`, { method: 'DELETE' }),
-    { success: 'Texto padrão restaurado', invalidate: [['templates']] },
+    { success: 'Texto padrão restaurado', invalidate: [qk.templates] },
   )
   if (!templates || !current) return null
   return (

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import { MonthCalendar } from '@/components/month-calendar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api'
@@ -29,7 +30,7 @@ export function SlotPicker({
   timezone: string
   maxAdvanceDays: number
   selected: Slot | null
-  onSelect: (slot: Slot) => void
+  onSelect: (slot: Slot | null) => void
   token?: string
 }) {
   const today = todayIn(timezone)
@@ -63,6 +64,16 @@ export function SlotPicker({
     staleTime: 10_000,
     refetchInterval: 30_000,
   })
+
+  // O horário escolhido sumiu da lista (outra pessoa reservou): desfaz a seleção e avisa
+  useEffect(() => {
+    if (!selected || !slots.data || !date) return
+    if (fmt(selected.startsAt, timezone, 'yyyy-MM-dd') !== date) return
+    if (!slots.data.slots.some((s) => s.startsAt === selected.startsAt)) {
+      onSelect(null)
+      toast.error('O horário que você escolheu acabou de ser reservado. Escolha outro.')
+    }
+  }, [slots.data, selected, date, timezone, onSelect])
 
   const enabledSet = new Set(days.data?.dates ?? [])
   const groups = [

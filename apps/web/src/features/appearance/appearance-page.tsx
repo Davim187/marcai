@@ -5,6 +5,7 @@ import {
   formatPrice,
   generatePalette,
   type TenantProfileInput,
+  BRAND_PRESET_COLORS,
 } from '@marcai/shared'
 import { ImageUpload } from '@/components/image-upload'
 import { PhoneInput } from '@/components/phone-input'
@@ -22,16 +23,7 @@ import { useRefreshSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { useTenantFull } from '../settings/policies-page'
 
-const COLORS = [
-  '#4F46E5',
-  '#2563EB',
-  '#0F766E',
-  '#059669',
-  '#7C3AED',
-  '#C2410C',
-  '#B4235A',
-  '#0F172A',
-]
+const COLORS = BRAND_PRESET_COLORS
 
 export default function AppearancePage() {
   const { data } = useTenantFull()

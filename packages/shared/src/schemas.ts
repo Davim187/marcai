@@ -31,7 +31,10 @@ export const passwordSchema = z
 export const phoneSchema = z
   .string()
   .trim()
-  .refine(isValidBrazilianMobile, 'Informe um celular válido com DDD, ex.: (85) 99999-9999')
+  .refine(
+    isValidBrazilianMobile,
+    'Informe um celular com DDD, ex.: (85) 99999-9999 (telefone fixo não recebe WhatsApp)',
+  )
 export const slugSchema = z
   .string()
   .trim()
@@ -138,13 +141,22 @@ export const serviceSchema = z.object({
   name: z.string().trim().min(2, 'Informe o nome do serviço').max(80),
   description: z.string().trim().max(500).optional().nullable(),
   durationMinutes: z
-    .number()
-    .int()
+    .number({ invalid_type_error: 'Informe a duração em minutos' })
+    .int('Use minutos inteiros (ex.: 45)')
     .min(5, 'Mínimo de 5 minutos')
-    .max(12 * 60),
-  priceCents: z.number().int().min(0).max(10_000_000),
+    .max(12 * 60, 'Máximo de 12 horas (720 minutos)'),
+  priceCents: z
+    .number({ invalid_type_error: 'Informe o preço' })
+    .int()
+    .min(0, 'O preço não pode ser negativo')
+    .max(10_000_000, 'O preço máximo é R$ 100.000,00'),
   priceFrom: z.boolean().default(false),
-  bufferMinutes: z.number().int().min(0).max(240).default(0),
+  bufferMinutes: z
+    .number({ invalid_type_error: 'Informe o intervalo em minutos (ou 0)' })
+    .int('Use minutos inteiros')
+    .min(0, 'O intervalo não pode ser negativo')
+    .max(240, 'Máximo de 240 minutos (4 horas)')
+    .default(0),
   photoUrl: z.string().max(500).optional().nullable(),
   active: z.boolean().default(true),
   professionalIds: z.array(id).optional(),

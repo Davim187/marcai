@@ -404,6 +404,6 @@ describe('robustez: ações repetidas e horários inválidos', () => {
       durationMinutes: 'abc',
       priceCents: 100,
     })
-    expect(s.json().fields.durationMinutes).toBe('Informe um número válido')
+    expect(s.json().fields.durationMinutes).toBe('Informe a duração em minutos')
   })
 })

@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { qk } from '@/lib/queries'
 import { Download, Plus, Search, Upload, Users } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
@@ -61,7 +62,7 @@ export default function CustomersPage() {
           description: r.errors.slice(0, 3).join(' · ') || undefined,
         },
       )
-      qc.invalidateQueries({ queryKey: ['customers'] })
+      qc.invalidateQueries({ queryKey: qk.customers })
     } catch (err) {
       toast.error(errorMessage(err))
     }
@@ -71,19 +72,22 @@ export default function CustomersPage() {
     <div>
       <PageHeader
         title="Clientes"
-        description="Criadas automaticamente a cada agendamento, sem duplicar pelo WhatsApp."
+        description="Cadastrados automaticamente a cada agendamento, sem duplicar pelo WhatsApp."
         actions={
-          <>
-            <Button variant="outline" onClick={() => fileRef.current?.click()}>
-              <Upload /> Importar
-            </Button>
-            <Button variant="outline" onClick={exportCsv}>
-              <Download /> Exportar
-            </Button>
-            <Button onClick={() => setCreating(true)}>
-              <Plus /> Nova cliente
-            </Button>
-          </>
+          // Importar, exportar e cadastrar é só da gestão (a API também bloqueia)
+          tenant.role === 'owner' && (
+            <>
+              <Button variant="outline" onClick={() => fileRef.current?.click()}>
+                <Upload /> Importar
+              </Button>
+              <Button variant="outline" onClick={exportCsv}>
+                <Download /> Exportar
+              </Button>
+              <Button onClick={() => setCreating(true)}>
+                <Plus /> Novo cliente
+              </Button>
+            </>
+          )
         }
       />
       <input

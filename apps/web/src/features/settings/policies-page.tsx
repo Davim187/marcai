@@ -55,6 +55,14 @@ export default function PoliciesPage() {
         loadHolidays: data.loadHolidays,
       })
   }, [data])
+  // Texto digitado no campo de horas (campo vazio ou "e" não pode virar 0 em silêncio)
+  const [cancelText, setCancelText] = useState<string | null>(null)
+  const cancelValue = cancelText ?? String(v?.cancelMinHours ?? '')
+  const cancelError = !/^\d+$/.test(cancelValue)
+    ? 'Informe um número inteiro de horas (0 = até o horário)'
+    : Number(cancelValue) > 336
+      ? 'O máximo é 336 horas (14 dias)'
+      : undefined
   const save = useApiMutation(() => api('/tenant/booking-rules', { method: 'PUT', body: v }), {
     success: 'Regras salvas',
     invalidate: [qk.tenant, ['schedule']],
@@ -156,6 +164,7 @@ export default function PoliciesPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Field
+              error={cancelError}
               label="Até quantas horas antes"
               htmlFor="cancel"
               hint="Depois disso, só falando com você."
@@ -165,8 +174,13 @@ export default function PoliciesPage() {
                 type="number"
                 min={0}
                 max={336}
-                value={v.cancelMinHours}
-                onChange={(e) => set('cancelMinHours', Number(e.target.value))}
+                inputMode="numeric"
+                aria-invalid={!!cancelError}
+                value={cancelValue}
+                onChange={(e) => {
+                  setCancelText(e.target.value)
+                  if (/^\d+$/.test(e.target.value)) set('cancelMinHours', Number(e.target.value))
+                }}
               />
             </Field>
             <Field
@@ -220,6 +234,7 @@ export default function PoliciesPage() {
           size="lg"
           onClick={() => save.mutate()}
           loading={save.isPending}
+          disabled={!!cancelError}
           className="shadow-lift"
         >
           Salvar regras

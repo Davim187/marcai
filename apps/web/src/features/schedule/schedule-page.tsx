@@ -20,7 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { api } from '@/lib/api'
 import { capitalize, fmt, localToIso, todayIn } from '@/lib/dates'
-import { qk, useApiMutation, useProfessionals } from '@/lib/queries'
+import { qk, useApiMutation, useProfessionals, createTimeOff } from '@/lib/queries'
 import { useTenant } from '@/lib/session'
 import { ShiftsEditor, WEEKDAYS } from './shifts-editor'
 
@@ -325,15 +325,11 @@ function TimeOffDialog({
   })
   const save = useApiMutation(
     () =>
-      api('/schedule/time-off', {
-        body: {
-          professionalId: v.everyone ? null : professionalId,
-          reason: v.reason || null,
-          startsAt: localToIso(v.startDate, v.allDay ? '00:00' : v.start, tz),
-          endsAt: v.allDay
-            ? localToIso(v.endDate, '23:59', tz)
-            : localToIso(v.startDate, v.end, tz),
-        },
+      createTimeOff({
+        professionalId: v.everyone ? null : professionalId,
+        reason: v.reason,
+        startsAt: localToIso(v.startDate, v.allDay ? '00:00' : v.start, tz),
+        endsAt: v.allDay ? localToIso(v.endDate, '23:59', tz) : localToIso(v.startDate, v.end, tz),
       }),
     { success: 'Horário bloqueado', invalidate: [['schedule']], onSuccess: onClose },
   )

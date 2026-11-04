@@ -192,6 +192,8 @@ export default function CustomerAreaPage() {
                       setMode('view')
                       setSlot(null)
                     } else {
+                      // O horário foi recusado (ex.: acabou de ser reservado): limpa a escolha
+                      setSlot(null)
                       qc.invalidateQueries({ queryKey: ['public-slots'] })
                     }
                   }}

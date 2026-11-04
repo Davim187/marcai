@@ -94,32 +94,34 @@ export default function CustomerDetailPage() {
           <Button onClick={() => setNewOpen(true)}>
             <CalendarPlus /> Agendar
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Mais opções">
-                <MoreVertical />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => setEditing(true)}>
-                <Pencil /> Editar
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={async () =>
-                  downloadBlob(
-                    JSON.stringify(await api(`/customers/${id}/export`), null, 2),
-                    `dados-${c.name}.json`,
-                    'application/json',
-                  )
-                }
-              >
-                <Download /> Exportar dados (LGPD)
-              </DropdownMenuItem>
-              <DropdownMenuItem destructive onSelect={() => setDeleting(true)}>
-                <Trash2 /> Excluir dados (LGPD)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {tenant.role === 'owner' && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Mais opções">
+                  <MoreVertical />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => setEditing(true)}>
+                  <Pencil /> Editar
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={async () =>
+                    downloadBlob(
+                      JSON.stringify(await api(`/customers/${id}/export`), null, 2),
+                      `dados-${c.name}.json`,
+                      'application/json',
+                    )
+                  }
+                >
+                  <Download /> Exportar dados (LGPD)
+                </DropdownMenuItem>
+                <DropdownMenuItem destructive onSelect={() => setDeleting(true)}>
+                  <Trash2 /> Excluir dados (LGPD)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

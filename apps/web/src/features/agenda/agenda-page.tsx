@@ -13,20 +13,28 @@ import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
-import { addDaysToDate, hhmmToMinutes, minutesToHHMM, weekdayOf } from '@marcai/shared'
+import { addDaysToDate, BOOKING_STATUS_LABELS, minutesToHHMM, weekdayOf } from '@marcai/shared'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/dialog'
 import { NativeSelect } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api, errorMessage } from '@/lib/api'
 import { capitalize, fmt, localToIso, todayIn } from '@/lib/dates'
-import { useProfessionals } from '@/lib/queries'
+import { useProfessionals, invalidateBookingViews } from '@/lib/queries'
 import { useTenant } from '@/lib/session'
 import type { BookingDTO } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { BookingDetailDialog } from '../bookings/booking-detail-dialog'
 import { NewBookingDialog, type NewBookingPrefill } from '../bookings/new-booking-dialog'
 import { STATUS_STYLES } from '../bookings/status'
+import {
+  AGENDA_PX_PER_MINUTE,
+  AGENDA_SNAP_MINUTES,
+  dragDeltaToMinutes,
+  layoutOverlaps,
+  localMinutes,
+  visibleRange,
+} from '@/lib/agenda-layout'
 import { WEEKDAYS_SHORT } from '../schedule/shifts-editor'
 
 type View = 'day' | 'week' | 'month'
@@ -37,8 +45,7 @@ interface TimeOffDTO {
   reason: string | null
   professionalId: string | null
 }
-const PX = 1.2 // pixels por minuto
-const SNAP = 15
+const PX = AGENDA_PX_PER_MINUTE
 
 function mondayOf(date: string) {
   return addDaysToDate(date, -((weekdayOf(date) + 6) % 7))
@@ -111,8 +118,7 @@ export default function AgendaPage() {
         body: { startsAt: pendingMove.startsAt, force: true },
       })
       toast.success('Agendamento remarcado')
-      qc.invalidateQueries({ queryKey: ['calendar'] })
-      qc.invalidateQueries({ queryKey: ['dashboard'] })
+      invalidateBookingViews(qc)
     } catch (err) {
       toast.error(errorMessage(err))
     } finally {
@@ -190,14 +196,7 @@ export default function AgendaPage() {
         {(['pending', 'confirmed', 'completed', 'no_show'] as const).map((s) => (
           <span key={s} className="flex items-center gap-1.5">
             <span className={cn('h-2.5 w-2.5 rounded-full', STATUS_STYLES[s].dot)} />
-            {
-              {
-                pending: 'Pendente',
-                confirmed: 'Confirmado',
-                completed: 'Concluído',
-                no_show: 'Faltou',
-              }[s]
-            }
+            {BOOKING_STATUS_LABELS[s]}
           </span>
         ))}
         <span className="flex items-center gap-1.5">
@@ -233,7 +232,12 @@ export default function AgendaPage() {
           }
           onMove={(booking, date, minutes) => {
             const time = minutesToHHMM(minutes)
-            setPendingMove({ booking, date, time, startsAt: localToIso(date, time, tz) })
+            const startsAt = localToIso(date, time, tz)
+            if (new Date(startsAt).getTime() < Date.now()) {
+              toast.error('Não dá para remarcar para um horário que já passou.')
+              return
+            }
+            setPendingMove({ booking, date, time, startsAt })
           }}
         />
       )}
@@ -257,32 +261,6 @@ export default function AgendaPage() {
       />
     </div>
   )
-}
-
-function layoutDay(events: BookingDTO[]) {
-  // Distribui eventos sobrepostos em colunas lado a lado.
-  const sorted = [...events].sort((a, b) => a.startsAt.localeCompare(b.startsAt))
-  const result: Array<{ b: BookingDTO; lane: number; lanes: number }> = []
-  let cluster: typeof result = []
-  let clusterEnd = ''
-  const laneEnds: string[] = []
-  const flush = () => {
-    const lanes = Math.max(1, ...cluster.map((c) => c.lane + 1))
-    cluster.forEach((c) => (c.lanes = lanes))
-    result.push(...cluster)
-    cluster = []
-    laneEnds.length = 0
-  }
-  for (const b of sorted) {
-    if (cluster.length && b.startsAt >= clusterEnd) flush()
-    let lane = laneEnds.findIndex((end) => end <= b.startsAt)
-    if (lane === -1) lane = laneEnds.length
-    laneEnds[lane] = b.endsAt
-    cluster.push({ b, lane, lanes: 1 })
-    clusterEnd = b.endsAt > clusterEnd || cluster.length === 1 ? b.endsAt : clusterEnd
-  }
-  flush()
-  return result
 }
 
 function TimeGrid({
@@ -312,10 +290,9 @@ function TimeGrid({
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } }),
   )
-  const localMin = (iso: string) => hhmmToMinutes(fmt(iso, tz, 'HH:mm'))
+  const localMin = (iso: string) => localMinutes(iso, tz)
   const allMins = bookings.flatMap((b) => [localMin(b.startsAt), localMin(b.endsAt) || 1440])
-  const startMin = Math.min(7 * 60, ...allMins.map((m) => Math.floor(m / 60) * 60))
-  const endMin = Math.max(21 * 60, ...allMins.map((m) => Math.ceil(m / 60) * 60))
+  const { startMinute: startMin, endMinute: endMin } = visibleRange(allMins)
   const height = (endMin - startMin) * PX
   const hours = Array.from({ length: (endMin - startMin) / 60 }, (_, i) => startMin + i * 60)
   const [now, setNow] = useState(() => new Date())
@@ -328,7 +305,7 @@ function TimeGrid({
   function onDragEnd(e: DragEndEvent) {
     const b = e.active.data.current?.booking as BookingDTO | undefined
     if (!b || !e.over) return
-    const deltaMin = Math.round(e.delta.y / PX / SNAP) * SNAP
+    const deltaMin = dragDeltaToMinutes(e.delta.y)
     const date = String(e.over.id)
     const origDate = fmt(b.startsAt, tz, 'yyyy-MM-dd')
     const minutes = localMin(b.startsAt) + deltaMin
@@ -425,7 +402,7 @@ function DayColumn({
   onEmptyClick: (date: string, time: string) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: date })
-  const localMin = (iso: string) => hhmmToMinutes(fmt(iso, tz, 'HH:mm'))
+  const localMin = (iso: string) => localMinutes(iso, tz)
   return (
     <div
       ref={setNodeRef}
@@ -433,7 +410,7 @@ function DayColumn({
       onClick={(e) => {
         if (e.target !== e.currentTarget) return
         const y = e.nativeEvent.offsetY
-        const minutes = Math.floor((startMin + y / PX) / SNAP) * SNAP
+        const minutes = Math.floor((startMin + y / PX) / AGENDA_SNAP_MINUTES) * AGENDA_SNAP_MINUTES
         onEmptyClick(date, minutesToHHMM(minutes))
       }}
       role="gridcell"
@@ -460,7 +437,7 @@ function DayColumn({
           </div>
         )
       })}
-      {layoutDay(bookings).map(({ b, lane, lanes }) => (
+      {layoutOverlaps(bookings).map(({ item: b, lane, lanes }) => (
         <EventBlock
           key={b.id}
           b={b}

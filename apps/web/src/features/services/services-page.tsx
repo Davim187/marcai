@@ -383,6 +383,7 @@ function ServiceDialog({ service, onClose }: { service: Service | null; onClose:
               label="Intervalo após (min)"
               htmlFor="bufferMinutes"
               hint="Limpeza/organização entre clientes."
+              error={e.bufferMinutes?.message}
             >
               <Input
                 id="bufferMinutes"

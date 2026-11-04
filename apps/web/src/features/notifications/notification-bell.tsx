@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { invalidateBookingViews, qk } from '@/lib/queries'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Bell, CheckCheck } from 'lucide-react'
@@ -52,7 +53,7 @@ export function NotificationBell() {
   const [sseOk, setSseOk] = useState(false)
   const lastSeen = useRef<string | null>(null)
   const { data } = useQuery({
-    queryKey: ['notifications'],
+    queryKey: qk.notifications,
     queryFn: () => api<{ items: NotificationDTO[]; unread: number }>('/notifications'),
     // Polling de 15s como fallback quando o SSE não está conectado
     refetchInterval: sseOk ? 120_000 : 15_000,
@@ -68,9 +69,7 @@ export function NotificationBell() {
         action: newest.link ? { label: 'Ver', onClick: () => navigate(newest.link!) } : undefined,
       })
       if (tenant.notifySound) playChime()
-      qc.invalidateQueries({ queryKey: ['dashboard'] })
-      qc.invalidateQueries({ queryKey: ['calendar'] })
-      qc.invalidateQueries({ queryKey: ['bookings'] })
+      invalidateBookingViews(qc)
     }
     lastSeen.current = newest.id
   }, [data, tenant.notifySound, navigate, qc])
@@ -80,19 +79,19 @@ export function NotificationBell() {
     if (typeof EventSource === 'undefined') return
     const es = new EventSource(apiUrl('/notifications/stream'), { withCredentials: true })
     es.onopen = () => setSseOk(true)
-    es.addEventListener('notification', () => qc.invalidateQueries({ queryKey: ['notifications'] }))
+    es.addEventListener('notification', () => qc.invalidateQueries({ queryKey: qk.notifications }))
     es.onerror = () => setSseOk(false)
     return () => es.close()
   }, [qc])
 
   async function markAll() {
     await api('/notifications/read-all', { method: 'POST' })
-    qc.invalidateQueries({ queryKey: ['notifications'] })
+    qc.invalidateQueries({ queryKey: qk.notifications })
   }
   async function openItem(n: NotificationDTO) {
     if (!n.readAt)
       api(`/notifications/read/${n.id}`, { method: 'POST' }).then(() =>
-        qc.invalidateQueries({ queryKey: ['notifications'] }),
+        qc.invalidateQueries({ queryKey: qk.notifications }),
       )
     setOpen(false)
     if (n.link) navigate(n.link)

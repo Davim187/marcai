@@ -34,7 +34,9 @@ describe('telefone', () => {
   })
   it('formata e mascara', () => {
     expect(formatPhone('5585999999999')).toBe('(85) 99999-9999')
-    expect(maskPhone('8599999')).toBe('(85) 99999')
+    expect(maskPhone('8599999')).toBe('(85) 9999-9')
+    expect(maskPhone('8533334444')).toBe('(85) 3333-4444')
+    expect(maskPhone('85999998888')).toBe('(85) 99999-8888')
   })
 })
 

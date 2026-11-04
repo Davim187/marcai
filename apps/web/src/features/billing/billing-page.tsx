@@ -17,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Field } from '@/components/ui/label'
 import { PageHeader } from '@/components/ui/page-header'
+import { QueryError } from '@/components/query-error'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api'
 import { fmt } from '@/lib/dates'
@@ -76,7 +77,7 @@ const METHODS = [
 export default function BillingPage() {
   const { tenant } = useTenant()
   const refresh = useRefreshSession()
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['billing'],
     queryFn: () => api<Overview>('/billing'),
   })
@@ -117,6 +118,7 @@ export default function BillingPage() {
     { ...after, success: 'Pagamento simulado com sucesso' },
   )
 
+  if (error) return <QueryError error={error} onRetry={() => refetch()} />
   if (isLoading || !data) return <Skeleton className="h-96" />
   const sub = data.subscription
   const st = STATUS[sub?.status ?? 'trial']!
