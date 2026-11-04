@@ -69,30 +69,15 @@ describe('segurança: página de prévia (Open Graph)', () => {
 })
 
 describe('segurança: webhook de cobrança', () => {
-  it('recusa o antigo token padrão "fake-token" e corpo sem token', async () => {
+  it('recusa notificação sem assinatura válida', async () => {
     const { tenant } = await createOwner()
     const app = await getApp()
-    const payload = {
-      eventId: 'x1',
-      rawType: 'PAYMENT_CONFIRMED',
-      type: 'payment_confirmed',
-      payment: {
-        id: 'p1',
-        subscriptionId: null,
-        value: 0.01,
-        status: 'paid',
-        dueDate: '2030-01-01',
-        paymentDate: null,
-        invoiceUrl: null,
-        billingType: null,
-        externalReference: tenant.id,
-      },
-    }
-    for (const token of ['fake-token', '']) {
+    const payload = { eventId: 'x1', type: 'subscription_authorized', providerSubscriptionId: 'x' }
+    for (const sig of ['fake-token', '', 'test-mp-webhook-secret ']) {
       const res = await app.inject({
         method: 'POST',
-        url: '/api/webhooks/asaas',
-        headers: { 'asaas-access-token': token },
+        url: '/api/webhooks/mercadopago',
+        headers: { 'x-fake-signature': sig },
         payload,
       })
       expect(res.statusCode).toBe(403)
@@ -100,6 +85,7 @@ describe('segurança: webhook de cobrança', () => {
     expect(
       (await prisma.subscription.findUniqueOrThrow({ where: { tenantId: tenant.id } })).status,
     ).toBe('trial')
+    expect(await prisma.webhookEvent.count()).toBe(0)
   })
 })
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { prisma } from '../src/lib/prisma'
 import { handleBillingEvent } from '../src/modules/billing/billing.service'
-import { AsaasBillingProvider } from '../src/modules/billing/asaas'
+import { FakeBillingProvider } from '../src/modules/billing/fake'
 import { bookingPayload, createOwner, getApp, loginAsProfessional, nextFreeSlots } from './helpers'
 
 let ipSeq = 0
@@ -352,9 +352,9 @@ describe('REVISAO assinatura', () => {
     const before = await prisma.subscription.findUniqueOrThrow({ where: { tenantId: tenant.id } })
     const r = await app.inject({
       method: 'POST',
-      url: '/api/webhooks/asaas',
-      headers: { 'asaas-access-token': 'test-asaas-token' },
-      payload: { eventId: 'evt_x', rawType: 'ALGO_NOVO', type: 'other', subscriptionId: null },
+      url: '/api/webhooks/mercadopago',
+      headers: { 'x-fake-signature': 'test-mp-webhook-secret' },
+      payload: { eventId: 'evt_x', type: 'other', providerSubscriptionId: null },
     })
     expect(r.statusCode).toBe(200)
     const after = await prisma.subscription.findUniqueOrThrow({ where: { tenantId: tenant.id } })
@@ -365,34 +365,41 @@ describe('REVISAO assinatura', () => {
     const res = await handleBillingEvent(
       {
         eventId: 'evt_ghost',
-        rawType: 'PAYMENT_CONFIRMED',
         type: 'payment_confirmed',
-        subscriptionId: 'sub_inexistente',
-        payment: {
-          id: 'pay_ghost',
-          subscriptionId: 'sub_inexistente',
-          value: 99,
-          status: 'paid',
-          dueDate: '2026-11-01',
-          paymentDate: '2026-11-01',
-          invoiceUrl: null,
-          billingType: 'PIX',
-          externalReference: 'tenant_que_nao_existe',
-        },
+        providerSubscriptionId: 'preapproval_inexistente',
+        providerPaymentId: 'pay_ghost',
+        amountCents: 9900,
       },
-      'asaas',
+      'mercadopago',
     )
     expect(res).toEqual({ ignored: true })
+    const ghostInvoice = await handleBillingEvent(
+      {
+        eventId: 'evt_ghost2',
+        type: 'payment_confirmed',
+        invoiceId: 'fatura_inexistente',
+        amountCents: 9900,
+      },
+      'mercadopago',
+    )
+    expect(ghostInvoice).toEqual({ ignored: true })
     expect(await prisma.invoice.count()).toBe(0)
   })
 
   it('B3 webhook com corpo vazio/malformado → 400 (não 500) e nada é gravado', async () => {
-    expect(() => new AsaasBillingProvider().parseWebhook({})).toThrow()
+    await expect(
+      new FakeBillingProvider().resolveWebhook({
+        headers: {},
+        query: {},
+        body: {},
+        rawBody: Buffer.alloc(0),
+      }),
+    ).rejects.toThrow()
     const app = await getApp()
     const res = await app.inject({
       method: 'POST',
-      url: '/api/webhooks/asaas',
-      headers: { 'asaas-access-token': 'test-asaas-token' },
+      url: '/api/webhooks/mercadopago',
+      headers: { 'x-fake-signature': 'test-mp-webhook-secret' },
       payload: { nada: true },
     })
     expect(res.statusCode).toBe(400)

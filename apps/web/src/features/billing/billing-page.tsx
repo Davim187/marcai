@@ -1,6 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
-import { Check, CreditCard, ExternalLink, FileText, QrCode, Receipt, Sparkles } from 'lucide-react'
-import { useState } from 'react'
+import {
+  Check,
+  CreditCard,
+  ExternalLink,
+  FileText,
+  QrCode,
+  Receipt,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router'
+import { toast } from 'sonner'
 import { formatBRL, type PlanDefinition, type PlanId } from '@marcai/shared'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,8 +25,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Field } from '@/components/ui/label'
 import { PageHeader } from '@/components/ui/page-header'
 import { QueryError } from '@/components/query-error'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -45,8 +54,10 @@ interface Overview {
     billingType: string | null
     description: string | null
   }>
-  provider: 'asaas' | 'fake'
+  provider: 'mercadopago' | 'fake'
   plans: PlanDefinition[]
+  /** Assinatura no cartão aguardando autorização no Mercado Pago */
+  cardCheckoutUrl: string | null
 }
 
 const STATUS: Record<
@@ -74,30 +85,82 @@ const METHODS = [
   { id: 'CREDIT_CARD', label: 'Cartão de crédito', icon: CreditCard },
 ] as const
 
+const RETURN_MESSAGES: Record<string, { text: string; kind: 'success' | 'info' | 'error' }> = {
+  aprovado: {
+    text: 'Pagamento aprovado! A confirmação aparece aqui em instantes.',
+    kind: 'success',
+  },
+  pendente: {
+    text: 'Pagamento em processamento. Assim que o Mercado Pago confirmar, sua assinatura é atualizada.',
+    kind: 'info',
+  },
+  recusado: {
+    text: 'O pagamento não foi aprovado. Tente de novo ou escolha outra forma.',
+    kind: 'error',
+  },
+}
+
 export default function BillingPage() {
   const { tenant } = useTenant()
   const refresh = useRefreshSession()
+  const [params, setParams] = useSearchParams()
+  // Voltando do Mercado Pago, o webhook pode levar alguns segundos: consulta até confirmar.
+  const [waitingUntil, setWaitingUntil] = useState(0)
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['billing'],
     queryFn: () => api<Overview>('/billing'),
+    refetchInterval: () => (Date.now() < waitingUntil ? 4000 : false),
   })
   const [choosing, setChoosing] = useState<PlanId | null>(null)
   const [method, setMethod] = useState<string>('PIX')
-  const [cpf, setCpf] = useState('')
   const [cancelOpen, setCancelOpen] = useState(false)
   const [methodOpen, setMethodOpen] = useState(false)
+
+  useEffect(() => {
+    const result = params.get('pagamento')
+    const card = params.get('cartao')
+    const simulate = params.get('simular')
+    if (!result && !card && !simulate) return
+    if (simulate) toast.info('Ambiente de testes: use o botão "Simular pagamento".')
+    const msg = result ? RETURN_MESSAGES[result] : null
+    if (msg) toast[msg.kind](msg.text, { duration: 8000 })
+    if (card)
+      toast.success('Cartão enviado! Assim que o Mercado Pago autorizar, a assinatura fica ativa.')
+    if (!simulate && result !== 'recusado') setWaitingUntil(Date.now() + 90_000)
+    const next = new URLSearchParams(params)
+    next.delete('pagamento')
+    next.delete('cartao')
+    next.delete('simular')
+    next.delete('collection_id')
+    next.delete('collection_status')
+    next.delete('payment_id')
+    next.delete('status')
+    next.delete('external_reference')
+    next.delete('payment_type')
+    next.delete('merchant_order_id')
+    next.delete('preference_id')
+    next.delete('site_id')
+    next.delete('processing_mode')
+    next.delete('merchant_account_id')
+    next.delete('preapproval_id')
+    setParams(next, { replace: true })
+    refresh()
+  }, [params, setParams, refresh])
+
   const after = { invalidate: [['billing']], onSuccess: () => refresh() }
   const subscribe = useApiMutation(
-    () =>
-      api('/billing/subscribe', {
-        body: { plan: choosing, billingType: method, ...(cpf ? { cpfCnpj: cpf } : {}) },
-      }),
+    (vars: { plan: PlanId; billingType: string }) =>
+      api<{ checkoutUrl: string | null }>('/billing/subscribe', { body: vars }),
     {
       ...after,
-      success: 'Plano atualizado!',
-      onSuccess: () => {
+      success: 'Assinatura atualizada!',
+      onSuccess: (res, vars) => {
         setChoosing(null)
+        setMethodOpen(false)
         refresh()
+        // Cartão: a pessoa autoriza a cobrança automática na página segura do Mercado Pago
+        if (vars.billingType === 'CREDIT_CARD' && res.checkoutUrl)
+          window.location.assign(res.checkoutUrl)
       },
     },
   )
@@ -109,9 +172,10 @@ export default function BillingPage() {
       refresh()
     },
   })
-  const changeMethod = useApiMutation(
-    () => api('/billing/change-payment', { body: { billingType: method } }),
-    { ...after, success: 'Forma de pagamento atualizada', onSuccess: () => setMethodOpen(false) },
+  const pay = useApiMutation(
+    (id: string) =>
+      api<{ checkoutUrl: string }>(`/billing/invoices/${id}/checkout`, { method: 'POST' }),
+    { onSuccess: (res) => window.location.assign(res.checkoutUrl) },
   )
   const fakePay = useApiMutation(
     (id: string) => api(`/billing/fake/pay/${id}`, { method: 'POST' }),
@@ -122,8 +186,10 @@ export default function BillingPage() {
   if (isLoading || !data) return <Skeleton className="h-96" />
   const sub = data.subscription
   const st = STATUS[sub?.status ?? 'trial']!
-  const hasPaid = !!sub?.providerSubscriptionId && sub.status !== 'canceled'
+  // Já escolheu plano e forma de pagamento (mesmo durante o teste)
+  const hasPaid = !!sub?.billingType && sub.status !== 'canceled'
   const pending = data.invoices.find((i) => i.status === 'pending' || i.status === 'overdue')
+  const isCard = sub?.billingType === 'CREDIT_CARD'
 
   return (
     <div className="space-y-6">
@@ -149,15 +215,11 @@ export default function BillingPage() {
                     : ''}
             </p>
           </div>
-          {pending && (
-            <div className="flex gap-2">
-              {pending.invoiceUrl && (
-                <Button asChild>
-                  <a href={pending.invoiceUrl} target="_blank" rel="noreferrer">
-                    <ExternalLink /> Pagar fatura
-                  </a>
-                </Button>
-              )}
+          {pending && !isCard && (
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => pay.mutate(pending.id)} loading={pay.isPending}>
+                <ExternalLink /> Pagar {formatBRL(pending.amountCents)}
+              </Button>
               {data.provider === 'fake' && (
                 <Button
                   variant="outline"
@@ -169,8 +231,21 @@ export default function BillingPage() {
               )}
             </div>
           )}
+          {isCard && data.cardCheckoutUrl && (
+            <Button asChild>
+              <a href={data.cardCheckoutUrl}>
+                <CreditCard /> Autorizar cartão
+              </a>
+            </Button>
+          )}
         </CardContent>
       </Card>
+
+      {isCard && data.cardCheckoutUrl && (
+        <p className="border-warning/40 bg-warning/10 rounded-xl border p-4 text-sm">
+          Falta autorizar o cartão no Mercado Pago. Sem isso, a cobrança automática não acontece.
+        </p>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         {data.plans.map((p) => {
@@ -237,7 +312,16 @@ export default function BillingPage() {
             <Receipt className="text-primary h-4 w-4" /> Faturas
           </CardTitle>
           {hasPaid && (
-            <Button variant="ghost" size="sm" onClick={() => setMethodOpen(true)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setMethod(
+                  sub?.billingType && sub.billingType !== 'UNDEFINED' ? sub.billingType : 'PIX',
+                )
+                setMethodOpen(true)
+              }}
+            >
               Trocar forma de pagamento
             </Button>
           )}
@@ -262,16 +346,15 @@ export default function BillingPage() {
                   <Badge variant={INVOICE[i.status]?.variant ?? 'muted'}>
                     {INVOICE[i.status]?.label ?? i.status}
                   </Badge>
-                  {i.invoiceUrl && (
-                    <a
-                      href={i.invoiceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-primary"
-                      aria-label="Abrir fatura"
+                  {(i.status === 'pending' || i.status === 'overdue') && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => pay.mutate(i.id)}
+                      loading={pay.isPending && pay.variables === i.id}
                     >
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
+                      Pagar
+                    </Button>
                   )}
                 </div>
               ))}
@@ -303,22 +386,16 @@ export default function BillingPage() {
             </DialogDescription>
           </DialogHeader>
           <MethodPicker value={method} onChange={setMethod} />
-          {data.provider === 'asaas' && !sub?.providerSubscriptionId && (
-            <Field label="CPF ou CNPJ" htmlFor="cpf" hint="Exigido para emitir as cobranças.">
-              <Input
-                id="cpf"
-                inputMode="numeric"
-                value={cpf}
-                onChange={(e) => setCpf(e.target.value)}
-              />
-            </Field>
-          )}
+          <MethodHint method={method} />
           <DialogFooter>
             <Button variant="ghost" onClick={() => setChoosing(null)}>
               Voltar
             </Button>
-            <Button onClick={() => subscribe.mutate()} loading={subscribe.isPending}>
-              Confirmar
+            <Button
+              onClick={() => choosing && subscribe.mutate({ plan: choosing, billingType: method })}
+              loading={subscribe.isPending}
+            >
+              {method === 'CREDIT_CARD' ? 'Continuar no Mercado Pago' : 'Confirmar'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -327,15 +404,16 @@ export default function BillingPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Forma de pagamento</DialogTitle>
-            <DialogDescription>
-              Vale a partir da próxima fatura. No cartão, você informa os dados com segurança na
-              página de pagamento.
-            </DialogDescription>
+            <DialogDescription>Vale a partir da próxima cobrança.</DialogDescription>
           </DialogHeader>
           <MethodPicker value={method} onChange={setMethod} />
+          <MethodHint method={method} />
           <DialogFooter>
-            <Button onClick={() => changeMethod.mutate()} loading={changeMethod.isPending}>
-              Salvar
+            <Button
+              onClick={() => sub && subscribe.mutate({ plan: sub.plan, billingType: method })}
+              loading={subscribe.isPending}
+            >
+              {method === 'CREDIT_CARD' && !isCard ? 'Continuar no Mercado Pago' : 'Salvar'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -344,7 +422,7 @@ export default function BillingPage() {
         open={cancelOpen}
         onOpenChange={setCancelOpen}
         title="Cancelar a assinatura?"
-        description="Você continua com acesso até o fim do período pago. Depois disso, sua página de agendamento sai do ar."
+        description="Cobranças futuras são canceladas no Mercado Pago. Você continua com acesso até o fim do período pago; depois disso, sua página de agendamento sai do ar."
         confirmLabel="Cancelar assinatura"
         destructive
         loading={cancel.isPending}
@@ -375,5 +453,23 @@ function MethodPicker({ value, onChange }: { value: string; onChange: (v: string
         </button>
       ))}
     </div>
+  )
+}
+
+function MethodHint({ method }: { method: string }) {
+  const text =
+    method === 'CREDIT_CARD'
+      ? 'Você autoriza uma vez no Mercado Pago e a mensalidade é cobrada automaticamente todo mês.'
+      : method === 'BOLETO'
+        ? 'Todo mês geramos a fatura alguns dias antes do vencimento e avisamos por e-mail. O boleto compensa em até 3 dias úteis.'
+        : 'Todo mês geramos a fatura alguns dias antes do vencimento e avisamos por e-mail. O PIX é confirmado na hora.'
+  return (
+    <p className="text-muted-foreground flex gap-2 text-sm">
+      <ShieldCheck className="text-success mt-0.5 h-4 w-4 shrink-0" />
+      <span>
+        {text} Pagamento processado pelo Mercado Pago: seus dados de cartão não passam pelo nosso
+        sistema.
+      </span>
+    </p>
   )
 }

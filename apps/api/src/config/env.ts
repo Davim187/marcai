@@ -37,10 +37,14 @@ const schema = z.object({
   META_WA_VERIFY_TOKEN: z.string().optional(),
   META_WA_TEMPLATE_NAME: z.string().default('marcai_aviso'),
   META_WA_TEMPLATE_LANG: z.string().default('pt_BR'),
-  BILLING_PROVIDER: z.enum(['fake', 'asaas']).default('fake'),
-  ASAAS_API_URL: z.string().default('https://sandbox.asaas.com/api/v3'),
-  ASAAS_API_KEY: z.string().optional(),
-  ASAAS_WEBHOOK_TOKEN: z.string().optional(),
+  BILLING_PROVIDER: z.enum(['fake', 'mercadopago']).default('fake'),
+  MP_API_URL: z.string().default('https://api.mercadopago.com'),
+  /** Access token da conta do Mercado Pago (TEST-... no modo de testes, APP_USR-... em produção) */
+  MP_ACCESS_TOKEN: z.string().optional(),
+  /** "Assinatura secreta" do webhook (Suas integrações → Webhooks) */
+  MP_WEBHOOK_SECRET: z.string().optional(),
+  /** Dias antes do vencimento em que a fatura PIX/boleto é gerada e enviada por e-mail */
+  BILLING_INVOICE_DAYS_BEFORE: z.coerce.number().int().min(1).max(20).default(5),
   RUN_WORKER_IN_API: bool,
   WORKER_POLL_MS: z.coerce.number().default(3000),
   UPLOAD_DIR: z.string().default('./uploads'),
@@ -69,11 +73,11 @@ function productionProblems(e: z.infer<typeof schema>): string[] {
     problems.push('BILLING_PROVIDER=fake não pode ser usado em produção no modo SaaS')
   }
   if (
-    e.BILLING_PROVIDER === 'asaas' &&
-    (!e.ASAAS_API_KEY || !e.ASAAS_WEBHOOK_TOKEN || e.ASAAS_WEBHOOK_TOKEN.length < 16)
+    e.BILLING_PROVIDER === 'mercadopago' &&
+    (!e.MP_ACCESS_TOKEN || (e.MP_WEBHOOK_SECRET?.length ?? 0) < 16)
   ) {
     problems.push(
-      'Com o Asaas, defina ASAAS_API_KEY e um ASAAS_WEBHOOK_TOKEN forte (16+ caracteres)',
+      'Com o Mercado Pago, defina MP_ACCESS_TOKEN e MP_WEBHOOK_SECRET (assinatura secreta do webhook)',
     )
   }
   if (e.WHATSAPP_PROVIDER === 'evolution' && (e.EVOLUTION_WEBHOOK_SECRET?.length ?? 0) < 16) {

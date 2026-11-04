@@ -86,9 +86,13 @@ export const accountRoutes: FastifyPluginAsyncZod = async (app) => {
         })
         if (owners > 1) continue
         const sub = await prisma.subscription.findUnique({ where: { tenantId: m.tenantId } })
-        if (sub?.providerSubscriptionId && sub.status !== 'canceled')
+        if (
+          sub?.providerSubscriptionId &&
+          sub.billingType === 'CREDIT_CARD' &&
+          sub.status !== 'canceled'
+        )
           await billingProvider()
-            .cancelSubscription(sub.providerSubscriptionId)
+            .cancelCardSubscription(sub.providerSubscriptionId)
             .catch(() => undefined)
         await prisma.tenant.delete({ where: { id: m.tenantId } })
         await audit({ action: 'tenant.deleted', tenantId: m.tenantId, actorUserId: userId })

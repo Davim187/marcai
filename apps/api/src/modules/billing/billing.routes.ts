@@ -13,6 +13,7 @@ import {
   billingProvider,
   cancelSubscription,
   handleBillingEvent,
+  invoiceCheckout,
   subscribe,
 } from './billing.service'
 
@@ -33,50 +34,36 @@ export const billingRoutes: FastifyPluginAsyncZod = async (app) => {
     {
       schema: {
         tags: ['assinatura'],
-        summary: 'Contratar/trocar de plano',
+        summary: 'Contratar/trocar de plano ou forma de pagamento',
         body: changePlanSchema,
       },
     },
     async (request) => {
       const c = ctx(request)
       const owner = await prisma.user.findUniqueOrThrow({ where: { id: request.auth!.user.id } })
-      const sub = await subscribe({
+      const result = await subscribe({
         tenant: { ...c.tenant, subscription: c.subscription },
         owner,
         plan: request.body.plan,
         billingType: request.body.billingType,
-        cpfCnpj: request.body.cpfCnpj,
       })
       await audit({
         action: 'subscription.plan_changed',
         tenantId: c.tenantId,
         actorUserId: owner.id,
-        metadata: { plan: request.body.plan },
+        metadata: { plan: request.body.plan, billingType: request.body.billingType },
       })
-      return sub
+      return result
     },
   )
 
+  /** Gera (ou reaproveita) o link do Mercado Pago para pagar a fatura. */
   app.post(
-    '/change-payment',
-    {
-      schema: {
-        tags: ['assinatura'],
-        body: z.object({ billingType: z.enum(['PIX', 'BOLETO', 'CREDIT_CARD', 'UNDEFINED']) }),
-      },
-    },
+    '/invoices/:id/checkout',
+    { schema: { tags: ['assinatura'], params: z.object({ id: z.string().max(40) }) } },
     async (request) => {
       const c = ctx(request)
-      if (!c.subscription?.providerSubscriptionId)
-        throw notFound('Você ainda não tem uma assinatura paga')
-      await billingProvider().updateSubscription(c.subscription.providerSubscriptionId, {
-        billingType: request.body.billingType,
-      })
-      await prisma.subscription.update({
-        where: { id: c.subscription.id },
-        data: { billingType: request.body.billingType },
-      })
-      return { ok: true }
+      return invoiceCheckout(c.tenantId, request.params.id, request.auth!.user.email)
     },
   )
 
@@ -88,30 +75,28 @@ export const billingRoutes: FastifyPluginAsyncZod = async (app) => {
   /** Só no provedor simulado: dispara o mesmo fluxo do webhook de pagamento confirmado. */
   app.post(
     '/fake/pay/:invoiceId',
-    { schema: { tags: ['assinatura'], hide: true, params: z.object({ invoiceId: z.string() }) } },
+    {
+      schema: {
+        tags: ['assinatura'],
+        hide: true,
+        params: z.object({ invoiceId: z.string().max(40) }),
+      },
+    },
     async (request) => {
       if (billingProvider().name !== 'fake' || isProd)
         throw forbidden('Disponível só no modo de testes')
       const c = ctx(request)
       const inv = await c.db.invoice.findFirst({ where: { id: request.params.invoiceId } })
-      if (!inv || !c.subscription) throw notFound('Fatura não encontrada')
+      if (!inv) throw notFound('Fatura não encontrada')
       return handleBillingEvent(
         {
           eventId: `fake:${inv.id}:paid`,
-          rawType: 'PAYMENT_CONFIRMED',
           type: 'payment_confirmed',
-          subscriptionId: c.subscription.providerSubscriptionId,
-          payment: {
-            id: inv.providerPaymentId,
-            subscriptionId: c.subscription.providerSubscriptionId,
-            value: inv.amountCents / 100,
-            status: 'paid',
-            dueDate: inv.dueDate.toISOString().slice(0, 10),
-            paymentDate: new Date().toISOString().slice(0, 10),
-            invoiceUrl: null,
-            billingType: inv.billingType,
-            externalReference: c.tenantId,
-          },
+          invoiceId: inv.id,
+          providerPaymentId: `pay_fake_${inv.id}`,
+          amountCents: inv.amountCents,
+          paidAt: new Date().toISOString(),
+          paymentMethod: inv.billingType === 'BOLETO' ? 'ticket' : 'bank_transfer',
         },
         'fake',
       )
@@ -119,15 +104,24 @@ export const billingRoutes: FastifyPluginAsyncZod = async (app) => {
   )
 }
 
-/** Webhook de pagamentos (Asaas): valida o token antes de qualquer coisa e é idempotente. */
+/**
+ * Webhook do Mercado Pago: confere a assinatura (x-signature), busca o recurso na API
+ * (o corpo da notificação nunca é confiável) e aplica o evento de forma idempotente.
+ */
 export const billingWebhookRoutes: FastifyPluginAsync = async (app) => {
   registerRawJsonBody(app)
-  app.post('/asaas', { schema: { hide: true } }, async (request) => {
+  app.post('/mercadopago', { schema: { hide: true } }, async (request, reply) => {
     const p = billingProvider()
-    if (!p.verifyWebhook(request.headers, request.rawBody ?? Buffer.alloc(0)))
-      throw forbidden('Token do webhook inválido')
-    const evt = p.parseWebhook(request.body)
-    request.log.info({ event: evt.rawType, eventId: evt.eventId }, 'Webhook de cobrança recebido')
+    const req = {
+      headers: request.headers,
+      query: request.query as Record<string, unknown>,
+      body: request.body,
+      rawBody: request.rawBody ?? Buffer.alloc(0),
+    }
+    if (!p.verifyWebhook(req)) throw forbidden('Assinatura do webhook inválida')
+    const evt = await p.resolveWebhook(req)
+    if (!evt) return reply.status(200).send({ ignored: true })
+    request.log.info({ type: evt.type, eventId: evt.eventId }, 'Webhook de cobrança recebido')
     return handleBillingEvent(evt, p.name)
   })
 }

@@ -7,7 +7,7 @@ export const loggerOptions = {
     'req.headers.cookie',
     'req.headers.authorization',
     'req.headers["x-csrf-token"]',
-    'req.headers["asaas-access-token"]',
+    'req.headers["x-signature"]',
     '*.password',
     '*.passwordHash',
   ],

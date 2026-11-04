@@ -397,11 +397,6 @@ export const customerRescheduleSchema = z.object({ startsAt: z.coerce.date() })
 export const changePlanSchema = z.object({
   plan: z.enum(['essencial', 'pro']),
   billingType: z.enum(['PIX', 'BOLETO', 'CREDIT_CARD', 'UNDEFINED']).default('UNDEFINED'),
-  cpfCnpj: z
-    .string()
-    .transform((v) => v.replace(/\D/g, ''))
-    .refine((v) => v.length === 11 || v.length === 14, 'Informe um CPF ou CNPJ válido')
-    .optional(),
 })
 
 // ---------- Admin ----------

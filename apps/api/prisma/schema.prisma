@@ -520,9 +520,13 @@ model Subscription {
   status                 SubscriptionStatus @default(trial)
   trialEndsAt            DateTime?
   currentPeriodEnd       DateTime?
-  provider               String             @default("asaas")
+  provider               String             @default("mercadopago")
   providerCustomerId     String?
+  /// Mercado Pago: id do preapproval (assinatura automática no cartão)
   providerSubscriptionId String?
+  /// Link para autorizar o cartão no Mercado Pago (enquanto a assinatura estiver pendente)
+  providerCheckoutUrl    String?
+  /// PIX | BOLETO | CREDIT_CARD | UNDEFINED (deixa a pessoa escolher no checkout)
   billingType            String?
   canceledAt             DateTime?
   createdAt              DateTime           @default(now())
@@ -536,7 +540,12 @@ model Invoice {
   id                String        @id @default(cuid())
   tenantId          String
   subscriptionId    String
-  providerPaymentId String        @unique
+  /// Id do pagamento no provedor (preenchido quando o pagamento acontece)
+  providerPaymentId String?       @unique
+  /// Id do checkout (preferência do Mercado Pago) gerado para pagar esta fatura
+  checkoutId        String?
+  /// Meio de pagamento efetivamente usado (pix, boleto, cartão…)
+  paymentMethod     String?
   amountCents       Int
   status            InvoiceStatus @default(pending)
   billingType       String?
@@ -549,6 +558,8 @@ model Invoice {
   tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
+  /// Nunca duas faturas para o mesmo vencimento da mesma assinatura
+  @@unique([subscriptionId, dueDate])
   @@index([tenantId, dueDate])
 }
 
