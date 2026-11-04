@@ -1,6 +1,9 @@
 import type { FastifyInstance } from 'fastify'
 import { authRoutes } from './auth/auth.routes'
+import { bookingPanelRoutes } from './booking/panel.routes'
 import { publicRoutes } from './booking/public.routes'
+import { customerRoutes } from './customers/customer.routes'
+import { dashboardRoutes } from './dashboard/dashboard.routes'
 import { formRoutes } from './forms/form.routes'
 import { scheduleRoutes } from './schedule/schedule.routes'
 import { serviceRoutes } from './services/service.routes'
@@ -22,4 +25,7 @@ export async function registerModules(app: FastifyInstance) {
   await app.register(formRoutes, { prefix: '/api/forms' })
   await app.register(uploadRoutes, { prefix: '/api/uploads' })
   await app.register(publicRoutes, { prefix: '/api/public' })
+  await app.register(bookingPanelRoutes, { prefix: '/api/bookings' })
+  await app.register(customerRoutes, { prefix: '/api/customers' })
+  await app.register(dashboardRoutes, { prefix: '/api/dashboard' })
 }
