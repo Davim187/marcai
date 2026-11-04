@@ -92,35 +92,35 @@ function PhoneMockup() {
   return (
     <div className="relative mx-auto w-[280px] sm:w-[300px]">
       <div
-        className="from-primary/30 absolute -inset-8 -z-10 rounded-full bg-gradient-to-tr via-pink-200/40 to-transparent blur-3xl"
+        className="from-primary/30 absolute -inset-8 -z-10 rounded-full bg-gradient-to-tr via-indigo-200/40 to-transparent blur-3xl"
         aria-hidden
       />
-      <div className="overflow-hidden rounded-[2.6rem] border-[10px] border-[#2B2024] bg-[#FBF8F6] shadow-2xl">
-        <div className="h-20 bg-gradient-to-br from-[#C93C72] to-[#9D174D]" />
+      <div className="overflow-hidden rounded-[2.6rem] border-[10px] border-[#0F172A] bg-[#F8FAFC] shadow-2xl">
+        <div className="h-20 bg-gradient-to-br from-[#6366F1] to-[#3730A3]" />
         <div className="-mt-8 flex flex-col items-center px-4 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-[#FBF8F6] bg-[#FBEAF0] text-xl font-bold text-[#B4235A]">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-[#F8FAFC] bg-[#EEF2FF] text-xl font-bold text-[#4F46E5]">
             M
           </div>
-          <p className="mt-2 text-sm font-bold text-[#2B2024]">Mary Lopes Unhas</p>
-          <p className="text-[10px] text-[#7A6A70]">Alongamento, gel e spa dos pés 💅</p>
+          <p className="mt-2 text-sm font-bold text-[#0F172A]">Studio Vértice</p>
+          <p className="text-[10px] text-[#64748B]">Unhas, cabelo e estética</p>
         </div>
         <div className="space-y-2 p-3">
           {[
-            ['Alongamento em gel', 'a partir de R$ 150', '2h30'],
-            ['Esmaltação em gel', 'R$ 70', '1h'],
+            ['Corte + barba', 'R$ 70', '1h'],
+            ['Escova', 'a partir de R$ 60', '45 min'],
           ].map(([n, p, d]) => (
-            <div key={n} className="rounded-xl border border-[#EFE6E2] bg-white p-2.5 text-left">
-              <p className="text-xs font-semibold text-[#2B2024]">{n}</p>
+            <div key={n} className="rounded-xl border border-[#E2E8F0] bg-white p-2.5 text-left">
+              <p className="text-xs font-semibold text-[#0F172A]">{n}</p>
               <p className="mt-0.5 flex gap-2 text-[10px]">
-                <span className="font-bold text-[#B4235A]">{p}</span>
-                <span className="flex items-center gap-0.5 text-[#7A6A70]">
+                <span className="font-bold text-[#4F46E5]">{p}</span>
+                <span className="flex items-center gap-0.5 text-[#64748B]">
                   <Clock className="h-2.5 w-2.5" />
                   {d}
                 </span>
               </p>
             </div>
           ))}
-          <p className="pt-1 text-[10px] font-semibold uppercase tracking-wider text-[#7A6A70]">
+          <p className="pt-1 text-[10px] font-semibold uppercase tracking-wider text-[#64748B]">
             Quinta, 6 de novembro
           </p>
           <div className="grid grid-cols-4 gap-1.5">
@@ -128,14 +128,14 @@ function PhoneMockup() {
               (t, i) => (
                 <span
                   key={t}
-                  className={`rounded-lg border py-1.5 text-center text-[10px] font-semibold ${i === 4 ? 'border-[#B4235A] bg-[#B4235A] text-white' : 'border-[#EFE6E2] bg-white text-[#2B2024]'}`}
+                  className={`rounded-lg border py-1.5 text-center text-[10px] font-semibold ${i === 4 ? 'border-[#4F46E5] bg-[#4F46E5] text-white' : 'border-[#E2E8F0] bg-white text-[#0F172A]'}`}
                 >
                   {t}
                 </span>
               ),
             )}
           </div>
-          <div className="mt-2 rounded-lg bg-[#B4235A] py-2 text-center text-xs font-semibold text-white">
+          <div className="mt-2 rounded-lg bg-[#4F46E5] py-2 text-center text-xs font-semibold text-white">
             Confirmar agendamento
           </div>
         </div>
@@ -146,15 +146,15 @@ function PhoneMockup() {
         transition={{ delay: 0.8 }}
         className="shadow-lift absolute -right-6 top-44 w-52 rounded-2xl border bg-white p-3 text-left sm:-right-16"
       >
-        <p className="flex items-center gap-1.5 text-xs font-bold text-[#2B2024]">
+        <p className="flex items-center gap-1.5 text-xs font-bold text-[#0F172A]">
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#25D366] text-white">
             <MessageCircle className="h-3 w-3" />
           </span>
           Novo agendamento!
         </p>
-        <p className="mt-1 text-[11px] leading-snug text-[#5c4b52]">
+        <p className="mt-1 text-[11px] leading-snug text-[#475569]">
           👤 Ana Souza
-          <br />✨ Alongamento em gel
+          <br />✨ Corte + barba
           <br />
           📅 Quinta, 06/11 · 14:00
         </p>
@@ -203,7 +203,7 @@ export default function LandingPage() {
       <main>
         <section className="relative overflow-hidden">
           <div
-            className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,#F7DCE6_0%,transparent_55%)]"
+            className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,#E0E7FF_0%,transparent_55%)]"
             aria-hidden
           />
           <div className="container grid items-center gap-12 py-12 sm:py-20 lg:grid-cols-2">
@@ -213,8 +213,8 @@ export default function LandingPage() {
               transition={{ duration: 0.5 }}
             >
               <span className="bg-primary-soft text-primary inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold">
-                <Sparkles className="h-3.5 w-3.5" /> Para manicures, cabeleireiras, lash designers e
-                barbeiros
+                <Sparkles className="h-3.5 w-3.5" /> Para salões, barbearias, estúdios e
+                profissionais de beleza
               </span>
               <h1 className="mt-5 text-4xl font-extrabold leading-[1.08] sm:text-5xl lg:text-6xl">
                 Sua agenda cheia, sem precisar responder mensagem.
@@ -230,7 +230,7 @@ export default function LandingPage() {
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" asChild>
-                  <a href="/marylopes">Ver uma página de exemplo</a>
+                  <a href="/studiovertice">Ver uma página de exemplo</a>
                 </Button>
               </div>
               <p className="text-muted-foreground mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm">
@@ -367,7 +367,7 @@ export default function LandingPage() {
 
         <section className="pb-20">
           <div className="container">
-            <div className="rounded-[2rem] bg-gradient-to-br from-[#B4235A] to-[#7A1840] px-6 py-14 text-center text-white sm:px-12">
+            <div className="rounded-[2rem] bg-gradient-to-br from-[#4F46E5] to-[#312E81] px-6 py-14 text-center text-white sm:px-12">
               <CalendarCheck2 className="mx-auto h-10 w-10 opacity-90" />
               <h2 className="mt-4 text-3xl font-extrabold sm:text-4xl">
                 Sua próxima cliente pode agendar hoje.
@@ -399,7 +399,7 @@ export default function LandingPage() {
               Entrar
             </Link>
           </nav>
-          <p>© {new Date().getFullYear()} Marcaí. Feito no Brasil 💖</p>
+          <p>© {new Date().getFullYear()} Marcaí. Feito no Brasil</p>
         </div>
       </footer>
     </div>

@@ -205,7 +205,7 @@ export async function handleBillingEvent(evt: BillingEvent, providerName: string
     })
     await notifyOwners(
       sub.tenant.members.map((m) => m.user.email),
-      'Pagamento confirmado 💖',
+      'Pagamento confirmado',
       `Recebemos o pagamento da sua assinatura ${PLANS[sub.plan].name}. Obrigada por continuar com a gente!`,
     )
   } else if (evt.type === 'payment_overdue') {

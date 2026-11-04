@@ -16,14 +16,14 @@ import { cn, copyToClipboard } from '@/lib/utils'
 import { defaultShifts, ShiftsEditor } from '../schedule/shifts-editor'
 
 const COLORS = [
-  '#B4235A',
-  '#9D174D',
-  '#C2410C',
-  '#7C3AED',
+  '#4F46E5',
+  '#2563EB',
   '#0F766E',
-  '#1D4ED8',
-  '#BE185D',
-  '#2B2024',
+  '#059669',
+  '#7C3AED',
+  '#C2410C',
+  '#B4235A',
+  '#0F172A',
 ]
 const STEPS = ['Seu negócio', 'Tipo', 'Horários', 'Visual']
 
@@ -46,7 +46,7 @@ export default function OnboardingPage() {
   const [slugState, setSlugState] = useState<SlugState | null>(null)
   const [businessType, setBusinessType] = useState('manicure')
   const [shifts, setShifts] = useState<ShiftInput[]>(defaultShifts)
-  const [color, setColor] = useState('#B4235A')
+  const [color, setColor] = useState('#4F46E5')
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState<{ publicUrl: string } | null>(null)
@@ -222,7 +222,7 @@ export default function OnboardingPage() {
                   <Input
                     id="businessName"
                     autoFocus
-                    placeholder="Ex.: Mary Lopes Unhas & Perfumaria"
+                    placeholder="Ex.: Studio Vértice"
                     value={businessName}
                     onChange={(e) => setBusinessName(e.target.value)}
                   />
@@ -402,7 +402,7 @@ export default function OnboardingPage() {
                 variant="ghost"
                 onClick={() => {
                   setLogoUrl(null)
-                  setColor('#B4235A')
+                  setColor('#4F46E5')
                   finish()
                 }}
                 disabled={submitting}

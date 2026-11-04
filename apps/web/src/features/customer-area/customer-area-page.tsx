@@ -115,7 +115,7 @@ export default function CustomerAreaPage() {
   const confirm = () =>
     run(
       () => api(`/public/bookings/${token}/confirm`, { method: 'POST' }),
-      'Presença confirmada! Até lá 💖',
+      'Presença confirmada! Até lá.',
     )
 
   if (isLoading)

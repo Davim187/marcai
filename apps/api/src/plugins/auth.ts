@@ -182,7 +182,7 @@ export async function requireTenant(request: FastifyRequest) {
 export async function requireOwner(request: FastifyRequest) {
   await requireTenant(request)
   if (request.tenantCtx!.role !== 'owner') {
-    throw forbidden('Somente a dona do estabelecimento pode fazer isso')
+    throw forbidden('Somente quem tem acesso total ao estabelecimento pode fazer isso')
   }
 }
 

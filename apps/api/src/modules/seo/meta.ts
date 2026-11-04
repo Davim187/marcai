@@ -19,7 +19,7 @@ const abs = (u: string) =>
 const LANDING: Omit<PageMeta, 'url'> = {
   title: 'Marcaí — Sua agenda cheia, sem precisar responder mensagem',
   description:
-    'Agendamento online para manicures, cabeleireiras, lash designers e barbeiros. Sua cliente escolhe o horário pelo link na bio e você recebe o aviso na hora, até no WhatsApp. 30 dias grátis.',
+    'Agendamento online para salões, barbearias, estúdios e profissionais de beleza. Seu cliente escolhe o horário pelo link na bio e você recebe o aviso na hora, até no WhatsApp. 30 dias grátis.',
   image: '/og-default.png',
 }
 

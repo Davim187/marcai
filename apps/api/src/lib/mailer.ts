@@ -49,13 +49,13 @@ export function emailLayout(opts: {
   brandName?: string
   color?: string
 }): { html: string; text: string } {
-  const color = opts.color ?? '#B4235A'
+  const color = opts.color ?? '#4F46E5'
   const brand = opts.brandName ?? env.APP_NAME
   const paragraphs = opts.body
     .split('\n')
     .map((l) => (l.trim() ? `<p style="margin:0 0 12px">${escape(l)}</p>` : ''))
     .join('')
-  const html = `<!doctype html><html lang="pt-BR"><body style="margin:0;background:#faf7f5;font-family:'Plus Jakarta Sans',Arial,sans-serif;color:#2b2024">
+  const html = `<!doctype html><html lang="pt-BR"><body style="margin:0;background:#f8fafc;font-family:'Plus Jakarta Sans',Arial,sans-serif;color:#0f172a">
 <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
 <table width="100%" style="max-width:520px;background:#fff;border-radius:16px;padding:32px" cellpadding="0" cellspacing="0">
 <tr><td style="font-size:20px;font-weight:700;color:${color};padding-bottom:16px">${escape(brand)}</td></tr>
@@ -63,7 +63,7 @@ export function emailLayout(opts: {
 <tr><td style="font-size:15px;line-height:1.6">${paragraphs}</td></tr>
 ${opts.cta ? `<tr><td style="padding-top:16px"><a href="${escape(opts.cta.url)}" style="display:inline-block;background:${color};color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:600">${escape(opts.cta.label)}</a></td></tr>` : ''}
 </table>
-<p style="font-size:12px;color:#8a7d82;margin-top:16px">Você recebeu este e-mail por causa da sua conta em ${escape(brand)}.</p>
+<p style="font-size:12px;color:#64748b;margin-top:16px">Você recebeu este e-mail por causa da sua conta em ${escape(brand)}.</p>
 </td></tr></table></body></html>`
   const text = `${opts.title}\n\n${opts.body}${opts.cta ? `\n\n${opts.cta.label}: ${opts.cta.url}` : ''}`
   return { html, text }

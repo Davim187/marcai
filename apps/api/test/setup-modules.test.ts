@@ -25,14 +25,14 @@ describe('onboarding e configurações', () => {
   })
 
   it('checa a disponibilidade do link em tempo real', async () => {
-    const { agent } = await createOwner({ slug: 'marylopes' })
-    const taken = (await agent.get('/api/tenant/slug-availability?slug=marylopes')).json()
+    const { agent } = await createOwner({ slug: 'studiovertice' })
+    const taken = (await agent.get('/api/tenant/slug-availability?slug=studiovertice')).json()
     // O próprio tenant pode manter o slug
     expect(taken.available).toBe(true)
     const { agent: other } = await createOwner()
-    const res = (await other.get('/api/tenant/slug-availability?slug=Mary Lopes')).json()
-    expect(res.slug).toBe('mary-lopes')
-    const res2 = (await other.get('/api/tenant/slug-availability?slug=marylopes')).json()
+    const res = (await other.get('/api/tenant/slug-availability?slug=Studio Vertice')).json()
+    expect(res.slug).toBe('studio-vertice')
+    const res2 = (await other.get('/api/tenant/slug-availability?slug=studiovertice')).json()
     expect(res2.available).toBe(false)
     expect(res2.suggestion).toBeTruthy()
     expect((await other.get('/api/tenant/slug-availability?slug=painel')).json().valid).toBe(false)

@@ -73,7 +73,7 @@ describe('notificações', () => {
 
     const pro = jobs.find((j) => j.kind === 'professional_booking_created')!
     const body = (pro.payload as { body: string }).body
-    expect(body).toContain('💅 Novo agendamento!')
+    expect(body).toContain('📅 Novo agendamento!')
     expect(body).toContain('👤 Cliente: Ana Souza')
     expect(body).toContain('✨ Serviço: Alongamento em gel')
     expect(body).toContain('📝 Tipo de unha: Quadrada')
@@ -165,7 +165,7 @@ describe('notificações', () => {
     const prev = await agent.post('/api/notifications/templates/preview', {
       body: 'Oi {cliente} — {valor}',
     })
-    expect(prev.json().text).toBe('Oi Ana Souza — R$ 120,00')
+    expect(prev.json().text).toBe('Oi Ana Souza — R$ 70,00')
   })
 
   it('webhook da Meta exige assinatura HMAC válida', async () => {

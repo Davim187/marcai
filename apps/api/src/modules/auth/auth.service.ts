@@ -58,7 +58,7 @@ export async function registerUser(input: RegisterInput) {
     },
   })
   const { html, text } = emailLayout({
-    title: `Boas-vindas, ${input.name.split(' ')[0]}! 💖`,
+    title: `Boas-vindas, ${input.name.split(' ')[0]}!`,
     body: 'Sua conta foi criada. Falta pouco para sua agenda online ficar pronta: termine o cadastro do seu negócio e compartilhe o link na bio do Instagram.\nVocê tem 30 dias grátis para testar tudo, sem cartão.',
     cta: { label: 'Continuar cadastro', url: `${env.APP_URL}/onboarding` },
   })

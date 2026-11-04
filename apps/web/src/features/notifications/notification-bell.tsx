@@ -131,7 +131,7 @@ export function NotificationBell() {
         <div className="max-h-[60vh] overflow-y-auto">
           {!data?.items.length ? (
             <p className="text-muted-foreground p-6 text-center text-sm">
-              Nenhum aviso por enquanto. Quando alguém agendar, aparece aqui na hora. 💖
+              Nenhum aviso por enquanto. Quando alguém agendar, aparece aqui na hora.
             </p>
           ) : (
             data.items.map((n) => (

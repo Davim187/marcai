@@ -514,7 +514,7 @@ function TemplatesCard({ canEdit }: { canEdit: boolean }) {
           <p className="text-muted-foreground mb-2 text-xs font-semibold uppercase tracking-wider">
             Pré-visualização
           </p>
-          <div className="rounded-2xl bg-[#e7ddd4] p-3 dark:bg-[#1f1a17]">
+          <div className="rounded-2xl bg-[#e2e8f0] p-3 dark:bg-[#1e293b]">
             <div className="ml-auto max-w-[95%] whitespace-pre-wrap rounded-xl rounded-tr-sm bg-[#dcf8c6] p-3 text-sm text-[#111] shadow-sm dark:bg-[#005c4b] dark:text-white">
               {preview}
             </div>

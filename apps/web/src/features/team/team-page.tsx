@@ -113,7 +113,7 @@ export default function TeamPage() {
             <UsersRound className="text-primary h-4 w-4" /> Acesso ao painel
           </CardTitle>
           <CardDescription>
-            <strong>Dona:</strong> acesso total. <strong>Profissional:</strong> vê e gerencia só a
+            <strong>Gestão:</strong> acesso total. <strong>Profissional:</strong> vê e gerencia só a
             própria agenda.
           </CardDescription>
         </CardHeader>
@@ -125,7 +125,7 @@ export default function TeamPage() {
                 <p className="text-muted-foreground">{m.user.email}</p>
               </div>
               <Badge variant={m.role === 'owner' ? 'default' : 'secondary'}>
-                {m.role === 'owner' ? 'Dona' : 'Profissional'}
+                {m.role === 'owner' ? 'Gestão' : 'Profissional'}
               </Badge>
               <Button
                 variant="ghost"
@@ -180,7 +180,7 @@ function ProfessionalDialog({
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent wide>
         <DialogHeader>
-          <DialogTitle>{professional ? 'Editar profissional' : 'Nova profissional'}</DialogTitle>
+          <DialogTitle>{professional ? 'Editar profissional' : 'Novo profissional'}</DialogTitle>
           <DialogDescription>
             Novas profissionais começam com o mesmo expediente da primeira. Ajuste em Horários.
           </DialogDescription>
@@ -211,7 +211,7 @@ function ProfessionalDialog({
           </div>
         </div>
         <fieldset>
-          <legend className="mb-2 text-sm font-medium">Serviços que ela faz</legend>
+          <legend className="mb-2 text-sm font-medium">Serviços que realiza</legend>
           <div className="flex flex-wrap gap-2">
             {services.map((s) => (
               <label
@@ -274,7 +274,7 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Dar acesso ao painel</DialogTitle>
-          <DialogDescription>Ela recebe um e-mail para criar a senha.</DialogDescription>
+          <DialogDescription>A pessoa recebe um e-mail para criar a senha.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <Field label="Nome" htmlFor="i-name">
@@ -299,12 +299,12 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
               onChange={(e) => setV({ ...v, role: e.target.value })}
             >
               <option value="professional">Profissional (só a própria agenda)</option>
-              <option value="owner">Dona (acesso total)</option>
+              <option value="owner">Gestão (acesso total)</option>
             </NativeSelect>
           </Field>
           <SwitchRow
             id="i-pro"
-            label="Criar uma agenda para ela"
+            label="Criar uma agenda para esta pessoa"
             checked={v.createProfessional}
             onCheckedChange={(createProfessional) => setV({ ...v, createProfessional })}
           />

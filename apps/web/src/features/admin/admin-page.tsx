@@ -203,7 +203,7 @@ export default function AdminPage() {
                 <thead className="text-muted-foreground text-left text-xs">
                   <tr>
                     <th className="py-2">Estabelecimento</th>
-                    <th>Dona</th>
+                    <th>Responsável</th>
                     <th>Plano</th>
                     <th>Status</th>
                     <th>Uso</th>

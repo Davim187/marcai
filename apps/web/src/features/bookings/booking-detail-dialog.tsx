@@ -66,7 +66,7 @@ export function BookingDetailDialog({
       success: (r) =>
         ({
           confirmed: 'Agendamento confirmado',
-          completed: 'Atendimento concluído 💖',
+          completed: 'Atendimento concluído',
           canceled: 'Agendamento cancelado',
           no_show: 'Falta registrada',
         })[(r as { status: string }).status] ?? 'Atualizado',

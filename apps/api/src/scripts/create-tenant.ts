@@ -19,7 +19,7 @@ const { values } = parseArgs({
     senha: { type: 'string' },
     dona: { type: 'string' },
     tipo: { type: 'string', default: 'manicure' },
-    cor: { type: 'string', default: '#B4235A' },
+    cor: { type: 'string', default: '#4F46E5' },
   },
 })
 
@@ -27,7 +27,7 @@ async function main() {
   const { nome, slug, email, senha } = values
   if (!nome || !slug || !email || !senha) {
     console.error(
-      'Uso: --nome "Nome do negócio" --slug meu-slug --email dona@email.com --senha "minhasenha" [--dona "Nome"] [--tipo manicure] [--cor "#B4235A"]',
+      'Uso: --nome "Nome do negócio" --slug meu-slug --email dona@email.com --senha "minhasenha" [--dona "Nome"] [--tipo manicure] [--cor "#4F46E5"]',
     )
     process.exit(1)
   }

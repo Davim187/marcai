@@ -92,7 +92,7 @@ export const TEMPLATE_META: Record<MessageTemplateKey, TemplateMeta> = {
 }
 
 export const DEFAULT_TEMPLATES: Record<MessageTemplateKey, string> = {
-  professional_new_booking: `💅 Novo agendamento!
+  professional_new_booking: `📅 Novo agendamento!
 
 👤 Cliente: {cliente}
 📱 WhatsApp: {telefone}
@@ -127,7 +127,7 @@ Agora: 📅 {data} às {hora}
 
 Total previsto: {total}
 {link}`,
-  customer_confirmation: `Oi, {cliente}! 💖 Seu horário está confirmado.
+  customer_confirmation: `Olá, {cliente}! ✅ Seu horário está confirmado.
 
 ✨ {servico}
 📅 {data}
@@ -140,7 +140,7 @@ Total previsto: {total}
 Para ver, cancelar ou remarcar: {link}
 
 {negocio}`,
-  customer_reminder: `Oi, {cliente}! Passando para lembrar do seu horário 💅
+  customer_reminder: `Oi, {cliente}! Passando para lembrar do seu horário ⏰
 
 ✨ {servico}
 📅 {data} às {hora}
@@ -180,24 +180,24 @@ export function renderTemplate(template: string, vars: Record<string, string | u
 export const SAMPLE_TEMPLATE_VARS: Record<string, string> = {
   cliente: 'Ana Souza',
   telefone: '(85) 99999-9999',
-  servico: 'Alongamento em gel',
-  profissional: 'Mary Lopes',
+  servico: 'Corte + barba',
+  profissional: 'Rafael Costa',
   data: 'Quinta-feira, 06/11',
   hora: '14:00',
-  hora_fim: '16:00',
-  valor: 'R$ 120,00',
-  negocio: 'Mary Lopes Unhas & Perfumaria',
+  hora_fim: '15:00',
+  valor: 'R$ 70,00',
+  negocio: 'Studio Vértice',
   link: 'https://marcai.app/a/abc123',
   link_confirmar: 'https://marcai.app/a/abc123?acao=confirmar',
   link_remarcar: 'https://marcai.app/a/abc123?acao=remarcar',
-  link_agendar: 'https://marcai.app/marylopes',
+  link_agendar: 'https://marcai.app/studiovertice',
   respostas:
-    '📝 Tipo de unha: Quadrada\n📝 É manutenção? Sim\n📝 Observações: Quero decoração francesinha',
+    '📝 É sua primeira vez aqui? Sim\n📝 Comprimento do cabelo: Médio\n📝 Observações: Quero manter o volume em cima',
   motivo: 'Imprevisto no trabalho',
   endereco: 'Rua das Flores, 123 - Aldeota, Fortaleza',
   politica: 'Cancelamentos e remarcações até 12h antes pelo link.',
   data_anterior: 'Quarta-feira, 05/11',
   hora_anterior: '10:00',
   total: 'R$ 480,00',
-  agenda: '08:00 · Ana Souza · Manicure simples\n10:00 · Júlia Lima · Alongamento em gel',
+  agenda: '08:00 · Ana Souza · Escova\n10:00 · Pedro Lima · Corte + barba',
 }

@@ -11,8 +11,8 @@ test('cliente agenda pela página pública, aparece no painel e a notificação 
   const customer = `Cliente E2E ${Date.now().toString().slice(-6)}`
 
   // 1) Página pública
-  await page.goto('/marylopes')
-  await expect(page.getByRole('heading', { name: 'Mary Lopes Unhas & Perfumaria' })).toBeVisible()
+  await page.goto('/studiovertice')
+  await expect(page.getByRole('heading', { name: 'Studio Vértice' })).toBeVisible()
   await page.getByRole('button', { name: /Esmaltação em gel/ }).click()
 
   // 2) Primeiro dia com horário livre e primeiro horário
@@ -32,7 +32,7 @@ test('cliente agenda pela página pública, aparece no painel e a notificação 
   // 3) Formulário (com campos personalizados) e confirmação
   await page.getByLabel('Seu nome').fill(customer)
   await page.getByLabel('Seu WhatsApp').fill('85998765432')
-  await page.getByRole('radio', { name: 'Amendoada' }).click()
+  await page.getByRole('radio', { name: 'Sim' }).click()
   await page.getByRole('checkbox').click()
   await page.getByRole('button', { name: 'Confirmar agendamento' }).click()
   await expect(page.getByRole('heading', { name: /Horário confirmado/ })).toBeVisible()

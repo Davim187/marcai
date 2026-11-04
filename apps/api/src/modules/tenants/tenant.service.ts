@@ -79,7 +79,7 @@ export async function createTenantFromOnboarding(userId: string, input: Onboardi
           slug: input.slug,
           name: input.businessName,
           businessType: input.businessType,
-          primaryColor: input.primaryColor ?? '#B4235A',
+          primaryColor: input.primaryColor ?? '#4F46E5',
           logoUrl: input.logoUrl ?? null,
           timezone: input.timezone ?? DEFAULT_TIMEZONE,
           onboardingCompleted: true,

@@ -43,7 +43,7 @@ export default function AccountPage() {
   const remove = useApiMutation(
     () => api('/account/delete', { body: { password: del.password, confirm: del.confirm } }),
     {
-      success: 'Conta excluída. Sentiremos sua falta 💖',
+      success: 'Conta excluída. Sentiremos sua falta.',
       onSuccess: () => {
         qc.clear()
         navigate('/', { replace: true })
@@ -150,8 +150,8 @@ export default function AccountPage() {
           <DialogHeader>
             <DialogTitle>Excluir conta?</DialogTitle>
             <DialogDescription>
-              Se você for a única dona, o estabelecimento, a agenda, as clientes e o histórico são
-              apagados para sempre e a assinatura é cancelada.
+              Se você for o único responsável, o estabelecimento, a agenda, as clientes e o
+              histórico são apagados para sempre e a assinatura é cancelada.
             </DialogDescription>
           </DialogHeader>
           {user.hasPassword && (

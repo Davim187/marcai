@@ -40,12 +40,12 @@ describe('telefone', () => {
 
 describe('slug', () => {
   it('gera slugs limpos', () => {
-    expect(slugify('Mary Lopes Unhas & Perfumaria')).toBe('mary-lopes-unhas-e-perfumaria')
+    expect(slugify('Studio Vértice Cabelo & Barba')).toBe('studio-vertice-cabelo-e-barba')
     expect(slugify('Ângela Estética')).toBe('angela-estetica')
   })
   it('bloqueia slugs reservados', () => {
     expect(isValidSlug('painel')).toBe(false)
-    expect(isValidSlug('marylopes')).toBe(true)
+    expect(isValidSlug('studiovertice')).toBe(true)
     expect(isValidSlug('a')).toBe(false)
   })
 })

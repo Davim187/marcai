@@ -115,7 +115,7 @@ model Tenant {
   city         String?
   instagram    String?
   whatsapp     String?
-  primaryColor String  @default("#B4235A")
+  primaryColor String  @default("#4F46E5")
   logoUrl      String?
   coverUrl     String?
   faviconUrl   String?

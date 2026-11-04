@@ -32,7 +32,7 @@ export default function LoginPage() {
 
   return (
     <AuthLayout
-      title="Que bom te ver de novo 💖"
+      title="Bem-vindo de volta"
       subtitle="Entre para ver sua agenda."
       footer={
         session?.appMode !== 'single_tenant' && (

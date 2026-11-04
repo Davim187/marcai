@@ -101,9 +101,9 @@ export async function createBooking(opts: CreateBookingOptions) {
       ...(opts.source === 'online' ? { active: true } : {}),
     },
   })
-  if (!professional) throw notFound('Profissional não encontrada')
+  if (!professional) throw notFound('Profissional não encontrado')
   if (opts.source === 'online' && service.professionals.length === 0) {
-    throw badRequest('Essa profissional não faz esse serviço')
+    throw badRequest('Esse profissional não faz esse serviço')
   }
 
   if (!opts.allowOutsideHours) {

@@ -1,8 +1,8 @@
-# Marcaí 💅
+# Marcaí
 
 > **Sua agenda cheia, sem precisar responder mensagem.**
 
-O Marcaí é um SaaS de agendamento online para manicures, nail designers, cabeleireiras, lash designers, barbeiros e outros profissionais de beleza autônomos do Brasil. A profissional coloca o link na bio do Instagram (`marcai.app/marylopes`), a cliente escolhe o serviço, vê **só os horários livres** e confirma. O horário sai da agenda na hora, sem risco de duas clientes marcarem o mesmo horário, e a profissional recebe o aviso no painel, no celular (push) e, no plano Pro, também no WhatsApp.
+O Marcaí é um SaaS de agendamento online para salões, barbearias, estúdios e profissionais de beleza autônomos do Brasil. A profissional coloca o link na bio do Instagram (`marcai.app/studiovertice`), a cliente escolhe o serviço, vê **só os horários livres** e confirma. O horário sai da agenda na hora, sem risco de duas clientes marcarem o mesmo horário, e a profissional recebe o aviso no painel, no celular (push) e, no plano Pro, também no WhatsApp.
 
 O mesmo código roda em dois modos:
 
@@ -51,17 +51,17 @@ docker compose up -d && pnpm install && pnpm db:migrate && pnpm db:seed && pnpm 
 
 - Front: http://localhost:5173 (o Vite encaminha `/api` e `/uploads` para a API)
 - API: http://localhost:3333 · documentação Swagger: http://localhost:3333/api/docs
-- Página pública de exemplo: http://localhost:5173/marylopes
+- Página pública de exemplo: http://localhost:5173/studiovertice
 
 **Logins do seed**
 
-| Perfil                 | E-mail             | Senha       |
-| ---------------------- | ------------------ | ----------- |
-| Dona (demo)            | `demo@marcai.app`  | `demo1234`  |
-| Profissional da equipe | `julia@marcai.app` | `demo1234`  |
-| Super admin            | `admin@marcai.app` | `admin1234` |
+| Perfil                 | E-mail              | Senha       |
+| ---------------------- | ------------------- | ----------- |
+| Dona (demo)            | `demo@marcai.app`   | `demo1234`  |
+| Profissional da equipe | `camila@marcai.app` | `demo1234`  |
+| Super admin            | `admin@marcai.app`  | `admin1234` |
 
-O seed cria a **Mary Lopes Unhas & Perfumaria** (`/marylopes`) com 7 serviços, 2 profissionais, o preset de perguntas de manicure, expediente de terça a sábado (08:00–12:00 e 13:30–19:00), 30 clientes e cerca de 270 agendamentos nas últimas 6 e nas próximas 3 semanas, com status variados, para os relatórios já aparecerem preenchidos.
+O seed cria o **Studio Vértice** (`/studiovertice`), um salão fictício de cabelo, barba e unhas, com 9 serviços, 2 profissionais (Rafael Costa e Camila Rocha), perguntas personalizadas no formulário, expediente de terça a sábado (08:00–12:00 e 13:30–19:00), 30 clientes e cerca de 270 agendamentos nas últimas 6 e nas próximas 3 semanas, com status variados, para os relatórios já aparecerem preenchidos.
 
 Sem chaves configuradas, **tudo funciona em modo de simulação**: e-mails e mensagens de WhatsApp aparecem no log da API, e a cobrança usa o provedor _fake_, com o botão "Simular pagamento" na tela de assinatura.
 

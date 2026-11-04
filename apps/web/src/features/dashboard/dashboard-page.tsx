@@ -72,7 +72,7 @@ export default function DashboardPage() {
             {capitalize(fmt(new Date().toISOString(), tz, "EEEE, d 'de' MMMM"))}
           </p>
           <h1 className="text-2xl font-bold sm:text-[28px]">
-            {greeting()}, {user.name.split(' ')[0]}! 💖
+            {greeting()}, {user.name.split(' ')[0]}! 👋
           </h1>
         </div>
         <Button onClick={() => setNewOpen(true)} className="hidden sm:inline-flex">
@@ -92,7 +92,7 @@ export default function DashboardPage() {
             <Button
               onClick={async () =>
                 (await copyToClipboard(tenant.publicUrl)) &&
-                toast.success('Link copiado! Cole na bio do Instagram 💖')
+                toast.success('Link copiado! Cole na bio do Instagram')
               }
             >
               <Copy /> Copiar link

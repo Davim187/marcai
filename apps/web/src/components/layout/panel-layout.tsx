@@ -97,7 +97,7 @@ export default function PanelLayout() {
 
   async function copyLink() {
     if (await copyToClipboard(tenant.publicUrl))
-      toast.success('Link copiado! Cole na bio do Instagram 💖')
+      toast.success('Link copiado! Cole na bio do Instagram')
   }
 
   return (

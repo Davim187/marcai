@@ -159,7 +159,7 @@ export default function PublicBookingPage() {
               <p className="truncate text-sm font-semibold">{t.name}</p>
               <p className="text-muted-foreground truncate text-xs">
                 {step === 'professional'
-                  ? 'Escolha a profissional'
+                  ? 'Escolha com quem agendar'
                   : step === 'time'
                     ? 'Escolha o dia e o horário'
                     : 'Seus dados'}

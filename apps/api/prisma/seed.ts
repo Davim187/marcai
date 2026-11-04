@@ -1,17 +1,11 @@
 /**
- * Seed de demonstração: "Mary Lopes Unhas & Perfumaria" (slug marylopes).
+ * Seed de demonstração: "Studio Vértice" (slug studiovertice), salão fictício de cabelo, barba e unhas.
  * Login demo: demo@marcai.app / demo1234 · Super admin: admin@marcai.app / admin1234
  */
 import { PrismaClient, type BookingStatus } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { randomBytes } from 'node:crypto'
-import {
-  addDaysToDate,
-  brazilianHolidays,
-  getDaySlots,
-  MANICURE_FIELDS,
-  toLocalDate,
-} from '@marcai/shared'
+import { addDaysToDate, brazilianHolidays, getDaySlots, toLocalDate } from '@marcai/shared'
 
 const prisma = new PrismaClient()
 const TZ = 'America/Fortaleza'
@@ -77,9 +71,13 @@ const LAST = [
 
 async function main() {
   console.log('🌱 Limpando dados de demonstração anteriores…')
-  await prisma.tenant.deleteMany({ where: { slug: 'marylopes' } })
+  await prisma.tenant.deleteMany({ where: { slug: { in: ['studiovertice', 'marylopes'] } } })
   await prisma.user.deleteMany({
-    where: { email: { in: ['demo@marcai.app', 'admin@marcai.app', 'julia@marcai.app'] } },
+    where: {
+      email: {
+        in: ['demo@marcai.app', 'admin@marcai.app', 'julia@marcai.app', 'camila@marcai.app'],
+      },
+    },
   })
 
   const [demoHash, adminHash] = await Promise.all([
@@ -97,117 +95,149 @@ async function main() {
   const demo = await prisma.user.create({
     data: {
       email: 'demo@marcai.app',
-      name: 'Mary Lopes',
+      name: 'Rafael Costa',
       phone: '5585988887777',
       passwordHash: demoHash,
     },
   })
-  const julia = await prisma.user.create({
-    data: { email: 'julia@marcai.app', name: 'Júlia Santos', passwordHash: demoHash },
+  const camilaUser = await prisma.user.create({
+    data: { email: 'camila@marcai.app', name: 'Camila Rocha', passwordHash: demoHash },
   })
 
   const tenant = await prisma.tenant.create({
     data: {
-      slug: 'marylopes',
-      name: 'Mary Lopes Unhas & Perfumaria',
-      businessType: 'manicure',
-      bio: 'Unhas impecáveis e perfumes que marcam presença. Alongamento em gel, esmaltação e spa dos pés com todo o cuidado que você merece 💅',
-      address: 'Rua Padre Valdevino, 1234 - Aldeota',
+      slug: 'studiovertice',
+      name: 'Studio Vértice',
+      businessType: 'outro',
+      bio: 'Cabelo, barba e unhas em um só lugar. Atendimento com hora marcada, sem fila e sem espera.',
+      address: 'Av. Dom Luís, 500 - Meireles',
       city: 'Fortaleza - CE',
-      instagram: 'marylopes.unhas',
+      instagram: 'studiovertice',
       whatsapp: '5585988887777',
-      primaryColor: '#B4235A',
+      primaryColor: '#4F46E5',
       timezone: TZ,
       minAdvanceMinutes: 120,
       maxAdvanceDays: 30,
       slotIntervalMinutes: 30,
       cancelMinHours: 12,
       cancellationPolicy:
-        'Cancelamentos e remarcações podem ser feitos pelo link até 12 horas antes. Atrasos de mais de 15 minutos podem precisar ser reagendados. 💖',
+        'Cancelamentos e remarcações podem ser feitos pelo link até 12 horas antes. Atrasos de mais de 15 minutos podem precisar ser reagendados.',
       reminderHours: 24,
       dailySummaryEnabled: true,
       notifyPhone: '5585988887777',
       onboardingCompleted: true,
     },
   })
-  const mary = await prisma.professional.create({
-    data: { tenantId: tenant.id, name: 'Mary Lopes', bio: 'Nail designer há 8 anos', sortOrder: 0 },
+  const rafael = await prisma.professional.create({
+    data: {
+      tenantId: tenant.id,
+      name: 'Rafael Costa',
+      bio: 'Cabeleireiro e barbeiro há 10 anos',
+      sortOrder: 0,
+    },
   })
-  const ju = await prisma.professional.create({
-    data: { tenantId: tenant.id, name: 'Júlia Santos', bio: 'Manicure e pedicure', sortOrder: 1 },
+  const camila = await prisma.professional.create({
+    data: {
+      tenantId: tenant.id,
+      name: 'Camila Rocha',
+      bio: 'Manicure, pedicure e escova',
+      sortOrder: 1,
+    },
   })
   await prisma.tenantMember.createMany({
     data: [
-      { tenantId: tenant.id, userId: demo.id, role: 'owner', professionalId: mary.id },
-      { tenantId: tenant.id, userId: julia.id, role: 'professional', professionalId: ju.id },
+      { tenantId: tenant.id, userId: demo.id, role: 'owner', professionalId: rafael.id },
+      {
+        tenantId: tenant.id,
+        userId: camilaUser.id,
+        role: 'professional',
+        professionalId: camila.id,
+      },
     ],
   })
 
   const cats = await Promise.all(
-    ['Mãos', 'Pés', 'Alongamento', 'Combos'].map((name, i) =>
+    ['Cabelo', 'Barba', 'Unhas'].map((name, i) =>
       prisma.serviceCategory.create({ data: { tenantId: tenant.id, name, sortOrder: i } }),
     ),
   )
   const cat = Object.fromEntries(cats.map((c) => [c.name, c.id]))
+  // pros: r = Rafael, c = Camila
   const serviceDefs = [
     {
-      name: 'Manicure simples',
-      cat: 'Mãos',
-      d: 45,
-      p: 3500,
-      desc: 'Cutilagem, lixamento, hidratação e esmaltação tradicional.',
-      both: true,
+      name: 'Corte masculino',
+      cat: 'Cabelo',
+      d: 40,
+      p: 4500,
+      pros: 'r',
+      desc: 'Corte na máquina e tesoura, com lavagem e finalização.',
     },
     {
-      name: 'Esmaltação em gel',
-      cat: 'Mãos',
+      name: 'Corte feminino',
+      cat: 'Cabelo',
+      d: 60,
+      p: 8000,
+      pros: 'r',
+      desc: 'Corte com lavagem, finalização e escova modelada.',
+    },
+    {
+      name: 'Escova',
+      cat: 'Cabelo',
+      d: 45,
+      p: 6000,
+      from: true,
+      pros: 'rc',
+      desc: 'Escova lisa ou modelada. Valor varia com o comprimento.',
+    },
+    {
+      name: 'Coloração',
+      cat: 'Cabelo',
+      d: 120,
+      p: 18000,
+      from: true,
+      buf: 10,
+      pros: 'r',
+      desc: 'Coloração completa da raiz às pontas.',
+    },
+    {
+      name: 'Barba',
+      cat: 'Barba',
+      d: 30,
+      p: 3500,
+      pros: 'r',
+      desc: 'Barba com toalha quente e finalização.',
+    },
+    {
+      name: 'Corte + barba',
+      cat: 'Barba',
       d: 60,
       p: 7000,
-      desc: 'Brilho e duração de até 3 semanas, sem lascar.',
-      both: false,
+      pros: 'r',
+      desc: 'Combo completo de corte e barba com preço especial.',
+    },
+    {
+      name: 'Manicure',
+      cat: 'Unhas',
+      d: 45,
+      p: 3500,
+      pros: 'c',
+      desc: 'Cutilagem, lixamento, hidratação e esmaltação.',
     },
     {
       name: 'Pedicure',
-      cat: 'Pés',
+      cat: 'Unhas',
       d: 50,
       p: 4000,
+      pros: 'c',
       desc: 'Cutilagem, lixamento dos pés e esmaltação.',
-      both: true,
     },
     {
-      name: 'Spa dos pés',
-      cat: 'Pés',
+      name: 'Esmaltação em gel',
+      cat: 'Unhas',
       d: 60,
-      p: 8000,
-      desc: 'Esfoliação, máscara hidratante, massagem e esmaltação.',
-      both: true,
-    },
-    {
-      name: 'Alongamento em gel',
-      cat: 'Alongamento',
-      d: 150,
-      p: 15000,
-      from: true,
-      buf: 10,
-      desc: 'Alongamento no molde F1 com acabamento em gel. Formato à sua escolha.',
-      both: false,
-    },
-    {
-      name: 'Manutenção de alongamento',
-      cat: 'Alongamento',
-      d: 120,
-      p: 10000,
-      buf: 10,
-      desc: 'Manutenção em até 21 dias. Acima disso, consulte.',
-      both: false,
-    },
-    {
-      name: 'Pé e mão',
-      cat: 'Combos',
-      d: 90,
       p: 7000,
-      desc: 'Manicure + pedicure tradicionais com preço especial.',
-      both: true,
+      pros: 'c',
+      desc: 'Brilho e duração de até 3 semanas, sem lascar.',
     },
   ]
   const services = []
@@ -226,8 +256,8 @@ async function main() {
           sortOrder: i,
           professionals: {
             create: [
-              { tenantId: tenant.id, professionalId: mary.id },
-              ...(s.both ? [{ tenantId: tenant.id, professionalId: ju.id }] : []),
+              ...(s.pros.includes('r') ? [{ tenantId: tenant.id, professionalId: rafael.id }] : []),
+              ...(s.pros.includes('c') ? [{ tenantId: tenant.id, professionalId: camila.id }] : []),
             ],
           },
         },
@@ -235,9 +265,30 @@ async function main() {
     )
   }
 
-  // Campos personalizados (preset de manicure)
+  // Campos personalizados do formulário
+  const SEED_FIELDS: Array<{
+    label: string
+    type: string
+    required: boolean
+    helpText?: string
+    options?: string[]
+  }> = [
+    { label: 'É sua primeira vez aqui?', type: 'yes_no', required: false },
+    {
+      label: 'Comprimento do cabelo',
+      type: 'single_select',
+      required: false,
+      options: ['Curto', 'Médio', 'Longo'],
+    },
+    {
+      label: 'Foto de referência',
+      type: 'photo',
+      required: false,
+      helpText: 'Mande uma foto do resultado que você quer.',
+    },
+  ]
   const fields = []
-  for (const [i, f] of MANICURE_FIELDS.entries()) {
+  for (const [i, f] of SEED_FIELDS.entries()) {
     fields.push(
       await prisma.formField.create({
         data: {
@@ -246,6 +297,16 @@ async function main() {
           type: f.type,
           required: f.required,
           helpText: f.helpText,
+          // "Comprimento do cabelo" só aparece nos serviços de cabelo
+          appliesToAll: f.label !== 'Comprimento do cabelo',
+          services:
+            f.label === 'Comprimento do cabelo'
+              ? {
+                  create: services
+                    .filter((sv) => sv.categoryId === cat['Cabelo'])
+                    .map((sv) => ({ tenantId: tenant.id, serviceId: sv.id })),
+                }
+              : undefined,
           sortOrder: i,
           options: {
             create: (f.options ?? []).map((label, j) => ({
@@ -264,7 +325,7 @@ async function main() {
     { weekday, start: '08:00', end: '12:00' },
     { weekday, start: '13:30', end: '19:00' },
   ])
-  for (const p of [mary, ju]) {
+  for (const p of [rafael, camila]) {
     await prisma.workingHours.createMany({
       data: shifts.map((s) => ({ ...s, tenantId: tenant.id, professionalId: p.id })),
     })
@@ -295,7 +356,7 @@ async function main() {
             i % 4 === 0
               ? `${FIRST[i]!.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')}@email.com`
               : null,
-          tags: i % 7 === 0 ? ['VIP'] : i % 5 === 0 ? ['Alongamento'] : [],
+          tags: i % 7 === 0 ? ['VIP'] : i % 5 === 0 ? ['Barba'] : [],
           notes: i % 6 === 0 ? 'Prefere esmaltes nude. Alérgica a acetona forte.' : null,
           consentAt: new Date(),
           createdAt: new Date(Date.now() - (60 - i) * 86_400_000),
@@ -314,18 +375,20 @@ async function main() {
   console.log('📅 Gerando agendamentos…')
   const today = toLocalDate(new Date(), TZ)
   const busy: Record<string, Array<{ startsAt: Date; endsAt: Date }>> = {
-    [mary.id]: [],
-    [ju.id]: [],
+    [rafael.id]: [],
+    [camila.id]: [],
   }
   let count = 0
   for (let offset = -42; offset <= 21; offset++) {
     const date = addDaysToDate(today, offset)
-    for (const prof of [mary, ju]) {
+    for (const prof of [rafael, camila]) {
       const isPast = offset < 0
-      const target = prof.id === mary.id ? (isPast ? 4 : offset < 7 ? 3 : 2) : isPast ? 3 : 2
+      const target = prof.id === rafael.id ? (isPast ? 4 : offset < 7 ? 3 : 2) : isPast ? 3 : 2
       for (let k = 0; k < target; k++) {
-        const allowed = services.filter(
-          (s) => prof.id === mary.id || serviceDefs.find((d) => d.name === s.name)!.both,
+        const allowed = services.filter((s) =>
+          serviceDefs
+            .find((d) => d.name === s.name)!
+            .pros.includes(prof.id === rafael.id ? 'r' : 'c'),
         )
         const service = pick(allowed)
         const slots = getDaySlots(
@@ -377,10 +440,10 @@ async function main() {
             notes:
               rand() < 0.25
                 ? pick([
-                    'Quero decoração francesinha',
+                    'Quero manter o volume em cima',
                     'Vou levar minha filha junto',
-                    'Unhas bem curtinhas, por favor',
-                    'Cor: vermelho Ferrari',
+                    'Pode deixar a barba mais baixa',
+                    'Cor: castanho iluminado',
                   ])
                 : null,
             cancelToken: token(),
@@ -394,34 +457,28 @@ async function main() {
                 ? pick(['Imprevisto no trabalho', 'Fiquei doente', 'Viagem'])
                 : null,
             createdAt,
-            answers:
-              service.name.includes('Alongamento') || service.name.includes('gel')
-                ? {
-                    create: [
-                      {
-                        tenantId: tenant.id,
-                        fieldId: fields[0]!.id,
-                        label: fields[0]!.label,
-                        type: fields[0]!.type,
-                        value: pick(['Quadrada', 'Amendoada', 'Bailarina', 'Stiletto']),
-                      },
+            answers: {
+              create: [
+                {
+                  tenantId: tenant.id,
+                  fieldId: fields[0]!.id,
+                  label: fields[0]!.label,
+                  type: fields[0]!.type,
+                  value: rand() < 0.25,
+                },
+                ...(cat['Cabelo'] === service.categoryId
+                  ? [
                       {
                         tenantId: tenant.id,
                         fieldId: fields[1]!.id,
                         label: fields[1]!.label,
                         type: fields[1]!.type,
-                        value: service.name.startsWith('Manutenção'),
+                        value: pick(['Curto', 'Médio', 'Longo']),
                       },
-                      {
-                        tenantId: tenant.id,
-                        fieldId: fields[2]!.id,
-                        label: fields[2]!.label,
-                        type: fields[2]!.type,
-                        value: rand() < 0.5,
-                      },
-                    ],
-                  }
-                : undefined,
+                    ]
+                  : []),
+              ],
+            },
           },
         })
         count++
@@ -449,8 +506,8 @@ async function main() {
   await prisma.timeOff.create({
     data: {
       tenantId: tenant.id,
-      professionalId: mary.id,
-      reason: 'Curso de nail art',
+      professionalId: rafael.id,
+      reason: 'Curso de visagismo',
       startsAt: new Date(`${nextSat}T16:30:00Z`),
       endsAt: new Date(`${nextSat}T22:00:00Z`),
     },
@@ -518,9 +575,9 @@ async function main() {
 
   console.log(`✅ Seed concluído: ${customers.length} clientes, ${count} agendamentos.`)
   console.log('   Painel demo: demo@marcai.app / demo1234')
-  console.log('   Profissional: julia@marcai.app / demo1234')
+  console.log('   Profissional: camila@marcai.app / demo1234')
   console.log('   Super admin:  admin@marcai.app / admin1234')
-  console.log('   Página pública: /marylopes')
+  console.log('   Página pública: /studiovertice')
   void admin
 }
 

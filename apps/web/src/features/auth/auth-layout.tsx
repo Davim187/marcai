@@ -32,16 +32,16 @@ export function AuthLayout({
         className={
           whiteLabel
             ? 'hidden'
-            : 'relative hidden flex-1 overflow-hidden bg-gradient-to-br from-[#FBEAF0] via-[#F7DCE6] to-[#F1CBD9] lg:block'
+            : 'relative hidden flex-1 overflow-hidden bg-gradient-to-br from-[#EEF2FF] via-[#E0E7FF] to-[#C7D2FE] lg:block'
         }
       >
         <div className="absolute inset-0 flex flex-col justify-center px-16">
-          <p className="max-w-md text-4xl font-extrabold leading-tight text-[#2B2024]">
+          <p className="max-w-md text-4xl font-extrabold leading-tight text-[#0F172A]">
             Sua agenda cheia, sem precisar responder mensagem.
           </p>
-          <ul className="mt-8 space-y-3 text-[#5c3d4a]">
-            <li>💅 Link de agendamento para a bio do Instagram</li>
-            <li>🔒 Nunca mais duas clientes no mesmo horário</li>
+          <ul className="mt-8 space-y-3 text-[#334155]">
+            <li>🔗 Link de agendamento para a bio do Instagram</li>
+            <li>🔒 Nunca mais dois clientes no mesmo horário</li>
             <li>📲 Aviso na hora, no painel e no WhatsApp</li>
             <li>⏰ Lembrete automático: menos faltas</li>
           </ul>

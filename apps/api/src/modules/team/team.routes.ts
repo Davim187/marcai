@@ -83,12 +83,12 @@ export const teamRoutes: FastifyPluginAsyncZod = async (app) => {
       const prof = await db.professional.findFirst({
         where: { id: request.params.id, deletedAt: null },
       })
-      if (!prof) throw notFound('Profissional não encontrada')
+      if (!prof) throw notFound('Profissional não encontrado')
       if (!data.active) {
         const actives = await db.professional.count({
           where: { deletedAt: null, active: true, id: { not: prof.id } },
         })
-        if (!actives) throw badRequest('É preciso ter pelo menos uma profissional ativa')
+        if (!actives) throw badRequest('É preciso ter pelo menos um profissional ativo')
       }
       await db.professional.update({ where: { id: prof.id }, data })
       const services = await db.service.findMany({
@@ -111,7 +111,7 @@ export const teamRoutes: FastifyPluginAsyncZod = async (app) => {
       const remaining = await db.professional.count({
         where: { deletedAt: null, id: { not: request.params.id } },
       })
-      if (!remaining) throw badRequest('É preciso ter pelo menos uma profissional')
+      if (!remaining) throw badRequest('É preciso ter pelo menos um profissional')
       const future = await db.booking.count({
         where: {
           professionalId: request.params.id,
@@ -121,7 +121,7 @@ export const teamRoutes: FastifyPluginAsyncZod = async (app) => {
       })
       if (future)
         throw conflict(
-          `Essa profissional tem ${future} agendamento(s) futuro(s). Remarque ou cancele antes de remover.`,
+          `Esse profissional tem ${future} agendamento(s) futuro(s). Remarque ou cancele antes de remover.`,
         )
       await db.professional.updateMany({
         where: { id: request.params.id },
@@ -188,7 +188,7 @@ export const teamRoutes: FastifyPluginAsyncZod = async (app) => {
         cta = { label: 'Criar minha senha', url: `${env.APP_URL}/redefinir-senha?token=${token}` }
       }
       const { html, text } = emailLayout({
-        title: `Você foi convidada para ${tenant.name}`,
+        title: `Convite para a equipe de ${tenant.name}`,
         body: `${request.auth!.user.name} adicionou você à equipe de ${tenant.name}. Pelo painel você vê sua agenda e seus agendamentos.`,
         cta,
         brandName: tenant.name,
@@ -216,7 +216,10 @@ export const teamRoutes: FastifyPluginAsyncZod = async (app) => {
         throw badRequest('Você não pode remover a si mesma')
       if (member.role === 'owner') {
         const owners = await db.tenantMember.count({ where: { role: 'owner' } })
-        if (owners <= 1) throw badRequest('O estabelecimento precisa de pelo menos uma dona')
+        if (owners <= 1)
+          throw badRequest(
+            'O estabelecimento precisa de pelo menos um responsável com acesso total',
+          )
       }
       await db.tenantMember.deleteMany({ where: { id: member.id } })
       await prisma.session.deleteMany({

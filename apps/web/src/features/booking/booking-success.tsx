@@ -36,7 +36,7 @@ export function BookingSuccess({
           transition={{ delay: 0.2 }}
           className="mt-5 text-2xl font-bold"
         >
-          {pending ? 'Pedido enviado!' : 'Horário confirmado! 💖'}
+          {pending ? 'Pedido enviado!' : 'Horário confirmado!'}
         </motion.h1>
         <motion.p
           initial={{ opacity: 0 }}

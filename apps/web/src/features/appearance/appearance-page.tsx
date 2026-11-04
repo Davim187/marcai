@@ -23,14 +23,14 @@ import { cn } from '@/lib/utils'
 import { useTenantFull } from '../settings/policies-page'
 
 const COLORS = [
-  '#B4235A',
-  '#9D174D',
-  '#DB2777',
-  '#C2410C',
-  '#7C3AED',
+  '#4F46E5',
+  '#2563EB',
   '#0F766E',
-  '#1D4ED8',
-  '#2B2024',
+  '#059669',
+  '#7C3AED',
+  '#C2410C',
+  '#B4235A',
+  '#0F172A',
 ]
 
 export default function AppearancePage() {

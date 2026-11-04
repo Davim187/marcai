@@ -74,7 +74,7 @@ export const scheduleRoutes: FastifyPluginAsyncZod = async (app) => {
       const prof = await c.db.professional.findFirst({
         where: { id: professionalId, deletedAt: null },
       })
-      if (!prof) throw notFound('Profissional não encontrada')
+      if (!prof) throw notFound('Profissional não encontrado')
       await c.db.workingHours.deleteMany({ where: { professionalId } })
       await c.db.workingHours.createMany({
         data: shifts.map((s) => ({ ...s, professionalId, tenantId: c.tenantId })),
