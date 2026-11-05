@@ -3,70 +3,73 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 220 20% 98%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 243 75% 59%;
-    --primary-foreground: 0 0% 100%;
-    --primary-soft: 226 100% 97%;
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 222 47% 16%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 40%;
-    --accent: 226 60% 96%;
-    --accent-foreground: 243 50% 30%;
-    --destructive: 0 72% 46%;
-    --destructive-foreground: 0 0% 100%;
-    --success: 152 60% 32%;
-    --success-foreground: 0 0% 100%;
-    --warning: 35 92% 40%;
-    --warning-foreground: 0 0% 100%;
-    --border: 220 13% 90%;
-    --input: 220 13% 86%;
-    --ring: 243 75% 59%;
-    --radius: 0.75rem;
-    /* Gráficos: paleta validada (CVD/contraste) para fundo claro */
-    --chart-1: #4f46e5;
-    --chart-2: #0d9488;
-    --chart-grid: #e5e7eb;
-  }
+  /* Paleta: neutros quentes (pedra) + sálvia. Contraste AA conferido nos dois modos. */
   :root {
     color-scheme: light;
+    --background: 45 17% 91%;
+    --foreground: 140 5% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 140 5% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 140 5% 11%;
+    --primary: 151 32% 36%;
+    --primary-foreground: 0 0% 100%;
+    --primary-soft: 144 22% 91%;
+    --secondary: 48 16% 94%;
+    --secondary-foreground: 140 5% 16%;
+    --muted: 48 16% 94%;
+    --muted-foreground: 100 3% 38%;
+    --accent: 132 17% 94%;
+    --accent-foreground: 151 32% 27%;
+    --destructive: 0 65% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 151 40% 32%;
+    --success-foreground: 0 0% 100%;
+    --warning: 33 85% 38%;
+    --warning-foreground: 0 0% 100%;
+    --border: 45 12% 87%;
+    --input: 47 10% 82%;
+    --ring: 151 32% 36%;
+    /* Destaque invertido (item ativo do menu, botões redondos escuros) */
+    --inverse: 140 5% 11%;
+    --inverse-foreground: 0 0% 100%;
+    --radius: 0.875rem;
+    /* Gráficos: sálvia + terracota (validados: CVD, contraste 3:1 no cartão) */
+    --chart-1: #3f7b5e;
+    --chart-2: #c2782c;
+    --chart-grid: #e7e5df;
   }
   .dark {
     color-scheme: dark;
-    --background: 224 22% 8%;
-    --foreground: 220 20% 95%;
-    --card: 224 20% 11%;
-    --card-foreground: 220 20% 95%;
-    --popover: 224 20% 11%;
-    --popover-foreground: 220 20% 95%;
-    --primary: 234 89% 74%;
-    --primary-foreground: 224 30% 8%;
-    --primary-soft: 240 30% 18%;
-    --secondary: 224 14% 16%;
-    --secondary-foreground: 220 20% 95%;
-    --muted: 224 14% 16%;
-    --muted-foreground: 220 9% 65%;
-    --accent: 224 16% 18%;
-    --accent-foreground: 220 20% 95%;
-    --destructive: 0 65% 55%;
-    --destructive-foreground: 0 0% 100%;
-    --success: 152 50% 45%;
+    --background: 160 9% 6%;
+    --foreground: 140 7% 92%;
+    --card: 140 6% 10%;
+    --card-foreground: 140 7% 92%;
+    --popover: 150 7% 12%;
+    --popover-foreground: 140 7% 92%;
+    --primary: 148 26% 54%;
+    --primary-foreground: 140 9% 7%;
+    --primary-soft: 150 18% 15%;
+    --secondary: 150 6% 14%;
+    --secondary-foreground: 140 7% 92%;
+    --muted: 150 6% 14%;
+    --muted-foreground: 137 4% 63%;
+    --accent: 158 11% 14%;
+    --accent-foreground: 140 7% 92%;
+    --destructive: 0 65% 58%;
+    --destructive-foreground: 0 0% 8%;
+    --success: 148 30% 52%;
     --success-foreground: 0 0% 8%;
-    --warning: 35 90% 55%;
+    --warning: 35 80% 56%;
     --warning-foreground: 0 0% 8%;
-    --border: 224 12% 20%;
-    --input: 224 12% 24%;
-    --ring: 234 89% 74%;
-    /* Gráficos: paleta validada para o fundo escuro */
-    --chart-1: #6366f1;
-    --chart-2: #0ea5a0;
-    --chart-grid: #262b36;
+    --border: 144 6% 16%;
+    --input: 150 6% 21%;
+    --ring: 148 26% 54%;
+    --inverse: 140 7% 92%;
+    --inverse-foreground: 140 9% 7%;
+    --chart-1: #5f9e7e;
+    --chart-2: #c47f34;
+    --chart-grid: #262b28;
   }
   * {
     @apply border-border;

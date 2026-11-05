@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 export function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={cn('h-8 w-8', className)} aria-hidden>
-      <rect width="64" height="64" rx="16" fill="#4F46E5" />
+      <rect width="64" height="64" rx="16" fill="#3F7B5E" />
       <path
         d="M18 44V22l14 13 14-13v22"
         fill="none"
@@ -12,7 +12,7 @@ export function LogoMark({ className }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx="46" cy="16" r="4" fill="#C7D2FE" />
+      <circle cx="46" cy="16" r="4" fill="#CFE3D8" />
     </svg>
   )
 }

@@ -107,7 +107,7 @@ export function NotificationBell() {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
-          variant="ghost"
+          variant="round"
           size="icon"
           className="relative"
           aria-label={`Notificações${unread ? `, ${unread} não lidas` : ''}`}

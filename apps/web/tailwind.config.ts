@@ -35,6 +35,7 @@ export default {
         accent: { DEFAULT: 'hsl(var(--accent))', foreground: 'hsl(var(--accent-foreground))' },
         popover: { DEFAULT: 'hsl(var(--popover))', foreground: 'hsl(var(--popover-foreground))' },
         card: { DEFAULT: 'hsl(var(--card))', foreground: 'hsl(var(--card-foreground))' },
+        inverse: { DEFAULT: 'hsl(var(--inverse))', foreground: 'hsl(var(--inverse-foreground))' },
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -44,8 +45,8 @@ export default {
         '2xl': 'calc(var(--radius) + 10px)',
       },
       boxShadow: {
-        soft: '0 1px 2px rgba(43,32,36,.04), 0 4px 16px rgba(43,32,36,.06)',
-        lift: '0 2px 4px rgba(43,32,36,.05), 0 12px 32px rgba(43,32,36,.10)',
+        soft: '0 1px 2px rgba(27,30,28,.03), 0 6px 20px -8px rgba(27,30,28,.08)',
+        lift: '0 2px 4px rgba(27,30,28,.04), 0 16px 36px -12px rgba(27,30,28,.16)',
       },
       keyframes: {
         'accordion-down': {
