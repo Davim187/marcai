@@ -1,4 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
+import { askConfirm } from '@/components/confirm-host'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { MoreVertical, Pencil, Plus, Trash2, UserPlus, UsersRound } from 'lucide-react'
 import { useState } from 'react'
 import { ImageUpload } from '@/components/image-upload'
@@ -8,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
+  ConfirmDialog,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -25,7 +28,7 @@ import { Input, NativeSelect, Textarea } from '@/components/ui/input'
 import { Field } from '@/components/ui/label'
 import { PageHeader } from '@/components/ui/page-header'
 import { SwitchRow } from '@/components/ui/switch'
-import { api } from '@/lib/api'
+import { api, ApiError, errorMessage } from '@/lib/api'
 import { qk, useApiMutation, useProfessionals, useServices } from '@/lib/queries'
 import type { Professional } from '@/lib/types'
 
@@ -34,6 +37,7 @@ interface Member {
   role: 'owner' | 'professional'
   user: { id: string; name: string; email: string }
   professional: { id: string; name: string } | null
+  acceptedAt: string | null
 }
 
 export default function TeamPage() {
@@ -42,12 +46,28 @@ export default function TeamPage() {
     queryKey: ['members'],
     queryFn: () => api<Member[]>('/team/members'),
   })
+  const qc = useQueryClient()
   const [editing, setEditing] = useState<Professional | 'new' | null>(null)
   const [inviting, setInviting] = useState(false)
-  const removePro = useApiMutation(
-    (id: string) => api(`/team/professionals/${id}`, { method: 'DELETE' }),
-    { success: 'Profissional removida', invalidate: [qk.professionals] },
+  // Remoção em 2 passos: confirmação simples e, se serviços ficarem sem ninguém, o aviso da API
+  const [removing, setRemoving] = useState<{ professional: Professional; warning?: string } | null>(
+    null,
   )
+  const removePro = useMutation({
+    mutationFn: (v: { id: string; confirmed: boolean }) =>
+      api(`/team/professionals/${v.id}${v.confirmed ? '?confirmar=1' : ''}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      toast.success('Profissional removido')
+      setRemoving(null)
+      qc.invalidateQueries({ queryKey: qk.professionals })
+      qc.invalidateQueries({ queryKey: qk.services })
+    },
+    onError: (err) => {
+      if (err instanceof ApiError && err.code === 'SERVICOS_SEM_PROFISSIONAL' && removing) {
+        setRemoving({ ...removing, warning: err.message })
+      } else toast.error(errorMessage(err))
+    },
+  })
   const removeMember = useApiMutation(
     (id: string) => api(`/team/members/${id}`, { method: 'DELETE' }),
     { success: 'Acesso removido', invalidate: [['members']] },
@@ -98,7 +118,7 @@ export default function TeamPage() {
                   <DropdownMenuItem onSelect={() => setEditing(p)}>
                     <Pencil /> Editar
                   </DropdownMenuItem>
-                  <DropdownMenuItem destructive onSelect={() => removePro.mutate(p.id)}>
+                  <DropdownMenuItem destructive onSelect={() => setRemoving({ professional: p })}>
                     <Trash2 /> Remover
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -127,11 +147,21 @@ export default function TeamPage() {
               <Badge variant={m.role === 'owner' ? 'default' : 'secondary'}>
                 {m.role === 'owner' ? 'Gestão' : 'Profissional'}
               </Badge>
+              {!m.acceptedAt && <Badge variant="warning">Convite pendente</Badge>}
               <Button
                 variant="ghost"
                 size="icon-sm"
                 aria-label={`Remover acesso de ${m.user.name}`}
-                onClick={() => removeMember.mutate(m.id)}
+                onClick={async () => {
+                  if (
+                    await askConfirm({
+                      title: `Remover o acesso de ${m.user.name}?`,
+                      description: 'A pessoa deixa de entrar no painel deste estabelecimento.',
+                      confirmLabel: 'Remover acesso',
+                    })
+                  )
+                    removeMember.mutate(m.id)
+                }}
               >
                 <Trash2 />
               </Button>
@@ -146,6 +176,22 @@ export default function TeamPage() {
         />
       )}
       {inviting && <InviteDialog onClose={() => setInviting(false)} />}
+      <ConfirmDialog
+        open={!!removing}
+        onOpenChange={(open) => !open && setRemoving(null)}
+        title={`Remover ${removing?.professional.name}?`}
+        description={
+          removing?.warning ??
+          'A agenda desse profissional sai do sistema. O histórico de atendimentos continua salvo.'
+        }
+        confirmLabel={removing?.warning ? 'Remover mesmo assim' : 'Remover'}
+        destructive
+        loading={removePro.isPending}
+        onConfirm={() =>
+          removing &&
+          removePro.mutate({ id: removing.professional.id, confirmed: !!removing.warning })
+        }
+      />
     </div>
   )
 }

@@ -1,10 +1,14 @@
+import { badRequest } from './errors'
+
 /** CSV simples compatível com Excel/Google Planilhas em português (separador ";" + BOM). */
 export function toCsv(
   rows: Array<Record<string, unknown>>,
   headers: Array<{ key: string; label: string }>,
 ): string {
   const esc = (v: unknown) => {
-    const s = v === null || v === undefined ? '' : String(v)
+    let s = v === null || v === undefined ? '' : String(v)
+    // Evita "CSV injection": célula começando com = + - @ vira texto no Excel/Planilhas
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`
     return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
   const lines = [
@@ -14,8 +18,25 @@ export function toCsv(
   return '\uFEFF' + lines.join('\r\n')
 }
 
+/** Arquivo binário (ex.: imagem renomeada para .csv) tem bytes de controle que texto não tem. */
+function looksBinary(text: string) {
+  const sample = text.slice(0, 4096)
+  for (let i = 0; i < sample.length; i++) {
+    const code = sample.charCodeAt(i)
+    if (code < 9 || (code > 13 && code < 32)) return true
+  }
+  return false
+}
+
 /** Parser tolerante: detecta "," ou ";" e respeita aspas. */
 export function parseCsv(text: string): string[][] {
+  // Arquivo binário (ex.: imagem renomeada para .csv) tem bytes nulos/de controle
+  if (looksBinary(text)) {
+    throw badRequest(
+      'Esse arquivo não parece uma planilha CSV. Exporte como CSV e tente de novo.',
+      'ARQUIVO_INVALIDO',
+    )
+  }
   const clean = text.replace(/^\uFEFF/, '')
   const firstLine = clean.split(/\r?\n/, 1)[0] ?? ''
   const sep =
@@ -43,6 +64,12 @@ export function parseCsv(text: string): string[][] {
       row = []
       cell = ''
     } else cell += c
+  }
+  if (quoted) {
+    throw badRequest(
+      'A planilha tem aspas (") abertas e não fechadas. Corrija o arquivo e tente de novo.',
+      'ARQUIVO_INVALIDO',
+    )
   }
   row.push(cell)
   if (row.some((x) => x.trim())) rows.push(row)

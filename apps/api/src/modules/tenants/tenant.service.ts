@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client'
 import {
   type BusinessType,
   brazilianHolidays,
+  DAY_MS,
   DEFAULT_TIMEZONE,
   isValidSlug,
   type OnboardingInput,
@@ -16,7 +17,12 @@ import { prisma } from '../../lib/prisma'
 export async function isSlugAvailable(slug: string, exceptTenantId?: string) {
   if (!isValidSlug(slug)) return false
   const t = await prisma.tenant.findUnique({ where: { slug } })
-  return !t || t.id === exceptTenantId
+  if (t && t.id !== exceptTenantId) return false
+  // Link antigo de outro estabelecimento continua reservado por 180 dias
+  const old = await prisma.slugHistory.findUnique({ where: { slug } })
+  if (old && old.tenantId !== exceptTenantId && Date.now() - old.createdAt.getTime() < 180 * DAY_MS)
+    return false
+  return true
 }
 
 /** Cria os campos personalizados do formulário a partir de um preset. */

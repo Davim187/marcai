@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/ui/page-header'
+import { QueryError } from '@/components/query-error'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api'
 import { todayIn } from '@/lib/dates'
@@ -67,7 +68,7 @@ export default function ReportsPage() {
   const [range, setRange] = useState({ id: '30', from: presets[1]!.from, to: presets[1]!.to })
   const [showTable, setShowTable] = useState(false)
   const qs = `from=${range.from}&to=${range.to}`
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['reports', qs],
     queryFn: () => api<Report>(`/reports?${qs}`),
   })
@@ -78,6 +79,7 @@ export default function ReportsPage() {
     Previsto: d.forecast / 100,
   }))
 
+  if (error) return <QueryError error={error} onRetry={() => refetch()} />
   return (
     <div className="space-y-6">
       <PageHeader

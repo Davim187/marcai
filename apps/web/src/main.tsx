@@ -3,6 +3,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router'
 import { Toaster } from 'sonner'
+import { ConfirmHost } from './components/confirm-host'
 import { TooltipProvider } from './components/ui/tooltip'
 import { ApiError } from './lib/api'
 import { ThemeProvider } from './lib/theme'
@@ -32,6 +33,7 @@ createRoot(document.getElementById('root')!).render(
       <ThemeProvider>
         <TooltipProvider>
           <RouterProvider router={router} />
+          <ConfirmHost />
           <Toaster
             position="top-center"
             richColors

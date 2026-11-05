@@ -6,7 +6,7 @@ O Marcaí é um SaaS de agendamento online para salões, barbearias, estúdios e
 
 O mesmo código roda em dois modos:
 
-- **SaaS multi-tenant** (padrão): cada estabelecimento tem a página pública própria, com teste grátis de 30 dias e cobrança recorrente pelo Asaas.
+- **SaaS multi-tenant** (padrão): cada estabelecimento tem a página pública própria, com teste grátis de 30 dias e cobrança recorrente pelo Mercado Pago.
 - **Modo exclusivo / white-label** (`APP_MODE=single_tenant`): um único estabelecimento, com a página na raiz do domínio e a marca do cliente, sem cadastro público nem cobrança.
 
 ## Prints
@@ -33,7 +33,7 @@ O mesmo código roda em dois modos:
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Monorepo                          | pnpm workspaces · TypeScript strict · ESLint + Prettier · Husky + lint-staged · GitHub Actions                                                                                                                           |
 | Front (`apps/web`)                | React 19 · Vite · React Router 7 · TanStack Query · Tailwind CSS + componentes no estilo shadcn/ui (Radix) · lucide-react · React Hook Form + Zod · date-fns(-tz) · Framer Motion · Recharts · dnd-kit · vite-plugin-pwa |
-| Back (`apps/api`)                 | Node.js · Fastify 5 · Prisma 6 · PostgreSQL 16 · Zod (fastify-type-provider-zod) · Swagger/OpenAPI · Resend · Web Push (VAPID)                                                                                           |
+| Back (`apps/api`)                 | Node.js · Fastify 5 · Prisma 6 · PostgreSQL 16 · Zod (fastify-type-provider-zod) · Swagger/OpenAPI · Resend/SMTP · Web Push (VAPID)                                                                                      |
 | Compartilhado (`packages/shared`) | Schemas Zod, motor de disponibilidade, planos/feature gating, feriados, paleta de cores, templates de mensagem, presets                                                                                                  |
 | Testes                            | Vitest (unitários e de integração com Postgres real) · Playwright (E2E)                                                                                                                                                  |
 
@@ -55,11 +55,11 @@ docker compose up -d && pnpm install && pnpm db:migrate && pnpm db:seed && pnpm 
 
 **Logins do seed**
 
-| Perfil                 | E-mail              | Senha       |
-| ---------------------- | ------------------- | ----------- |
-| Dona (demo)            | `demo@marcai.app`   | `demo1234`  |
-| Profissional da equipe | `camila@marcai.app` | `demo1234`  |
-| Super admin            | `admin@marcai.app`  | `admin1234` |
+| Perfil                 | E-mail              | Senha                                                                 |
+| ---------------------- | ------------------- | --------------------------------------------------------------------- |
+| Dona (demo)            | `demo@marcai.app`   | `demo1234`                                                            |
+| Profissional da equipe | `camila@marcai.app` | `demo1234`                                                            |
+| Super admin            | `admin@marcai.app`  | definida em `SEED_ADMIN_PASSWORD` ou gerada e mostrada no fim do seed |
 
 O seed cria o **Studio Vértice** (`/studiovertice`), um salão fictício de cabelo, barba e unhas, com 9 serviços, 2 profissionais (Rafael Costa e Camila Rocha), perguntas personalizadas no formulário, expediente de terça a sábado (08:00–12:00 e 13:30–19:00), 30 clientes e cerca de 270 agendamentos nas últimas 6 e nas próximas 3 semanas, com status variados, para os relatórios já aparecerem preenchidos.
 
@@ -82,37 +82,61 @@ Sem chaves configuradas, **tudo funciona em modo de simulação**: e-mails e men
 
 O arquivo [`apps/api/.env.example`](apps/api/.env.example) lista e comenta todas. As principais:
 
-| Variável                        | Para que serve                                                                            |
-| ------------------------------- | ----------------------------------------------------------------------------------------- |
-| `APP_MODE`                      | `saas` (padrão) ou `single_tenant`                                                        |
-| `APP_URL` / `API_URL`           | URLs públicas do front e da API (links em mensagens, CORS, callbacks)                     |
-| `DATABASE_URL`                  | PostgreSQL                                                                                |
-| `SESSION_SECRET`                | Segredo do hash dos tokens de sessão (`openssl rand -hex 32`)                             |
-| `COOKIE_SAMESITE`               | `lax` com front e API no mesmo domínio (recomendado); `none` se forem domínios diferentes |
-| `GOOGLE_CLIENT_ID/SECRET`       | Login com Google (opcional)                                                               |
-| `RESEND_API_KEY` / `EMAIL_FROM` | E-mails transacionais                                                                     |
-| `VAPID_PUBLIC_KEY/PRIVATE_KEY`  | Web Push (`npx web-push generate-vapid-keys`)                                             |
-| `WHATSAPP_PROVIDER`             | `console`, `evolution` ou `meta`                                                          |
-| `BILLING_PROVIDER`              | `fake` ou `asaas`                                                                         |
-| `RUN_WORKER_IN_API`             | Roda o worker da fila dentro da API (prático no dev)                                      |
-| `WEB_DIST_DIR`                  | Faz a API servir o build do front, com as meta tags Open Graph injetadas                  |
+| Variável                       | Para que serve                                                                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `APP_MODE`                     | `saas` (padrão) ou `single_tenant`                                                                                              |
+| `APP_URL` / `API_URL`          | URLs públicas do front e da API (links em mensagens, CORS, callbacks)                                                           |
+| `DATABASE_URL`                 | PostgreSQL                                                                                                                      |
+| `SESSION_SECRET`               | Segredo do hash dos tokens de sessão (`openssl rand -hex 32`)                                                                   |
+| `TRUST_PROXY`                  | **Obrigatório em produção.** Nº de proxies na frente da API (1 no Railway/Render; 2 com o rewrite da Vercel/Netlify) ou `false` |
+| `SEED_ADMIN_PASSWORD`          | Senha do super admin criado pelo seed (sem ela, uma aleatória é gerada e mostrada no fim)                                       |
+| `COOKIE_SAMESITE`              | `lax` com front e API no mesmo domínio (recomendado); `none` se forem domínios diferentes                                       |
+| `GOOGLE_CLIENT_ID/SECRET`      | Login com Google (opcional)                                                                                                     |
+| `RESEND_API_KEY` / `SMTP_*`    | E-mails transacionais (Resend ou qualquer SMTP) e `EMAIL_FROM`                                                                  |
+| `VAPID_PUBLIC_KEY/PRIVATE_KEY` | Web Push (`npx web-push generate-vapid-keys`)                                                                                   |
+| `WHATSAPP_PROVIDER`            | `console`, `evolution` ou `meta`                                                                                                |
+| `BILLING_PROVIDER`             | `fake` ou `mercadopago`                                                                                                         |
+| `RUN_WORKER_IN_API`            | Roda o worker da fila dentro da API (prático no dev)                                                                            |
+| `WEB_DIST_DIR`                 | Faz a API servir o build do front, com as meta tags Open Graph injetadas                                                        |
 
 ## Configurando integrações
 
-### Asaas (cobrança: PIX, boleto e cartão)
+### Mercado Pago (cobrança: PIX, boleto e cartão)
 
-1. Crie uma conta no [Asaas](https://www.asaas.com) (use o **sandbox** para testes) e gere a chave em _Integrações → API_.
-2. Configure `BILLING_PROVIDER=asaas`, `ASAAS_API_KEY=...` e `ASAAS_API_URL` (`https://sandbox.asaas.com/api/v3` no sandbox, `https://api.asaas.com/v3` em produção).
-3. Em _Integrações → Webhooks_, crie um webhook para `{API_URL}/api/webhooks/asaas` com os eventos de **cobrança** e de **assinatura**. Defina um **token de autenticação** e coloque o mesmo valor em `ASAAS_WEBHOOK_TOKEN`: a API recusa qualquer chamada sem esse token.
-4. Ao assinar, a dona informa o CPF/CNPJ e a forma de pagamento. A primeira cobrança acontece no fim do teste grátis. Os webhooks atualizam a assinatura: `trial`/`past_due` → `active` quando paga, `active` → `past_due` quando vence. Eventos repetidos são ignorados (idempotência).
+1. Crie uma aplicação em [Mercado Pago Developers](https://www.mercadopago.com.br/developers/panel/app) (produto **Checkout Pro** + **Assinaturas**). Para testar, use as **credenciais de teste** e contas de teste (comprador/vendedor).
+2. Configure `BILLING_PROVIDER=mercadopago` e `MP_ACCESS_TOKEN` (o _Access Token_ da aplicação; `TEST-...` no teste, `APP_USR-...` em produção).
+3. Em _Suas integrações → Webhooks_, cadastre a URL `{API_URL}/api/webhooks/mercadopago` com os eventos **Pagamentos**, **Planos e assinaturas** (`subscription_preapproval`) e **Pagamentos recorrentes** (`subscription_authorized_payment`). Copie a **assinatura secreta** para `MP_WEBHOOK_SECRET`.
+4. Como funciona:
+   - **Cartão**: a dona autoriza uma vez no Mercado Pago (assinatura automática / _preapproval_) e a mensalidade é cobrada todo mês, começando no fim do teste grátis.
+   - **PIX / boleto**: o sistema gera a fatura `BILLING_INVOICE_DAYS_BEFORE` dias antes do vencimento, avisa por e-mail e o botão **Pagar** abre o Checkout Pro com o valor certo.
+   - Toda notificação é conferida pela assinatura `x-signature` (HMAC-SHA256, janela de 15 min) e o pagamento é **buscado na API do Mercado Pago** pelo id: o corpo da notificação nunca é usado. Pagamento com valor menor que a fatura é ignorado.
+   - Os eventos são idempotentes (`WebhookEvent`): `trial`/`past_due` → `active` quando paga; a rotina diária marca faturas vencidas e `active` → `past_due` quando o período acaba (carência de 7 dias antes do modo somente leitura).
 
-A cobrança fica atrás da interface `BillingProvider` (`apps/api/src/modules/billing/provider.ts`). Para usar o Mercado Pago, basta implementar essa interface e registrá-la em `billingProvider()`.
+   - **Estorno ou contestação** desconta o mês pago (volta para o teste ou para "em atraso"). Pagamento pelo link de uma fatura cancelada é aceito; um segundo pagamento da mesma fatura fica registrado na auditoria (`invoice.duplicate_payment`) para estorno.
+   - Cartão recusado: a tela oferece **Cadastrar outro cartão** e **Pagar este mês por PIX** (sem desligar o cartão).
+   - O registro do evento e a aplicação acontecem na mesma transação: se algo falhar, o reenvio do Mercado Pago processa de novo.
+
+Em desenvolvimento, `BILLING_PROVIDER=fake` mostra o botão **Simular pagamento** (só com a API em localhost ou `ALLOW_FAKE_BILLING=true`, nunca em produção), que percorre o mesmo fluxo do webhook. A cobrança fica atrás da interface `BillingProvider` (`apps/api/src/modules/billing/provider.ts`).
 
 ### WhatsApp: Evolution API (número da própria profissional, via QR Code)
 
 1. Suba a [Evolution API](https://doc.evolution-api.com) (self-hosted, Docker) e defina a `AUTHENTICATION_API_KEY` dela.
 2. Configure `WHATSAPP_PROVIDER=evolution`, `EVOLUTION_API_URL`, `EVOLUTION_API_KEY` e um `EVOLUTION_WEBHOOK_SECRET` aleatório.
 3. No painel, em **Notificações → Conexão do WhatsApp**, a profissional clica em _Conectar WhatsApp_ e lê o QR Code. A API cria a instância `marcai-{tenantId}` e registra o webhook `{API_URL}/api/webhooks/evolution?token=SEGREDO`, que mantém o status da conexão atualizado.
+4. O botão **Enviar teste** manda uma mensagem para o número cadastrado. Se o celular desconectar, a dona recebe um aviso no painel e por e-mail para ler o QR Code de novo. Antes de desistir de um envio, a API confere o status direto na Evolution (caso um webhook tenha se perdido). Números sem WhatsApp falham de vez, sem repetir.
+5. Compatível com a Evolution API **v2** (`/message/sendText` com `{ number, text }`).
+
+### E-mail (Resend ou SMTP)
+
+- **Resend:** configure `RESEND_API_KEY` e um `EMAIL_FROM` com domínio verificado.
+- **SMTP** (Gmail com senha de app, Hostinger, Zoho, Amazon SES...): configure `SMTP_HOST`, `SMTP_PORT` (587 ou 465), `SMTP_SECURE` (`true` na 465), `SMTP_USER` e `SMTP_PASS`.
+- Sem nenhum dos dois, os e-mails só aparecem no log (em produção, a API nem sobe sem um deles). A tela **Notificações** avisa quando isso acontece e tem o botão **Enviar e-mail de teste**.
+
+O que sai por e-mail: novo agendamento, cancelamento e remarcação (para a dona e a profissional), confirmação, lembrete, cancelamento e remarcação (para a cliente que informou e-mail), resumo do dia, cobrança (fatura disponível, pagamento confirmado, cartão recusado) e aviso de WhatsApp desconectado.
+
+### Som no painel
+
+Com **Tocar um som** ligado, o painel toca um aviso a cada notificação nova (agendamento, cancelamento, remarcação, presença confirmada), mesmo com a aba em segundo plano, e mostra o número de avisos não lidos no título da aba. Os navegadores só liberam áudio depois do primeiro clique na página: até lá, o sino mostra um aviso para clicar. O botão **Testar som** confere se o som está funcionando.
 
 ### WhatsApp: Meta Cloud API (número oficial da plataforma)
 
@@ -130,6 +154,16 @@ Gere as chaves com `npx web-push generate-vapid-keys` e configure `VAPID_PUBLIC_
 ### Login com Google
 
 Crie credenciais OAuth (_Aplicativo da Web_) no Google Cloud com o URI de redirecionamento `{API_URL}/api/auth/google/callback` e configure `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`. O botão aparece automaticamente.
+
+## Comportamentos importantes
+
+- **Confirmação manual:** com "Confirmar manualmente cada agendamento" ligado, a cliente recebe "pedido recebido" (mensagem `customer_pending`, editável). Quando a dona aprova no painel, sai a confirmação e o lembrete é agendado.
+- **Status do agendamento:** pendente → confirmado/cancelado; confirmado → concluído/falta/cancelado; concluído ↔ falta (para corrigir engano). Nada volta a "confirmado".
+- **Convites:** quem já tem conta precisa aceitar o convite (aparece um aviso no painel). Contas novas recebem o link para criar a senha.
+- **Modo suporte ("entrar como"):** fica registrado na auditoria com o admin, a dona recebe um e-mail e exportar dados, mexer na cobrança, na equipe ou na conta fica bloqueado.
+- **Fotos de referência das clientes:** guardadas fora da pasta pública (`UPLOAD_DIR-privado`), sem metadados de localização, visíveis só para a equipe do estabelecimento; as que nenhuma reserva usou são apagadas em 24h.
+- **Troca do endereço da página:** o link antigo continua funcionando (e fica reservado por 180 dias).
+- **Bloqueio de horário em cima de agendamentos:** o painel avisa antes; o bloqueio não cancela quem já marcou.
 
 ## Modo exclusivo (white-label)
 
@@ -187,10 +221,10 @@ Para vender o sistema exclusivo a um cliente:
 - [x] Reserva à prova de concorrência (exclusion constraint `tsrange` + `btree_gist`) com teste de requisições simultâneas
 - [x] Painel: dashboard, agenda dia/semana/mês com arrastar e soltar, agendamento manual, bloqueio pela agenda, lista com filtros e ações, clientes com histórico, tags e importação/exportação CSV
 - [x] Equipe com permissões de dona e profissional (a profissional vê só a própria agenda)
-- [x] Notificações in-app (SSE + polling), Web Push, e-mail e WhatsApp (Evolution, Meta e console), com fila, retry, backoff e fallback por e-mail
+- [x] Notificações in-app (SSE + polling), Web Push, e-mail e WhatsApp (Evolution, Meta e console), com fila, retry, backoff, som no painel, alerta de WhatsApp desconectado e e-mail por Resend ou SMTP
 - [x] Mensagens editáveis com variáveis e pré-visualização; lembrete configurável; resumo diário às 07:00
 - [x] Área da cliente por token: ver, confirmar presença, remarcar e cancelar, respeitando a política
-- [x] Planos Essencial/Pro, teste de 30 dias, Asaas (PIX, boleto, cartão), webhooks idempotentes e com verificação, carência de 7 dias e modo somente leitura
+- [x] Planos Essencial/Pro, teste de 30 dias, Mercado Pago (PIX, boleto, cartão), webhooks idempotentes e com verificação, carência de 7 dias e modo somente leitura
 - [x] Feature gating centralizado (`packages/shared/src/plans.ts`) com aviso de upgrade
 - [x] Modo exclusivo (white-label)
 - [x] Relatórios com gráficos e exportação CSV

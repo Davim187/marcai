@@ -13,7 +13,8 @@ import {
   TEMPLATE_META,
 } from '@marcai/shared'
 import { env } from '../../config/env'
-import { badRequest } from '../../lib/errors'
+import { emailTransport } from '../../lib/mailer'
+import { badRequest, conflict } from '../../lib/errors'
 import { prisma } from '../../lib/prisma'
 import {
   ctx,
@@ -22,30 +23,38 @@ import {
   requireTenant,
   type TenantContext,
 } from '../../plugins/auth'
+import { scopeWhere } from '../booking/panel.routes'
 import { pushEnabled } from './channels/push'
 import { channels } from './channels/registry'
 import { sseHub } from './channels/sse-hub'
-import { whatsappProvider } from './channels/whatsapp'
+import { setConnectionStatus, whatsappProvider } from './channels/whatsapp'
 
-/** Profissional (não dona) vê só os avisos dos próprios agendamentos. */
+/**
+ * Regra única de visibilidade dos avisos: profissional (sem acesso total) vê os avisos gerais
+ * e os dos próprios agendamentos — a mesma regra da agenda (`scopeWhere`).
+ */
 async function notificationScope(c: TenantContext): Promise<Prisma.NotificationWhereInput> {
-  if (c.role === 'owner' || !c.professionalId) return {}
-  return {
-    OR: [
-      { bookingId: null },
-      {
-        bookingId: {
-          in: (
-            await c.db.booking.findMany({
-              where: { professionalId: c.professionalId },
-              select: { id: true },
-            })
-          ).map((b) => b.id),
-        },
-      },
-    ],
-  }
+  const bookingScope = scopeWhere(c)
+  if (!Object.keys(bookingScope).length) return {}
+  const own = await c.db.booking.findMany({ where: bookingScope, select: { id: true } })
+  return { OR: [{ bookingId: null }, { bookingId: { in: own.map((b) => b.id) } }] }
 }
+
+/** A mesma regra, para um aviso só (tempo real). */
+async function canSeeNotification(c: TenantContext, bookingId: string | null | undefined) {
+  const bookingScope = scopeWhere(c)
+  if (!bookingId || !Object.keys(bookingScope).length) return true
+  return !!(await c.db.booking.findFirst({
+    where: { id: bookingId, ...bookingScope },
+    select: { id: true },
+  }))
+}
+
+/** O navegador tenta reconectar depois disso se a conexão cair. */
+const SSE_RETRY_MS = 5_000
+/** Comentário periódico: impede proxies de fecharem a conexão parada. */
+const SSE_HEARTBEAT_MS = 25_000
+type SsePayload = { notification?: { bookingId?: string | null } }
 
 export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
@@ -85,8 +94,9 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
       schema: { tags: ['notificações'], params: z.object({ id: z.string() }) },
     },
     async (request) => {
-      await ctx(request).db.notification.updateMany({
-        where: { id: request.params.id },
+      const c = ctx(request)
+      await c.db.notification.updateMany({
+        where: { id: request.params.id, ...(await notificationScope(c)) },
         data: { readAt: new Date() },
       })
       return { ok: true }
@@ -101,21 +111,30 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
       schema: { tags: ['notificações'], summary: 'SSE de avisos em tempo real' },
     },
     (request, reply) => {
-      const { tenantId } = ctx(request)
+      const c = ctx(request)
+      const { tenantId } = c
       reply.hijack()
       const res = reply.raw
       res.writeHead(200, {
+        // Mantém os cabeçalhos já definidos (CORS com credenciais, segurança)
+        ...(reply.getHeaders() as Record<string, string>),
         'content-type': 'text/event-stream; charset=utf-8',
         'cache-control': 'no-cache, no-transform',
         connection: 'keep-alive',
         'x-accel-buffering': 'no',
       })
-      res.write(`retry: 5000\n\n`)
-      const send = (payload: unknown) =>
+      res.write(`retry: ${SSE_RETRY_MS}\n\n`)
+      const write = (payload: unknown) =>
         res.write(`event: notification\ndata: ${JSON.stringify(payload)}\n\n`)
-      const heartbeat = setInterval(() => res.write(`: ping\n\n`), 25_000)
+      // Mesmo escopo da listagem: profissional só recebe avisos dos próprios agendamentos
+      const send = (payload: SsePayload) => {
+        canSeeNotification(c, payload.notification?.bookingId)
+          .then((ok) => ok && write(payload))
+          .catch((err) => request.log.warn({ err }, 'Falha ao filtrar aviso em tempo real'))
+      }
+      const heartbeat = setInterval(() => res.write(`: ping\n\n`), SSE_HEARTBEAT_MS)
       sseHub.on(`tenant:${tenantId}`, send)
-      request.raw.on('close', () => {
+      res.on('close', () => {
         clearInterval(heartbeat)
         sseHub.off(`tenant:${tenantId}`, send)
       })
@@ -142,6 +161,8 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
         reminderHours: t.reminderHours,
         features: { whatsapp: c.can('whatsapp_professional') },
         pushConfig: { enabled: pushEnabled(), publicKey: env.VAPID_PUBLIC_KEY ?? null },
+        /** resend | smtp | log (log = e-mails não saem de verdade: falta configurar) */
+        emailTransport: emailTransport(),
         whatsapp: {
           provider: provider.name,
           perTenantNumber: provider.perTenantNumber,
@@ -202,9 +223,20 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
     { onRequest: requireOwner, schema: { tags: ['notificações'], body: messageTemplateSchema } },
     async (request) => {
       const c = ctx(request)
+      // Variável que não existe iria literal para o cliente ("Oi {nome_da_cliente}")
+      const allowed = new Set(TEMPLATE_META[request.body.key].variables)
+      const unknown = [...request.body.body.matchAll(/\{([a-z_]+)\}/g)]
+        .map((m) => m[1]!)
+        .filter((v) => !allowed.has(v))
+      if (unknown.length) {
+        throw badRequest(
+          `Variável desconhecida: ${[...new Set(unknown)].map((v) => `{${v}}`).join(', ')}. Use só as variáveis da lista.`,
+          'VARIAVEL_DESCONHECIDA',
+        )
+      }
       await c.db.messageTemplate.upsert({
         where: { tenantId_key: { tenantId: c.tenantId, key: request.body.key } },
-        create: { key: request.body.key, body: request.body.body } as never,
+        create: { tenantId: c.tenantId, key: request.body.key, body: request.body.body },
         update: { body: request.body.body },
       })
       return { ok: true }
@@ -247,6 +279,16 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const c = ctx(request)
       const { endpoint, keys } = request.body
+      // Uma inscrição já ligada a outra pessoa só é transferida por quem tem as mesmas chaves
+      // do navegador (ou seja, está de fato naquele aparelho).
+      const existing = await prisma.pushSubscription.findUnique({ where: { endpoint } })
+      if (
+        existing &&
+        existing.userId !== request.auth!.user.id &&
+        (existing.p256dh !== keys.p256dh || existing.auth !== keys.auth)
+      ) {
+        throw conflict('Esse aparelho já está inscrito por outra conta')
+      }
       await prisma.pushSubscription.upsert({
         where: { endpoint },
         create: {
@@ -284,7 +326,11 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
 
   app.post(
     '/push/test',
-    { onRequest: requireTenant, schema: { tags: ['notificações'] } },
+    {
+      onRequest: requireTenant,
+      config: { rateLimit: { max: 5, timeWindow: '10 minutes' } },
+      schema: { tags: ['notificações'] },
+    },
     async (request) => {
       const c = ctx(request)
       await channels.push.send({
@@ -337,15 +383,7 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
       const existing = await prisma.whatsAppConnection.findUnique({
         where: { tenantId: c.tenantId },
       })
-      if (existing && existing.status !== r.status) {
-        await prisma.whatsAppConnection.update({
-          where: { tenantId: c.tenantId },
-          data: {
-            status: r.status,
-            connectedAt: r.status === 'connected' ? new Date() : existing.connectedAt,
-          },
-        })
-      }
+      if (existing && existing.status !== r.status) await setConnectionStatus(c.tenantId, r.status)
       return r
     },
   )
@@ -366,7 +404,11 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
 
   app.post(
     '/whatsapp/test',
-    { onRequest: proOnly, schema: { tags: ['notificações'] } },
+    {
+      onRequest: proOnly,
+      config: { rateLimit: { max: 5, timeWindow: '10 minutes' } },
+      schema: { tags: ['notificações'] },
+    },
     async (request) => {
       const c = ctx(request)
       if (!c.tenant.notifyPhone) throw badRequest('Cadastre o número que vai receber os avisos')
@@ -377,6 +419,29 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
         body: `✅ Teste do ${env.APP_MODE === 'single_tenant' ? c.tenant.name : env.APP_NAME}: seus avisos de agendamento vão chegar aqui!`,
       })
       return { ok: true }
+    },
+  )
+
+  /** Manda um e-mail de teste para quem está logado (confere a configuração de e-mail). */
+  app.post(
+    '/email/test',
+    {
+      onRequest: requireOwner,
+      config: { rateLimit: { max: 5, timeWindow: '10 minutes' } },
+      schema: { tags: ['notificações'] },
+    },
+    async (request) => {
+      const c = ctx(request)
+      await channels.email.send({
+        tenantId: c.tenantId,
+        to: request.auth!.user.email,
+        title: 'Teste de e-mail',
+        body: `✅ Os e-mails de ${c.tenant.name} estão funcionando. Novos agendamentos, cancelamentos e o resumo do dia chegam por aqui.`,
+        url: `${env.APP_URL}/painel/notificacoes`,
+        fromName: env.APP_MODE === 'single_tenant' ? c.tenant.name : env.APP_NAME,
+        color: c.tenant.primaryColor,
+      })
+      return { ok: true, transport: emailTransport(), to: request.auth!.user.email }
     },
   )
 }

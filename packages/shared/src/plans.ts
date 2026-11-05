@@ -7,6 +7,31 @@ export type PlanId = (typeof PLAN_IDS)[number]
 export const SUBSCRIPTION_STATUSES = ['trial', 'active', 'past_due', 'canceled'] as const
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number]
 
+/** Nome de cada status da assinatura, o mesmo em todas as telas (dona e admin). */
+export const SUBSCRIPTION_STATUS_LABELS: Record<SubscriptionStatus, string> = {
+  trial: 'Teste grátis',
+  active: 'Ativa',
+  past_due: 'Pagamento atrasado',
+  canceled: 'Cancelada',
+}
+
+export const INVOICE_STATUSES = ['pending', 'paid', 'overdue', 'refunded', 'canceled'] as const
+export type InvoiceStatus = (typeof INVOICE_STATUSES)[number]
+export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
+  pending: 'Em aberto',
+  paid: 'Paga',
+  overdue: 'Vencida',
+  refunded: 'Estornada',
+  canceled: 'Cancelada',
+}
+/** Faturas que ainda podem ser pagas. */
+export const OPEN_INVOICE_STATUSES = [
+  'pending',
+  'overdue',
+] as const satisfies readonly InvoiceStatus[]
+export const isOpenInvoice = (status: string) =>
+  (OPEN_INVOICE_STATUSES as readonly string[]).includes(status)
+
 export const FEATURES = [
   'agenda',
   'public_page',

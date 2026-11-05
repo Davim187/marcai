@@ -1,8 +1,9 @@
+import { MINUTE_MS } from '@marcai/shared'
 import bcrypt from 'bcryptjs'
 import type { RegisterInput } from '@marcai/shared'
 import { env } from '../../config/env'
 import { hashToken, randomToken } from '../../lib/crypto'
-import { badRequest, conflict, unauthorized } from '../../lib/errors'
+import { badRequest, conflict, tooMany, unauthorized } from '../../lib/errors'
 import { emailLayout, sendEmail } from '../../lib/mailer'
 import { prisma } from '../../lib/prisma'
 
@@ -24,7 +25,7 @@ export async function createSession(
   let tenantId = opts.tenantId
   if (tenantId === undefined) {
     const membership = await prisma.tenantMember.findFirst({
-      where: { userId, tenant: { deletedAt: null } },
+      where: { userId, acceptedAt: { not: null }, tenant: { deletedAt: null } },
       orderBy: { createdAt: 'asc' },
     })
     tenantId = membership?.tenantId ?? null
@@ -68,18 +69,50 @@ export async function registerUser(input: RegisterInput) {
   return user
 }
 
+/**
+ * Bloqueio por conta (além do rate limit por IP): depois de 10 senhas erradas em 15 min
+ * o e-mail fica bloqueado por 15 min, mesmo que o atacante troque de IP.
+ * Em memória por instância; com várias instâncias, use Redis (ver ARQUITETURA.md).
+ */
+const LOGIN_MAX_FAILURES = 10
+const LOGIN_WINDOW_MS = 15 * MINUTE_MS
+const failedLogins = new Map<string, { count: number; firstAt: number }>()
+
+function assertNotLocked(email: string) {
+  const entry = failedLogins.get(email)
+  if (!entry) return
+  if (Date.now() - entry.firstAt > LOGIN_WINDOW_MS) failedLogins.delete(email)
+  else if (entry.count >= LOGIN_MAX_FAILURES) {
+    throw tooMany('Muitas tentativas de login nesta conta. Aguarde 15 minutos ou redefina a senha.')
+  }
+}
+
+function registerFailure(email: string) {
+  const entry = failedLogins.get(email)
+  if (!entry || Date.now() - entry.firstAt > LOGIN_WINDOW_MS)
+    failedLogins.set(email, { count: 1, firstAt: Date.now() })
+  else entry.count++
+}
+
 export async function verifyLogin(email: string, password: string) {
+  assertNotLocked(email)
   const user = await prisma.user.findUnique({ where: { email } })
-  // Compara mesmo quando a usuária não existe, para não vazar por tempo de resposta.
+  // Compara mesmo quando o usuário não existe, para não vazar por tempo de resposta.
   const hash = user?.passwordHash ?? '$2a$12$C6UzMDM.H6dfI/f/IKcEeO5x8Qe8cRZzQ8V0cY1o8q2pUuC7m2Gzq'
   const ok = await bcrypt.compare(password, hash)
-  if (!user || !user.passwordHash || !ok) throw unauthorized('E-mail ou senha incorretos')
+  if (!user || !user.passwordHash || !ok) {
+    registerFailure(email)
+    throw unauthorized('E-mail ou senha incorretos')
+  }
+  failedLogins.delete(email)
   return user
 }
 
 export async function requestPasswordReset(email: string) {
   const user = await prisma.user.findUnique({ where: { email } })
   if (!user) return // não revela se o e-mail existe
+  // Só o link mais recente vale: os anteriores deixam de funcionar
+  await prisma.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } })
   const token = randomToken()
   await prisma.passwordResetToken.create({
     data: {
@@ -104,14 +137,24 @@ export async function resetPassword(token: string, password: string) {
   if (!record || record.usedAt || record.expiresAt < new Date()) {
     throw badRequest('Link inválido ou expirado. Peça um novo.', 'TOKEN_INVALIDO')
   }
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { id: record.userId },
-      data: { passwordHash: await hashPassword(password) },
-    }),
-    prisma.passwordResetToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
-    prisma.session.deleteMany({ where: { userId: record.userId } }),
-  ])
+  const passwordHash = await hashPassword(password)
+  await prisma.$transaction(async (tx) => {
+    // Marca o link como usado de forma condicional: dois envios simultâneos não trocam a
+    // senha duas vezes (o segundo recebe "link inválido")
+    const claimed = await tx.passwordResetToken.updateMany({
+      where: { id: record.id, usedAt: null },
+      data: { usedAt: new Date() },
+    })
+    if (!claimed.count)
+      throw badRequest('Link inválido ou expirado. Peça um novo.', 'TOKEN_INVALIDO')
+    await tx.user.update({ where: { id: record.userId }, data: { passwordHash } })
+    await tx.session.deleteMany({ where: { userId: record.userId } })
+    // Outros links de redefinição pendentes deixam de valer
+    await tx.passwordResetToken.updateMany({
+      where: { userId: record.userId, usedAt: null },
+      data: { usedAt: new Date() },
+    })
+  })
 }
 
 /** Monta o payload de `/auth/me`. */
@@ -129,14 +172,19 @@ export async function buildMe(userId: string, sessionTenantId: string | null) {
       googleId: true,
     },
   })
-  const memberships = await prisma.tenantMember.findMany({
+  const all = await prisma.tenantMember.findMany({
     where: { userId, tenant: { deletedAt: null } },
     include: { tenant: { select: { id: true, name: true, slug: true, logoUrl: true } } },
   })
+  const memberships = all.filter((m) => m.acceptedAt)
   const { passwordHash, ...safe } = user
   return {
     user: { ...safe, hasPassword: Boolean(passwordHash), hasGoogle: Boolean(user.googleId) },
     memberships: memberships.map((m) => ({ tenantId: m.tenantId, role: m.role, tenant: m.tenant })),
+    /** Convites de outros estabelecimentos aguardando aceite */
+    invites: all
+      .filter((m) => !m.acceptedAt)
+      .map((m) => ({ tenantId: m.tenantId, role: m.role, tenant: m.tenant })),
     activeTenantId: sessionTenantId,
   }
 }

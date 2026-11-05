@@ -36,11 +36,16 @@ export function formatPhone(input: string): string {
   return input
 }
 
-/** Máscara progressiva para inputs. */
+/** Máscara progressiva para inputs: (85) 3333-4444 enquanto tem até 10 dígitos, (85) 99999-9999 com 11. */
 export function maskPhone(input: string): string {
-  const d = onlyDigits(input).slice(0, 11)
+  let d = onlyDigits(input)
+  // Colou com código do país (+55 / 55 com 12-13 dígitos) ou com zero de operadora: tira antes de cortar
+  if ((input.trim().startsWith('+') || d.length > 11) && d.startsWith('55')) d = d.slice(2)
+  if (d.startsWith('0')) d = d.slice(1)
+  d = d.slice(0, 11)
   if (d.length <= 2) return d.length ? `(${d}` : ''
-  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
 }
 

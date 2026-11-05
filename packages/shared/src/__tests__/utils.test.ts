@@ -22,6 +22,9 @@ describe('dinheiro', () => {
     expect(parseBRLToCents('1.234,56')).toBe(123456)
     expect(parseBRLToCents('R$ 99,9')).toBe(9990)
     expect(parseBRLToCents('abc')).toBeNull()
+    expect(parseBRLToCents('50')).toBe(5000)
+    expect(parseBRLToCents('1.500')).toBe(150000)
+    expect(parseBRLToCents('R$ 80')).toBe(8000)
   })
 })
 
@@ -34,7 +37,16 @@ describe('telefone', () => {
   })
   it('formata e mascara', () => {
     expect(formatPhone('5585999999999')).toBe('(85) 99999-9999')
-    expect(maskPhone('8599999')).toBe('(85) 99999')
+    expect(maskPhone('8599999')).toBe('(85) 9999-9')
+    expect(maskPhone('8533334444')).toBe('(85) 3333-4444')
+    expect(maskPhone('85999998888')).toBe('(85) 99999-8888')
+    // Colado com código do país ou zero de operadora: não corta o número
+    expect(maskPhone('+55 98 98765-4321')).toBe('(98) 98765-4321')
+    expect(maskPhone('5585999998888')).toBe('(85) 99999-8888')
+    expect(maskPhone('+55 85 99999-9999')).toBe('(85) 99999-9999')
+    expect(maskPhone('085 99999-8888')).toBe('(85) 99999-8888')
+    // DDD 55 (RS) digitado normalmente continua funcionando
+    expect(maskPhone('55999998888')).toBe('(55) 99999-8888')
   })
 })
 

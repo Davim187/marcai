@@ -21,6 +21,7 @@ export interface TenantSummary {
     trialEndsAt: string | null
     currentPeriodEnd: string | null
     trialDaysLeft: number
+    billingType: string | null
   } | null
   effectivePlan: PlanId
   access: 'full' | 'grace' | 'blocked'
@@ -46,6 +47,12 @@ export type Session =
         hasGoogle: boolean
       }
       memberships: Array<{
+        tenantId: string
+        role: string
+        tenant: { id: string; name: string; slug: string; logoUrl: string | null }
+      }>
+      /** Convites para equipes de outros estabelecimentos, aguardando aceite */
+      invites?: Array<{
         tenantId: string
         role: string
         tenant: { id: string; name: string; slug: string; logoUrl: string | null }

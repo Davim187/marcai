@@ -1,9 +1,17 @@
+import { InviteBanner } from '@/components/invite-banner'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Check, Copy, ExternalLink, Loader2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
-import { BUSINESS_TYPES, type ShiftInput, slugify } from '@marcai/shared'
+import {
+  BRAND_PRESET_COLORS,
+  BUSINESS_TYPES,
+  DEFAULT_PRIMARY_COLOR,
+  RESERVED_SLUGS,
+  type ShiftInput,
+  slugify,
+} from '@marcai/shared'
 import { Logo } from '@/components/logo'
 import { ImageUpload } from '@/components/image-upload'
 import { QrCode } from '@/components/qr-code'
@@ -15,16 +23,7 @@ import { useRefreshSession, useSession } from '@/lib/session'
 import { cn, copyToClipboard } from '@/lib/utils'
 import { defaultShifts, ShiftsEditor } from '../schedule/shifts-editor'
 
-const COLORS = [
-  '#4F46E5',
-  '#2563EB',
-  '#0F766E',
-  '#059669',
-  '#7C3AED',
-  '#C2410C',
-  '#B4235A',
-  '#0F172A',
-]
+const COLORS = BRAND_PRESET_COLORS
 const STEPS = ['Seu negócio', 'Tipo', 'Horários', 'Visual']
 
 interface SlugState {
@@ -35,19 +34,66 @@ interface SlugState {
   checking: boolean
 }
 
+const DRAFT_KEY = 'marcai-onboarding'
+interface Draft {
+  businessName?: string
+  slugInput?: string
+  slugTouched?: boolean
+  businessType?: string
+  shifts?: ShiftInput[]
+  color?: string
+  logoUrl?: string | null
+}
+function loadDraft(): Draft {
+  try {
+    return JSON.parse(sessionStorage.getItem(DRAFT_KEY) ?? '{}') as Draft
+  } catch {
+    return {}
+  }
+}
+function saveDraft(draft: Draft) {
+  try {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
+  } catch {
+    /* armazenamento indisponível: segue sem rascunho */
+  }
+}
+function clearDraft() {
+  try {
+    sessionStorage.removeItem(DRAFT_KEY)
+  } catch {
+    /* ignora */
+  }
+}
+
 export default function OnboardingPage() {
   const navigate = useNavigate()
   const refresh = useRefreshSession()
   const { data: session } = useSession()
-  const [step, setStep] = useState(0)
-  const [businessName, setBusinessName] = useState('')
-  const [slugInput, setSlugInput] = useState('')
-  const [slugTouched, setSlugTouched] = useState(false)
+  // Rascunho salvo na sessão do navegador: recarregar a página não perde o que foi preenchido
+  const [draft] = useState(loadDraft)
+  // O passo fica na URL (?passo=2): o voltar do navegador volta um passo do wizard
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedStep = Math.min(3, Math.max(0, Number(searchParams.get('passo') ?? 1) - 1)) || 0
+  const [businessName, setBusinessName] = useState(draft.businessName ?? '')
+  const [slugInput, setSlugInput] = useState(draft.slugInput ?? '')
+  const [slugTouched, setSlugTouched] = useState(draft.slugTouched ?? false)
   const [slugState, setSlugState] = useState<SlugState | null>(null)
-  const [businessType, setBusinessType] = useState('manicure')
-  const [shifts, setShifts] = useState<ShiftInput[]>(defaultShifts)
-  const [color, setColor] = useState('#4F46E5')
-  const [logoUrl, setLogoUrl] = useState<string | null>(null)
+  const [businessType, setBusinessType] = useState(draft.businessType ?? 'manicure')
+  const [shifts, setShifts] = useState<ShiftInput[]>(draft.shifts ?? defaultShifts())
+  const [color, setColor] = useState(draft.color ?? DEFAULT_PRIMARY_COLOR)
+  const [logoUrl, setLogoUrl] = useState<string | null>(draft.logoUrl ?? null)
+  // Não deixa pular para um passo sem ter um link válido escolhido
+  const step =
+    requestedStep > 0 && (businessName.trim().length < 2 || slugify(slugInput).length < 3)
+      ? 0
+      : requestedStep
+  const setStep = (update: (s: number) => number) =>
+    setSearchParams({ passo: String(update(step) + 1) })
+
+  useEffect(() => {
+    saveDraft({ businessName, slugInput, slugTouched, businessType, shifts, color, logoUrl })
+  }, [businessName, slugInput, slugTouched, businessType, shifts, color, logoUrl])
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState<{ publicUrl: string } | null>(null)
 
@@ -93,6 +139,11 @@ export default function OnboardingPage() {
         : true
 
   async function finish() {
+    if (!slugState?.available) {
+      toast.error('Confira o seu link de agendamento antes de continuar.')
+      setSearchParams({ passo: '1' })
+      return
+    }
     setSubmitting(true)
     try {
       const res = await api<{ publicUrl: string }>('/tenant/onboarding', {
@@ -108,6 +159,7 @@ export default function OnboardingPage() {
             : undefined,
         },
       })
+      clearDraft()
       setDone(res)
     } catch (err) {
       toast.error(errorMessage(err))
@@ -175,6 +227,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="bg-background min-h-dvh">
+      <InviteBanner />
       <header className="mx-auto flex max-w-2xl items-center justify-between px-4 py-5">
         <Logo />
         <span className="text-muted-foreground text-sm">Passo {step + 1} de 4</span>
@@ -258,9 +311,26 @@ export default function OnboardingPage() {
                     </span>
                   </div>
                 </Field>
+                {slugify(slugInput) && (
+                  <p className="text-muted-foreground text-sm">
+                    Seu link vai ficar:{' '}
+                    <strong className="text-foreground">
+                      {host}/{slugify(slugInput)}
+                    </strong>
+                  </p>
+                )}
+                {slugInput.trim() && slugify(slugInput).length < 3 && (
+                  <p className="text-destructive text-sm">
+                    Use pelo menos 3 letras ou números no link.
+                  </p>
+                )}
                 {slugState && !slugState.checking && !slugState.available && (
                   <p className="text-destructive text-sm">
-                    {slugState.valid ? 'Esse link já está em uso.' : 'Esse link não é válido.'}
+                    {slugState.valid
+                      ? 'Esse link já está em uso.'
+                      : RESERVED_SLUGS.has(slugState.slug)
+                        ? 'Essa palavra é reservada pelo sistema.'
+                        : 'Esse link não é válido.'}
                     {slugState.suggestion && (
                       <>
                         {' '}
@@ -402,7 +472,7 @@ export default function OnboardingPage() {
                 variant="ghost"
                 onClick={() => {
                   setLogoUrl(null)
-                  setColor('#4F46E5')
+                  setColor(DEFAULT_PRIMARY_COLOR)
                   finish()
                 }}
                 disabled={submitting}

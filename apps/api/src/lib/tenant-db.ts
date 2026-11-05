@@ -72,6 +72,8 @@ export function forTenant(tenantId: string) {
   if (!tenantId) throw new TenantIsolationError('tenantId é obrigatório')
   return prisma.$extends({
     name: 'tenant-isolation',
+    // Permite gravar com o tenantId explícito (tipado), sem casts: db.$tenantId()
+    client: { $tenantId: () => tenantId },
     query: {
       $allModels: {
         async $allOperations({ model, operation, args, query }) {

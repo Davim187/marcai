@@ -23,6 +23,12 @@ const schema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
+  /** SMTP (Gmail, Hostinger, Zoho, SES…). Usado quando não há RESEND_API_KEY. */
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().default(587),
+  SMTP_SECURE: bool,
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
   EMAIL_FROM: z.string().default('Marcaí <nao-responda@marcai.app>'),
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
@@ -37,16 +43,69 @@ const schema = z.object({
   META_WA_VERIFY_TOKEN: z.string().optional(),
   META_WA_TEMPLATE_NAME: z.string().default('marcai_aviso'),
   META_WA_TEMPLATE_LANG: z.string().default('pt_BR'),
-  BILLING_PROVIDER: z.enum(['fake', 'asaas']).default('fake'),
-  ASAAS_API_URL: z.string().default('https://sandbox.asaas.com/api/v3'),
-  ASAAS_API_KEY: z.string().optional(),
-  ASAAS_WEBHOOK_TOKEN: z.string().optional(),
+  BILLING_PROVIDER: z.enum(['fake', 'mercadopago']).default('fake'),
+  /** Libera o "Simular pagamento" fora do localhost (homologação). Nunca em produção. */
+  ALLOW_FAKE_BILLING: bool,
+  MP_API_URL: z.string().default('https://api.mercadopago.com'),
+  /** Access token da conta do Mercado Pago (TEST-... no modo de testes, APP_USR-... em produção) */
+  MP_ACCESS_TOKEN: z.string().optional(),
+  /** "Assinatura secreta" do webhook (Suas integrações → Webhooks) */
+  MP_WEBHOOK_SECRET: z.string().optional(),
+  /** Dias antes do vencimento em que a fatura PIX/boleto é gerada e enviada por e-mail */
+  BILLING_INVOICE_DAYS_BEFORE: z.coerce.number().int().min(1).max(20).default(5),
   RUN_WORKER_IN_API: bool,
   WORKER_POLL_MS: z.coerce.number().default(3000),
   UPLOAD_DIR: z.string().default('./uploads'),
   MAX_UPLOAD_MB: z.coerce.number().default(5),
   WEB_DIST_DIR: z.string().optional(),
+  /** false (padrão), true, número de proxies (ex.: 1) ou lista de IPs/CIDR confiáveis */
+  TRUST_PROXY: z
+    .string()
+    .optional()
+    .transform((v): boolean | string => (!v || v === 'false' ? false : v === 'true' ? true : v)),
+  SWAGGER_PUBLIC: bool,
 })
+
+const PLACEHOLDER_SECRETS = ['troque-por-um-segredo-aleatorio-de-64-caracteres']
+
+/** Em produção, recusa configurações inseguras em vez de subir com elas. */
+function productionProblems(e: z.infer<typeof schema>): string[] {
+  if (e.NODE_ENV !== 'production') return []
+  const problems: string[] = []
+  if (e.SESSION_SECRET.length < 32 || PLACEHOLDER_SECRETS.includes(e.SESSION_SECRET)) {
+    problems.push(
+      'SESSION_SECRET precisa ser aleatório e ter pelo menos 32 caracteres (openssl rand -hex 32)',
+    )
+  }
+  if (e.APP_MODE === 'saas' && e.BILLING_PROVIDER === 'fake') {
+    problems.push('BILLING_PROVIDER=fake não pode ser usado em produção no modo SaaS')
+  }
+  if (
+    e.BILLING_PROVIDER === 'mercadopago' &&
+    (!e.MP_ACCESS_TOKEN || (e.MP_WEBHOOK_SECRET?.length ?? 0) < 16)
+  ) {
+    problems.push(
+      'Com o Mercado Pago, defina MP_ACCESS_TOKEN e MP_WEBHOOK_SECRET (assinatura secreta do webhook)',
+    )
+  }
+  if (process.env.TRUST_PROXY === undefined || process.env.TRUST_PROXY === '') {
+    problems.push(
+      'Defina TRUST_PROXY: o número de proxies na frente da API (ex.: 1 no Railway/Render, 2 com o rewrite da Vercel/Netlify) ou "false" se não houver nenhum. Sem isso, todos os acessos parecem vir do mesmo IP e o limite de tentativas bloqueia a plataforma inteira.',
+    )
+  }
+  if (!e.RESEND_API_KEY && !e.SMTP_HOST) {
+    problems.push(
+      'Configure o envio de e-mail (RESEND_API_KEY ou SMTP_HOST): sem isso, avisos e recuperação de senha não chegam',
+    )
+  }
+  if (e.WHATSAPP_PROVIDER === 'evolution' && (e.EVOLUTION_WEBHOOK_SECRET?.length ?? 0) < 16) {
+    problems.push('Com a Evolution API, defina um EVOLUTION_WEBHOOK_SECRET forte (16+ caracteres)')
+  }
+  if (e.WHATSAPP_PROVIDER === 'meta' && !e.META_WA_APP_SECRET) {
+    problems.push('Com a Meta Cloud API, defina META_WA_APP_SECRET')
+  }
+  return problems
+}
 
 const parsed = schema.safeParse(
   Object.fromEntries(Object.entries(process.env).map(([k, v]) => [k, v === '' ? undefined : v])),
@@ -54,6 +113,14 @@ const parsed = schema.safeParse(
 if (!parsed.success) {
   console.error('❌ Variáveis de ambiente inválidas:', parsed.error.flatten().fieldErrors)
   throw new Error('Configuração inválida. Confira o arquivo .env (veja .env.example).')
+}
+
+const problems = productionProblems(parsed.data)
+if (problems.length) {
+  console.error('❌ Configuração insegura para produção:\n - ' + problems.join('\n - '))
+  throw new Error(
+    'Configuração insegura para produção. Confira o arquivo .env (veja .env.example).',
+  )
 }
 
 export const env = parsed.data

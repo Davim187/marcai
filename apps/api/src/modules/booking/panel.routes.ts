@@ -9,13 +9,11 @@ import {
   normalizeBrazilianMobile,
   rescheduleSchema,
 } from '@marcai/shared'
-import { badRequest, notFound } from '../../lib/errors'
-import { prisma } from '../../lib/prisma'
+import { badRequest, forbidden, notFound } from '../../lib/errors'
 import { ctx, requireTenant, type TenantContext } from '../../plugins/auth'
 import { daySlots } from './availability.service'
-import { cancelBooking, createBooking, rescheduleBooking } from './booking.service'
-
-const idParam = z.object({ id: z.string() })
+import { createBooking, rescheduleBooking, setBookingStatus } from './booking.service'
+import { idParam } from '../../lib/route-schemas'
 
 export const bookingInclude = {
   professional: { select: { id: true, name: true } },
@@ -23,8 +21,20 @@ export const bookingInclude = {
 } satisfies Prisma.BookingInclude
 
 /** Profissional (não dona) só vê a própria agenda. */
+/** Membro sem agenda vinculada não vê agenda de ninguém (nunca "tudo"). */
+const NO_AGENDA = '__sem_agenda__'
 export function scopeWhere(c: TenantContext): Prisma.BookingWhereInput {
-  return c.role === 'owner' || !c.professionalId ? {} : { professionalId: c.professionalId }
+  if (c.role === 'owner') return {}
+  return { professionalId: c.professionalId ?? NO_AGENDA }
+}
+
+/**
+ * Profissional (sem acesso total) só enxerga clientes que já agendaram com ela.
+ * Usado na lista de clientes e na busca do agendamento manual.
+ */
+export function customerScope(c: TenantContext): Prisma.CustomerWhereInput {
+  const bookingScope = scopeWhere(c)
+  return Object.keys(bookingScope).length ? { bookings: { some: bookingScope } } : {}
 }
 
 async function findBooking(c: TenantContext, id: string) {
@@ -49,7 +59,6 @@ export const bookingPanelRoutes: FastifyPluginAsyncZod = async (app) => {
       const c = ctx(request)
       const q = request.query
       const where: Prisma.BookingWhereInput = {
-        ...scopeWhere(c),
         ...(q.from || q.to
           ? { startsAt: { ...(q.from ? { gte: q.from } : {}), ...(q.to ? { lt: q.to } : {}) } }
           : {}),
@@ -57,6 +66,8 @@ export const bookingPanelRoutes: FastifyPluginAsyncZod = async (app) => {
         ...(q.serviceId ? { serviceId: q.serviceId } : {}),
         ...(q.customerId ? { customerId: q.customerId } : {}),
         ...(q.professionalId ? { professionalId: q.professionalId } : {}),
+        // Escopo por último: um filtro vindo da URL nunca amplia o que a profissional vê
+        ...scopeWhere(c),
         ...(q.q
           ? {
               OR: [
@@ -102,7 +113,7 @@ export const bookingPanelRoutes: FastifyPluginAsyncZod = async (app) => {
       const prof = professionalId ? { professionalId } : {}
       const [bookings, timeOffs] = await Promise.all([
         c.db.booking.findMany({
-          where: { ...scopeWhere(c), ...prof, startsAt: { lt: to }, endsAt: { gt: from } },
+          where: { ...prof, ...scopeWhere(c), startsAt: { lt: to }, endsAt: { gt: from } },
           include: bookingInclude,
           orderBy: { startsAt: 'asc' },
         }),
@@ -110,7 +121,14 @@ export const bookingPanelRoutes: FastifyPluginAsyncZod = async (app) => {
           where: {
             startsAt: { lt: to },
             endsAt: { gt: from },
-            ...(professionalId ? { OR: [{ professionalId }, { professionalId: null }] } : {}),
+            // Profissional só vê as próprias folgas e os fechamentos do estabelecimento
+            ...(c.role !== 'owner'
+              ? {
+                  OR: [{ professionalId: c.professionalId ?? NO_AGENDA }, { professionalId: null }],
+                }
+              : professionalId
+                ? { OR: [{ professionalId }, { professionalId: null }] }
+                : {}),
           },
         }),
       ])
@@ -189,7 +207,7 @@ export const bookingPanelRoutes: FastifyPluginAsyncZod = async (app) => {
         customer: { id: b.customerId, name: b.customerName, phone: b.customerPhone },
         notes: b.notes || null,
         source: 'manual',
-        priceCents: b.priceCents,
+        priceCents: c.role === 'owner' ? b.priceCents : undefined,
         allowOutsideHours: b.allowOutsideHours,
         notifyCustomer: b.notifyCustomer,
       })
@@ -202,25 +220,8 @@ export const bookingPanelRoutes: FastifyPluginAsyncZod = async (app) => {
     { schema: { tags: ['agendamentos'], params: idParam, body: bookingStatusUpdateSchema } },
     async (request) => {
       const c = ctx(request)
-      const b = await findBooking(c, request.params.id)
-      const { status, reason } = request.body
-      if (status === 'canceled')
-        return cancelBooking({ tenantId: c.tenantId, bookingId: b.id, by: 'professional', reason })
-      if (b.status === 'canceled')
-        throw badRequest('Esse agendamento foi cancelado. Crie um novo se precisar.')
-      if ((status === 'completed' || status === 'no_show') && b.startsAt > new Date()) {
-        throw badRequest('Só dá para concluir ou marcar falta depois do horário começar')
-      }
-      const now = new Date()
-      return prisma.booking.update({
-        where: { id: b.id },
-        data: {
-          status,
-          ...(status === 'confirmed' ? { confirmedAt: now } : {}),
-          ...(status === 'completed' ? { completedAt: now } : {}),
-        },
-        include: bookingInclude,
-      })
+      const booking = await findBooking(c, request.params.id)
+      return setBookingStatus({ tenantId: c.tenantId, bookingId: booking.id, ...request.body })
     },
   )
 
@@ -262,8 +263,12 @@ export const bookingPanelRoutes: FastifyPluginAsyncZod = async (app) => {
     },
     async (request) => {
       const c = ctx(request)
-      const b = await findBooking(c, request.params.id)
-      return prisma.booking.update({ where: { id: b.id }, data: request.body })
+      const booking = await findBooking(c, request.params.id)
+      // Preço só a gestão altera (protege o faturamento)
+      if (request.body.priceCents !== undefined && c.role !== 'owner') {
+        throw forbidden('Só a gestão pode alterar o valor do atendimento')
+      }
+      return c.db.booking.update({ where: { id: booking.id }, data: request.body })
     },
   )
 
@@ -277,6 +282,7 @@ export const bookingPanelRoutes: FastifyPluginAsyncZod = async (app) => {
       return c.db.customer.findMany({
         where: {
           deletedAt: null,
+          ...customerScope(c),
           OR: [
             { name: { contains: request.query.q, mode: 'insensitive' } },
             ...(digits.length >= 3 ? [{ phone: { contains: digits } }] : []),

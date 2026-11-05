@@ -1,6 +1,6 @@
 import { buildApp } from './app'
 import { env } from './config/env'
-import { startWorker } from './modules/notifications/worker'
+import { startWorker } from './scheduler'
 import { registerSpa } from './modules/seo/spa'
 
 async function main() {

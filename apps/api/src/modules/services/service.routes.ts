@@ -1,10 +1,9 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { categorySchema, reorderSchema, serviceSchema } from '@marcai/shared'
-import { notFound } from '../../lib/errors'
+import { badRequest, notFound } from '../../lib/errors'
 import { ctx, requireOwner, requireTenant } from '../../plugins/auth'
-
-const idParam = z.object({ id: z.string() })
+import { idParam } from '../../lib/route-schemas'
 
 export const serviceRoutes: FastifyPluginAsyncZod = async (app) => {
   // ---------- Categorias ----------
@@ -26,7 +25,7 @@ export const serviceRoutes: FastifyPluginAsyncZod = async (app) => {
       const { db } = ctx(request)
       const count = await db.serviceCategory.count({ where: { deletedAt: null } })
       const cat = await db.serviceCategory.create({
-        data: { name: request.body.name, sortOrder: count } as never,
+        data: { tenantId: db.$tenantId(), name: request.body.name, sortOrder: count },
       })
       return reply.status(201).send(cat)
     },
@@ -118,9 +117,10 @@ export const serviceRoutes: FastifyPluginAsyncZod = async (app) => {
       const service = await db.service.create({
         data: {
           ...data,
+          tenantId,
           sortOrder: count,
           professionals: { create: valid.map((p) => ({ tenantId, professionalId: p.id })) },
-        } as never,
+        },
       })
       return reply.status(201).send(service)
     },
@@ -140,6 +140,12 @@ export const serviceRoutes: FastifyPluginAsyncZod = async (app) => {
       })
       if (!existing) throw notFound('Serviço não encontrado')
       await assertCategory(db, data.categoryId)
+      // Serviço ativo sem ninguém que faça some da página pública sem aviso: recusa
+      if (professionalIds && !professionalIds.length && (data.active ?? existing.active))
+        throw badRequest(
+          'Escolha pelo menos um profissional. Para tirar o serviço da página, desative o serviço.',
+          'SERVICO_SEM_PROFISSIONAL',
+        )
       await db.service.update({ where: { id: existing.id }, data })
       if (professionalIds) {
         const valid = await db.professional.findMany({

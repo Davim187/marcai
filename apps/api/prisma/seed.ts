@@ -1,6 +1,7 @@
 /**
  * Seed de demonstração: "Studio Vértice" (slug studiovertice), salão fictício de cabelo, barba e unhas.
- * Login demo: demo@marcai.app / demo1234 · Super admin: admin@marcai.app / admin1234
+ * Login demo: demo@marcai.app / demo1234 · Super admin: admin@marcai.app / SEED_ADMIN_PASSWORD
+ * (sem a variável, uma senha aleatória é gerada e mostrada uma única vez no final)
  */
 import { PrismaClient, type BookingStatus } from '@prisma/client'
 import bcrypt from 'bcryptjs'
@@ -70,6 +71,12 @@ const LAST = [
 ]
 
 async function main() {
+  // O seed cria senhas conhecidas (demo1234, admin1234): nunca rodar em produção por engano
+  if (process.env.NODE_ENV === 'production' && process.env.SEED_ALLOW_PRODUCTION !== 'true') {
+    throw new Error(
+      'Seed bloqueado em produção (cria usuários com senhas públicas). Defina SEED_ALLOW_PRODUCTION=true só se souber o que está fazendo.',
+    )
+  }
   console.log('🌱 Limpando dados de demonstração anteriores…')
   await prisma.tenant.deleteMany({ where: { slug: { in: ['studiovertice', 'marylopes'] } } })
   await prisma.user.deleteMany({
@@ -80,9 +87,11 @@ async function main() {
     },
   })
 
+  // Super admin nunca tem senha conhecida: vem de SEED_ADMIN_PASSWORD ou é aleatória
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || randomBytes(9).toString('base64url')
   const [demoHash, adminHash] = await Promise.all([
     bcrypt.hash('demo1234', 10),
-    bcrypt.hash('admin1234', 10),
+    bcrypt.hash(adminPassword, 10),
   ])
   const admin = await prisma.user.create({
     data: {
@@ -576,7 +585,9 @@ async function main() {
   console.log(`✅ Seed concluído: ${customers.length} clientes, ${count} agendamentos.`)
   console.log('   Painel demo: demo@marcai.app / demo1234')
   console.log('   Profissional: camila@marcai.app / demo1234')
-  console.log('   Super admin:  admin@marcai.app / admin1234')
+  console.log(
+    `   Super admin:  admin@marcai.app / ${process.env.SEED_ADMIN_PASSWORD ? '(SEED_ADMIN_PASSWORD)' : `${adminPassword}  ← anote, não aparece de novo`}`,
+  )
   console.log('   Página pública: /studiovertice')
   void admin
 }

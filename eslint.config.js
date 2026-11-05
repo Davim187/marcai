@@ -12,6 +12,7 @@ export default tseslint.config(
       '**/dev-dist/**',
       '**/playwright-report/**',
       'apps/api/prisma/migrations/**',
+      '.claude/**',
     ],
   },
   js.configs.recommended,

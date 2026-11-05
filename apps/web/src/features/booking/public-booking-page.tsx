@@ -1,38 +1,39 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { qk } from '@/lib/queries'
 import { AnimatePresence, motion } from 'framer-motion'
-import {
-  ArrowLeft,
-  CalendarHeart,
-  Clock,
-  Instagram,
-  MapPin,
-  MessageCircle,
-  Sparkles,
-} from 'lucide-react'
+import { ArrowLeft, MessageCircle } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router'
-import { toast } from 'sonner'
-import { formatPrice, isValidBrazilianMobile, whatsappLink } from '@marcai/shared'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
+import { whatsappLink } from '@marcai/shared'
 import { LogoMark } from '@/components/logo'
-import { PhoneInput } from '@/components/phone-input'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Input, Textarea } from '@/components/ui/input'
-import { Field } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
-import { api, ApiError, errorMessage } from '@/lib/api'
+import { api } from '@/lib/api'
 import { brandStyle } from '@/lib/brand'
-import { capitalize, durationLabel, fmt } from '@/lib/dates'
-import { cn } from '@/lib/utils'
-import { CustomFieldInput } from '../forms/custom-field-input'
+import { capitalize, fmt } from '@/lib/dates'
 import { BookingSuccess } from './booking-success'
 import { SlotPicker, type Slot } from './slot-picker'
-import type { BookingResult, PublicService, PublicTenant } from './types'
+import { type BookingResult, type PublicService, type PublicTenant } from './types'
+import { DetailsForm } from './details-form'
+import { ServiceList, ServiceSummary } from './service-list'
+import { TenantHeader } from './tenant-header'
 
 type Step = 'service' | 'professional' | 'time' | 'details'
-const SAVED_KEY = 'marcai-cliente'
+const STEPS: readonly Step[] = ['service', 'professional', 'time', 'details']
 
+/** Só aceita a etapa da URL se os dados dela já foram escolhidos (ex.: depois de recarregar, volta ao início). */
+function resolveStep(
+  requested: string | null,
+  state: { service: unknown; professionalId: string | null; slot: unknown },
+): Step {
+  const step = STEPS.includes(requested as Step) ? (requested as Step) : 'service'
+  if (step === 'service' || !state.service) return 'service'
+  if (step === 'professional') return 'professional'
+  if (!state.professionalId) return 'service'
+  if (step === 'details' && !state.slot) return 'time'
+  return step
+}
 function usePublicSlug() {
   const params = useParams()
   const config = useQuery({
@@ -58,11 +59,29 @@ export default function PublicBookingPage() {
     staleTime: 60_000,
   })
 
-  const [step, setStep] = useState<Step>('service')
   const [service, setService] = useState<PublicService | null>(null)
   const [professionalId, setProfessionalId] = useState<string | null>(null)
   const [slot, setSlot] = useState<Slot | null>(null)
+  // A etapa fica na URL (?passo=): o voltar do navegador volta uma etapa, sem sair da página.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const step = resolveStep(searchParams.get('passo'), { service, professionalId, slot })
+  const setStep = (next: Step, opts: { replace?: boolean } = {}) =>
+    setSearchParams(next === 'service' ? {} : { passo: next }, { replace: opts.replace })
   const [result, setResult] = useState<BookingResult | null>(null)
+
+  // Link antigo (o estabelecimento trocou de endereço): mostra o endereço novo na barra
+  useEffect(() => {
+    if (t && slug && slug !== '_' && t.slug !== slug && !t.whiteLabel)
+      navigate(`/${t.slug}${window.location.search}`, { replace: true })
+  }, [t, slug, navigate])
+
+  // Recarregou no meio: a etapa da URL não vale mais (escolhas se perderam) → volta a URL também
+  const urlStep = searchParams.get('passo')
+  useEffect(() => {
+    if (urlStep && urlStep !== step) setStep(step, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlStep, step])
 
   useEffect(() => {
     if (!t) return
@@ -129,10 +148,9 @@ export default function PublicBookingPage() {
   }
 
   function back() {
-    if (step === 'details') setStep('time')
-    else if (step === 'time')
-      setStep(professionalsForService.length > 1 ? 'professional' : 'service')
-    else setStep('service')
+    // As etapas foram empilhadas no histórico: voltar é o mesmo que o botão do navegador
+    if (window.history.length > 1) navigate(-1)
+    else setStep('service', { replace: true })
   }
 
   if (result) {
@@ -217,7 +235,7 @@ export default function PublicBookingPage() {
                   timezone={t.timezone}
                   maxAdvanceDays={t.maxAdvanceDays}
                   selected={slot}
-                  onSelect={(s) => setSlot(s)}
+                  onSelect={setSlot}
                 />
               </div>
             )}
@@ -231,9 +249,9 @@ export default function PublicBookingPage() {
                 onSuccess={setResult}
                 onSlotTaken={() => {
                   setSlot(null)
-                  setStep('time')
-                  qc.invalidateQueries({ queryKey: ['public-slots'] })
-                  qc.invalidateQueries({ queryKey: ['public-days'] })
+                  setStep('time', { replace: true })
+                  qc.invalidateQueries({ queryKey: qk.publicSlots })
+                  qc.invalidateQueries({ queryKey: qk.publicDays })
                 }}
               />
             )}
@@ -298,359 +316,5 @@ function PageSkeleton() {
         ))}
       </div>
     </div>
-  )
-}
-
-function TenantHeader({ t }: { t: PublicTenant }) {
-  const location = [t.address, t.city].filter(Boolean).join(' - ')
-  return (
-    <header>
-      <div className="from-primary/80 to-primary relative h-36 overflow-hidden bg-gradient-to-br sm:h-44 sm:rounded-b-3xl">
-        {t.coverUrl && <img src={t.coverUrl} alt="" className="h-full w-full object-cover" />}
-      </div>
-      <div className="relative z-10 -mt-12 flex flex-col items-center px-4 text-center">
-        {t.logoUrl ? (
-          <img
-            src={t.logoUrl}
-            alt={`Logo de ${t.name}`}
-            className="border-background bg-card shadow-soft h-24 w-24 rounded-full border-4 object-cover"
-          />
-        ) : (
-          <div className="border-background bg-primary-soft text-primary shadow-soft flex h-24 w-24 items-center justify-center rounded-full border-4 text-3xl font-bold">
-            {t.name.charAt(0)}
-          </div>
-        )}
-        <h1 className="mt-3 text-2xl font-bold">{t.name}</h1>
-        {t.bio && <p className="text-muted-foreground mt-1.5 max-w-md text-sm">{t.bio}</p>}
-        <div className="mt-4 flex flex-wrap justify-center gap-2">
-          {location && (
-            <a
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}
-              target="_blank"
-              rel="noreferrer"
-              className="bg-card hover:border-primary inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium"
-            >
-              <MapPin className="text-primary h-3.5 w-3.5" /> {t.city ?? 'Ver no mapa'}
-            </a>
-          )}
-          {t.instagram && (
-            <a
-              href={`https://instagram.com/${t.instagram}`}
-              target="_blank"
-              rel="noreferrer"
-              className="bg-card hover:border-primary inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium"
-            >
-              <Instagram className="text-primary h-3.5 w-3.5" /> @{t.instagram}
-            </a>
-          )}
-          {t.whatsapp && (
-            <a
-              href={whatsappLink(t.whatsapp)}
-              target="_blank"
-              rel="noreferrer"
-              className="bg-card hover:border-primary inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium"
-            >
-              <MessageCircle className="text-primary h-3.5 w-3.5" /> WhatsApp
-            </a>
-          )}
-        </div>
-      </div>
-    </header>
-  )
-}
-
-function ServiceList({ t, onChoose }: { t: PublicTenant; onChoose: (s: PublicService) => void }) {
-  const groups = [
-    ...t.categories.map((c) => ({
-      id: c.id,
-      name: c.name,
-      items: t.services.filter((s) => s.categoryId === c.id),
-    })),
-    {
-      id: 'outros',
-      name: 'Outros',
-      items: t.services.filter(
-        (s) => !s.categoryId || !t.categories.some((c) => c.id === s.categoryId),
-      ),
-    },
-  ].filter((g) => g.items.length)
-  if (!t.services.length) {
-    return (
-      <p className="bg-muted text-muted-foreground mt-10 rounded-2xl p-6 text-center text-sm">
-        Nenhum serviço disponível para agendamento online no momento.
-      </p>
-    )
-  }
-  return (
-    <div className="mt-8 space-y-8">
-      <h2 className="flex items-center gap-2 text-lg font-bold">
-        <Sparkles className="text-primary h-5 w-5" /> Escolha o serviço
-      </h2>
-      {groups.map((g) => (
-        <section key={g.id}>
-          {groups.length > 1 && (
-            <h3 className="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wider">
-              {g.name}
-            </h3>
-          )}
-          <div className="space-y-3">
-            {g.items.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => onChoose(s)}
-                className="bg-card shadow-soft hover:border-primary hover:shadow-lift flex w-full gap-3 rounded-2xl border p-4 text-left transition hover:-translate-y-0.5"
-              >
-                {s.photoUrl && (
-                  <img
-                    src={s.photoUrl}
-                    alt=""
-                    loading="lazy"
-                    className="h-20 w-20 shrink-0 rounded-xl object-cover"
-                  />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold">{s.name}</p>
-                  {s.description && (
-                    <p className="text-muted-foreground mt-0.5 line-clamp-2 text-sm">
-                      {s.description}
-                    </p>
-                  )}
-                  <div className="mt-2 flex items-center gap-3 text-sm">
-                    <span className="text-primary font-bold">
-                      {formatPrice(s.priceCents, s.priceFrom)}
-                    </span>
-                    <span className="text-muted-foreground flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5" /> {durationLabel(s.durationMinutes)}
-                    </span>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </section>
-      ))}
-    </div>
-  )
-}
-
-function ServiceSummary({
-  service,
-  professionalName,
-}: {
-  service: PublicService
-  professionalName?: string
-}) {
-  return (
-    <div className="bg-primary-soft flex items-center gap-3 rounded-2xl p-3">
-      <CalendarHeart className="text-primary h-5 w-5 shrink-0" />
-      <div className="min-w-0 text-sm">
-        <p className="truncate font-semibold">
-          {service.name}
-          {professionalName && ` com ${professionalName}`}
-        </p>
-        <p className="text-muted-foreground">
-          {durationLabel(service.durationMinutes)} ·{' '}
-          {formatPrice(service.priceCents, service.priceFrom)}
-        </p>
-      </div>
-    </div>
-  )
-}
-
-function DetailsForm({
-  t,
-  service,
-  professionalId,
-  slot,
-  onSuccess,
-  onSlotTaken,
-}: {
-  t: PublicTenant
-  service: PublicService
-  professionalId: string
-  slot: Slot
-  onSuccess: (r: BookingResult) => void
-  onSlotTaken: () => void
-}) {
-  const saved = (() => {
-    try {
-      return JSON.parse(localStorage.getItem(SAVED_KEY) ?? '{}') as {
-        name?: string
-        phone?: string
-      }
-    } catch {
-      return {}
-    }
-  })()
-  const [name, setName] = useState(saved.name ?? '')
-  const [phone, setPhone] = useState(saved.phone ?? '')
-  const [notes, setNotes] = useState('')
-  const [consent, setConsent] = useState(false)
-  const [website, setWebsite] = useState('')
-  const [answers, setAnswers] = useState<Record<string, unknown>>({})
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [submitting, setSubmitting] = useState(false)
-  const fields = t.fields.filter((f) => f.appliesToAll || f.serviceIds.includes(service.id))
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault()
-    const errs: Record<string, string> = {}
-    if (name.trim().length < 2) errs.customerName = 'Informe seu nome'
-    if (!isValidBrazilianMobile(phone)) errs.customerPhone = 'Informe um celular válido com DDD'
-    if (!consent) errs.consent = 'Precisamos do seu consentimento para salvar seus dados'
-    for (const f of fields) {
-      const v = answers[f.id]
-      if (f.required && (v === undefined || v === '' || (Array.isArray(v) && !v.length)))
-        errs[f.id] = 'Resposta obrigatória'
-    }
-    setErrors(errs)
-    if (Object.keys(errs).length) {
-      document
-        .getElementById(
-          Object.keys(errs)[0] === 'customerName'
-            ? 'name'
-            : Object.keys(errs)[0] === 'customerPhone'
-              ? 'phone'
-              : `field-${Object.keys(errs)[0]}`,
-        )
-        ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      return
-    }
-    setSubmitting(true)
-    try {
-      const res = await api<BookingResult>(`/public/t/${t.slug}/bookings`, {
-        body: {
-          serviceId: service.id,
-          professionalId,
-          startsAt: slot.startsAt,
-          customerName: name.trim(),
-          customerPhone: phone,
-          notes,
-          consent,
-          website,
-          answers: Object.entries(answers)
-            .filter(([, v]) => v !== undefined && v !== '' && !(Array.isArray(v) && !v.length))
-            .map(([fieldId, value]) => ({ fieldId, value })),
-        },
-      })
-      try {
-        localStorage.setItem(SAVED_KEY, JSON.stringify({ name: name.trim(), phone }))
-      } catch {
-        /* ignora */
-      }
-      onSuccess(res)
-      window.scrollTo({ top: 0 })
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
-        toast.error(err.message)
-        onSlotTaken()
-      } else if (err instanceof ApiError && err.details) {
-        setErrors((err.details as { answers?: Record<string, string> }).answers ?? {})
-        toast.error(err.message)
-      } else if (err instanceof ApiError && err.fields) {
-        setErrors(err.fields)
-        toast.error(err.message)
-      } else toast.error(errorMessage(err))
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  return (
-    <form onSubmit={submit} className="space-y-5 pt-5" noValidate>
-      <div className="bg-primary-soft rounded-2xl p-4 text-sm">
-        <p className="font-semibold">{service.name}</p>
-        <p className="text-muted-foreground mt-0.5">
-          {capitalize(fmt(slot.startsAt, t.timezone, "EEEE, dd/MM 'às' HH:mm"))} ·{' '}
-          {formatPrice(service.priceCents, service.priceFrom)}
-        </p>
-      </div>
-      <Field label="Seu nome" htmlFor="name" error={errors.customerName} required>
-        <Input
-          id="name"
-          autoComplete="name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          aria-invalid={!!errors.customerName}
-        />
-      </Field>
-      <Field
-        label="Seu WhatsApp"
-        htmlFor="phone"
-        error={errors.customerPhone}
-        required
-        hint="Para enviar a confirmação e o lembrete."
-      >
-        <PhoneInput
-          id="phone"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          aria-invalid={!!errors.customerPhone}
-        />
-      </Field>
-      {fields.map((f) => (
-        <CustomFieldInput
-          key={f.id}
-          field={f}
-          value={answers[f.id]}
-          onChange={(v) => setAnswers((a) => ({ ...a, [f.id]: v }))}
-          error={errors[f.id]}
-          uploadEndpoint={`/public/t/${t.slug}/uploads`}
-        />
-      ))}
-      <Field label="Observações" htmlFor="notes">
-        <Textarea
-          id="notes"
-          rows={3}
-          placeholder="Algo que a gente precisa saber?"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          maxLength={500}
-        />
-      </Field>
-      {/* Honeypot anti-robô: invisível para pessoas */}
-      <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
-        <label htmlFor="website">Site</label>
-        <input
-          id="website"
-          tabIndex={-1}
-          autoComplete="off"
-          value={website}
-          onChange={(e) => setWebsite(e.target.value)}
-        />
-      </div>
-      <div>
-        <label className="text-muted-foreground flex items-start gap-3 text-sm">
-          <Checkbox
-            checked={consent}
-            onCheckedChange={(v) => setConsent(v === true)}
-            className="mt-0.5"
-            aria-invalid={!!errors.consent}
-          />
-          <span>
-            Autorizo {t.name} a usar meu nome e WhatsApp para gerenciar este agendamento, conforme a{' '}
-            <a href="/privacidade" target="_blank" className="text-primary font-medium underline">
-              política de privacidade
-            </a>{' '}
-            (LGPD).
-          </span>
-        </label>
-        {errors.consent && (
-          <p className="text-destructive mt-1 text-xs font-medium">{errors.consent}</p>
-        )}
-      </div>
-      {t.cancellationPolicy && (
-        <p className="bg-card text-muted-foreground rounded-xl border p-3 text-xs">
-          {t.cancellationPolicy}
-        </p>
-      )}
-      <div className="bg-card/95 pb-safe fixed inset-x-0 bottom-0 z-30 border-t backdrop-blur">
-        <div className="mx-auto max-w-xl px-4 py-3">
-          <Button type="submit" size="lg" className={cn('w-full')} loading={submitting}>
-            Confirmar agendamento
-          </Button>
-        </div>
-      </div>
-    </form>
   )
 }

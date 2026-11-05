@@ -3,6 +3,7 @@ import path from 'node:path'
 import { env } from '../config/env'
 import { badRequest } from './errors'
 import { randomToken } from './crypto'
+import { stripImageMetadata } from './image-meta'
 
 /**
  * Armazenamento de arquivos. Implementação local (pasta UPLOAD_DIR servida em /uploads).
@@ -10,6 +11,8 @@ import { randomToken } from './crypto'
  */
 export interface StorageProvider {
   save(folder: string, buffer: Buffer, ext: string): Promise<string>
+  /** Arquivo privado (ex.: foto da cliente): servido só por rota autenticada. */
+  savePrivate(folder: string, buffer: Buffer, ext: string): Promise<string>
 }
 
 const SIGNATURES: Array<{ ext: string; test: (b: Buffer) => boolean }> = [
@@ -40,6 +43,10 @@ export function detectImage(buffer: Buffer): string {
 }
 
 export const uploadRoot = path.resolve(env.UPLOAD_DIR)
+/** Fora da pasta pública: nunca é servida pelo /uploads. */
+export const privateUploadRoot = `${uploadRoot}-privado`
+export const PRIVATE_UPLOAD_PREFIX = '/api/uploads/private/'
+const safe = (folder: string) => folder.replace(/[^a-zA-Z0-9_-]/g, '')
 
 class LocalStorage implements StorageProvider {
   async save(folder: string, buffer: Buffer, ext: string) {
@@ -50,6 +57,19 @@ class LocalStorage implements StorageProvider {
     await writeFile(path.join(dir, name), buffer)
     return `/uploads/${safeFolder}/${name}`
   }
+  async savePrivate(folder: string, buffer: Buffer, ext: string) {
+    const dir = path.join(privateUploadRoot, safe(folder))
+    await mkdir(dir, { recursive: true })
+    const name = `${randomToken(16)}.${ext}`
+    await writeFile(path.join(dir, name), stripImageMetadata(buffer, ext))
+    return `${PRIVATE_UPLOAD_PREFIX}${safe(folder)}/${name}`
+  }
+}
+
+/** Caminho local de um arquivo privado a partir da URL (ou null se a URL não for válida). */
+export function privateFilePath(url: string) {
+  const m = url.match(/^\/api\/uploads\/private\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_-]+\.[a-z]{3,4})$/)
+  return m ? { folder: m[1]!, file: path.join(privateUploadRoot, m[1]!, m[2]!) } : null
 }
 
 export const storage: StorageProvider = new LocalStorage()

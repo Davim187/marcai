@@ -81,7 +81,10 @@ export default function CustomerAreaPage() {
     queryKey: ['customer-booking', token],
     queryFn: () => api<CustomerBooking>(`/public/bookings/${token}`),
   })
-  const [mode, setMode] = useState<'view' | 'reschedule'>('view')
+  // O modo "remarcar" fica na URL: o voltar do celular volta para os detalhes, sem sair
+  const mode: 'view' | 'reschedule' = params.get('remarcando') === '1' ? 'reschedule' : 'view'
+  const setMode = (next: 'view' | 'reschedule') =>
+    next === 'reschedule' ? setParams({ remarcando: '1' }) : setParams({}, { replace: true })
   const [cancelOpen, setCancelOpen] = useState(false)
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -92,9 +95,9 @@ export default function CustomerAreaPage() {
     if (!b) return
     document.title = `Seu horário — ${b.tenant.name}`
     const acao = params.get('acao')
-    if (acao === 'remarcar' && b.canChange) setMode('reschedule')
     if (acao === 'confirmar' && b.canConfirm && !b.customerConfirmedAt) void confirm()
-    if (acao) setParams({}, { replace: true })
+    if (acao === 'remarcar' && b.canChange) setParams({ remarcando: '1' }, { replace: true })
+    else if (acao) setParams({}, { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [b?.id])
 
@@ -192,6 +195,8 @@ export default function CustomerAreaPage() {
                       setMode('view')
                       setSlot(null)
                     } else {
+                      // O horário foi recusado (ex.: acabou de ser reservado): limpa a escolha
+                      setSlot(null)
                       qc.invalidateQueries({ queryKey: ['public-slots'] })
                     }
                   }}

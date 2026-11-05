@@ -119,7 +119,9 @@ describe('painel: clientes', () => {
     expect(res.json()).toMatchObject({ created: 2, updated: 1, skipped: 1 })
     const list = (await agent.get('/api/customers?q=ana')).json()
     expect(list.total).toBe(1)
-    expect(list.items[0].tags).toEqual([])
+    // Linha repetida sem tags NÃO apaga as tags que já existiam
+    expect(list.items[0].tags).toEqual(['VIP', 'Gel'])
+    expect(list.items[0].email).toBe('ana@x.com')
     const exp = await agent.get('/api/customers/export.csv')
     expect(exp.headers['content-type']).toContain('text/csv')
     expect(exp.body).toContain('(85) 99999-0002')
@@ -136,7 +138,7 @@ describe('painel: clientes', () => {
     expect((await agent.get(`/api/customers/${c.json().id}/export`)).json().name).toBe('Fernanda')
     await agent.delete(`/api/customers/${c.json().id}`)
     const row = await prisma.customer.findUniqueOrThrow({ where: { id: c.json().id } })
-    expect(row.name).toBe('Cliente removida')
+    expect(row.name).toBe('Cliente removido')
     expect(row.phone).not.toContain('95555')
     expect(
       await prisma.auditLog.count({ where: { tenantId: tenant.id, action: 'customer.deleted' } }),

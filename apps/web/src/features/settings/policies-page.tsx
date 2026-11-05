@@ -55,6 +55,14 @@ export default function PoliciesPage() {
         loadHolidays: data.loadHolidays,
       })
   }, [data])
+  // Texto digitado no campo de horas (campo vazio ou "e" não pode virar 0 em silêncio)
+  const [cancelText, setCancelText] = useState<string | null>(null)
+  const cancelValue = cancelText ?? String(v?.cancelMinHours ?? '')
+  const cancelError = !/^\d+$/.test(cancelValue)
+    ? 'Informe um número inteiro de horas (0 = até o horário)'
+    : Number(cancelValue) > 336
+      ? 'O máximo é 336 horas (14 dias)'
+      : undefined
   const save = useApiMutation(() => api('/tenant/booking-rules', { method: 'PUT', body: v }), {
     success: 'Regras salvas',
     invalidate: [qk.tenant, ['schedule']],
@@ -85,17 +93,20 @@ export default function PoliciesPage() {
                 value={v.minAdvanceMinutes}
                 onChange={(e) => set('minAdvanceMinutes', Number(e.target.value))}
               >
-                {[
-                  [0, 'Sem mínimo'],
-                  [30, '30 minutos'],
-                  [60, '1 hora'],
-                  [120, '2 horas'],
-                  [180, '3 horas'],
-                  [360, '6 horas'],
-                  [720, '12 horas'],
-                  [1440, '1 dia'],
-                  [2880, '2 dias'],
-                ].map(([m, l]) => (
+                {withCurrentLabeled(
+                  [
+                    [0, 'Sem mínimo'],
+                    [30, '30 minutos'],
+                    [60, '1 hora'],
+                    [120, '2 horas'],
+                    [180, '3 horas'],
+                    [360, '6 horas'],
+                    [720, '12 horas'],
+                    [1440, '1 dia'],
+                    [2880, '2 dias'],
+                  ],
+                  v.minAdvanceMinutes,
+                ).map(([m, l]) => (
                   <option key={m} value={m}>
                     {l}
                   </option>
@@ -108,7 +119,7 @@ export default function PoliciesPage() {
                 value={v.maxAdvanceDays}
                 onChange={(e) => set('maxAdvanceDays', Number(e.target.value))}
               >
-                {[7, 14, 21, 30, 45, 60, 90, 180].map((d) => (
+                {withCurrent([7, 14, 21, 30, 45, 60, 90, 180], v.maxAdvanceDays).map((d) => (
                   <option key={d} value={d}>
                     {d} dias
                   </option>
@@ -125,7 +136,7 @@ export default function PoliciesPage() {
                 value={v.slotIntervalMinutes}
                 onChange={(e) => set('slotIntervalMinutes', Number(e.target.value))}
               >
-                {[10, 15, 20, 30, 45, 60].map((m) => (
+                {withCurrent([10, 15, 20, 30, 45, 60], v.slotIntervalMinutes).map((m) => (
                   <option key={m} value={m}>
                     A cada {m} minutos
                   </option>
@@ -156,6 +167,7 @@ export default function PoliciesPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Field
+              error={cancelError}
               label="Até quantas horas antes"
               htmlFor="cancel"
               hint="Depois disso, só falando com você."
@@ -165,8 +177,13 @@ export default function PoliciesPage() {
                 type="number"
                 min={0}
                 max={336}
-                value={v.cancelMinHours}
-                onChange={(e) => set('cancelMinHours', Number(e.target.value))}
+                inputMode="numeric"
+                aria-invalid={!!cancelError}
+                value={cancelValue}
+                onChange={(e) => {
+                  setCancelText(e.target.value)
+                  if (/^\d+$/.test(e.target.value)) set('cancelMinHours', Number(e.target.value))
+                }}
               />
             </Field>
             <Field
@@ -198,9 +215,9 @@ export default function PoliciesPage() {
                 value={v.reminderHours}
                 onChange={(e) => set('reminderHours', Number(e.target.value))}
               >
-                {[2, 3, 6, 12, 24, 48].map((h) => (
+                {withCurrent([2, 3, 6, 12, 24, 48], v.reminderHours).map((h) => (
                   <option key={h} value={h}>
-                    {h} horas antes
+                    {h} {h === 1 ? 'hora' : 'horas'} antes
                   </option>
                 ))}
               </NativeSelect>
@@ -220,6 +237,7 @@ export default function PoliciesPage() {
           size="lg"
           onClick={() => save.mutate()}
           loading={save.isPending}
+          disabled={!!cancelError}
           className="shadow-lift"
         >
           Salvar regras
@@ -227,4 +245,15 @@ export default function PoliciesPage() {
       </div>
     </div>
   )
+}
+
+/** Opções do select incluindo o valor salvo (mesmo que fora da lista padrão). */
+function withCurrent(options: number[], current: number) {
+  return options.includes(current) ? options : [...options, current].sort((a, b) => a - b)
+}
+
+function withCurrentLabeled(options: Array<[number, string]>, current: number) {
+  return options.some(([m]) => m === current)
+    ? options
+    : [...options, [current, `${current} minutos`] as [number, string]].sort((a, b) => a[0] - b[0])
 }

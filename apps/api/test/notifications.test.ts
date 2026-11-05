@@ -113,6 +113,8 @@ describe('notificações', () => {
 
   it('fila com retry: falha temporária reagenda com backoff e falha definitiva cai para e-mail', async () => {
     const { tenant } = await setup()
+    // Com o e-mail desligado, o WhatsApp que falha de vez vira e-mail para a dona
+    await prisma.tenant.update({ where: { id: tenant.id }, data: { notifyEmail: false } })
     const job = await prisma.notificationJob.create({
       data: {
         tenantId: tenant.id,

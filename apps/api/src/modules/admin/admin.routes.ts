@@ -2,13 +2,13 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { blockTenantSchema, extendTrialSchema, PLANS } from '@marcai/shared'
 import { audit } from '../../lib/audit'
+import { notifyOwners } from '../notifications/owners'
 import { notFound } from '../../lib/errors'
 import { prisma } from '../../lib/prisma'
 import { requireSuperAdmin, setSessionCookies } from '../../plugins/auth'
 import { createSession } from '../auth/auth.service'
 import { publicUrlFor } from '../tenants/tenant.summary'
-
-const idParam = z.object({ id: z.string() })
+import { idParam } from '../../lib/route-schemas'
 
 /** Painel do dono do SaaS. Toda ação sensível vai para o log de auditoria. */
 export const adminRoutes: FastifyPluginAsyncZod = async (app) => {
@@ -59,7 +59,10 @@ export const adminRoutes: FastifyPluginAsyncZod = async (app) => {
     {
       schema: {
         tags: ['admin'],
-        querystring: z.object({ q: z.string().max(80).optional(), status: z.string().optional() }),
+        querystring: z.object({
+          q: z.string().max(80).optional(),
+          status: z.enum(['trial', 'active', 'past_due', 'canceled']).optional(),
+        }),
       },
     },
     async (request) => {
@@ -76,7 +79,7 @@ export const adminRoutes: FastifyPluginAsyncZod = async (app) => {
                 ],
               }
             : {}),
-          ...(status ? { subscription: { status: status as never } } : {}),
+          ...(status ? { subscription: { status } } : {}),
         },
         include: {
           subscription: true,
@@ -176,6 +179,15 @@ export const adminRoutes: FastifyPluginAsyncZod = async (app) => {
         actorUserId: userId,
         impersonatorId: request.auth!.user.id,
         ip: request.ip,
+      })
+      // A dona sempre fica sabendo do acesso de suporte (LGPD/transparência)
+      await notifyOwners({
+        tenantId: tenant.id,
+        kind: 'support_access',
+        title: 'Acesso de suporte à sua conta',
+        body: `A equipe de suporte acessou o painel de ${tenant.name} em ${new Date().toLocaleString('pt-BR', { timeZone: tenant.timezone })} para ajudar você. Se não pediu ajuda, responda este e-mail.`,
+        path: '/painel',
+        inApp: false,
       })
       setSessionCookies(reply, token, csrfToken)
       return { ok: true }

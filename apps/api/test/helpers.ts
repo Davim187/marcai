@@ -136,3 +136,23 @@ export function bookingPayload(
     ...extra,
   }
 }
+
+/** Convida uma profissional (papel restrito) e devolve um agente logado como ela. */
+export async function loginAsProfessional(owner: TestAgent, email: string) {
+  const invite = await owner.post('/api/team/members', {
+    name: 'Júlia',
+    email,
+    role: 'professional',
+    createProfessional: true,
+  })
+  if (invite.statusCode !== 201) throw new Error(`convite falhou: ${invite.body}`)
+  const user = await prisma.user.findUniqueOrThrow({ where: { email } })
+  const bcrypt = await import('bcryptjs')
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash: await bcrypt.hash('senha12345', 4) },
+  })
+  const a = new TestAgent(await getApp())
+  await a.post('/api/auth/login', { email, password: 'senha12345' })
+  return a
+}

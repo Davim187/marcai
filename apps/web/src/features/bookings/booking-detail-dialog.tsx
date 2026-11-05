@@ -2,7 +2,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, Check, CheckCheck, MessageCircle, UserX, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { formatPhone, formatPrice, whatsappLink } from '@marcai/shared'
+import {
+  BOOKING_STATUS_TOASTS,
+  type BookingStatus,
+  formatPhone,
+  formatPrice,
+  whatsappLink,
+} from '@marcai/shared'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -15,9 +21,9 @@ import {
 import { Textarea } from '@/components/ui/input'
 import { Field } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
-import { api } from '@/lib/api'
+import { api, imageSrc } from '@/lib/api'
 import { capitalize, fmt } from '@/lib/dates'
-import { useApiMutation } from '@/lib/queries'
+import { useApiMutation, invalidateBookingViews } from '@/lib/queries'
 import { useTenant } from '@/lib/session'
 import type { BookingDTO } from '@/lib/types'
 import { RescheduleDialog } from './reschedule-dialog'
@@ -52,28 +58,24 @@ export function BookingDetailDialog({
   const [cancelOpen, setCancelOpen] = useState(false)
   const [reason, setReason] = useState('')
   const [rescheduleOpen, setRescheduleOpen] = useState(false)
-  const invalidate = [
-    ['bookings'],
-    ['booking', bookingId],
-    ['calendar'],
-    ['dashboard'],
-    ['customer'],
-  ]
-  const setStatus = useApiMutation(
-    (v: { status: string; reason?: string }) =>
-      api(`/bookings/${bookingId}/status`, { method: 'PATCH', body: v }),
+  const statusMutation = useApiMutation(
+    (v: { status: BookingStatus; reason?: string }) =>
+      api<{ status: BookingStatus }>(`/bookings/${bookingId}/status`, { method: 'PATCH', body: v }),
     {
-      success: (r) =>
-        ({
-          confirmed: 'Agendamento confirmado',
-          completed: 'Atendimento concluído',
-          canceled: 'Agendamento cancelado',
-          no_show: 'Falta registrada',
-        })[(r as { status: string }).status] ?? 'Atualizado',
-      invalidate,
-      onSuccess: () => setCancelOpen(false),
+      success: (r) => BOOKING_STATUS_TOASTS[r.status],
+      onSuccess: () => {
+        setCancelOpen(false)
+        invalidateBookingViews(qc)
+      },
     },
   )
+  // Ignora cliques repetidos enquanto a primeira ação ainda está em andamento
+  const setStatus = {
+    isPending: statusMutation.isPending,
+    mutate: (v: { status: BookingStatus; reason?: string }) => {
+      if (!statusMutation.isPending) statusMutation.mutate(v)
+    },
+  }
   const started = b ? new Date(b.startsAt) <= new Date() : false
   const active = b && (b.status === 'pending' || b.status === 'confirmed')
   const waText = b
@@ -141,7 +143,7 @@ export function BookingDetailDialog({
                         <span className="text-muted-foreground">📝 {a.label}:</span>{' '}
                         {a.type === 'photo' ? (
                           <a
-                            href={String(a.value)}
+                            href={imageSrc(String(a.value))}
                             target="_blank"
                             rel="noreferrer"
                             className="text-primary font-medium underline"
@@ -261,7 +263,7 @@ export function BookingDetailDialog({
           onClose={() => setRescheduleOpen(false)}
           onDone={() => {
             setRescheduleOpen(false)
-            invalidate.forEach((k) => qc.invalidateQueries({ queryKey: k }))
+            invalidateBookingViews(qc)
           }}
         />
       )}

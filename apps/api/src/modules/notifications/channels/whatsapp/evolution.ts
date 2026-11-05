@@ -1,8 +1,13 @@
 import { env } from '../../../../config/env'
 import { PermanentChannelError } from '../types'
 import type { WhatsAppConnectResult, WhatsAppProvider, WhatsAppStatus } from './provider'
+import { bestEffort } from '../../../../lib/best-effort'
+import { logger } from '../../../../lib/logger'
 
 /** Evolution API (self-hosted): cada estabelecimento é uma instância conectada por QR Code. */
+/** A instância não existe mais na Evolution: é preciso ler o QR Code de novo. */
+export class InstanceGoneError extends PermanentChannelError {}
+
 export class EvolutionApiProvider implements WhatsAppProvider {
   readonly name = 'evolution' as const
   readonly perTenantNumber = true
@@ -23,8 +28,11 @@ export class EvolutionApiProvider implements WhatsAppProvider {
     const text = await res.text()
     if (!res.ok) {
       const err = new Error(`Evolution API ${res.status}: ${text.slice(0, 300)}`)
-      if (res.status === 400 && /exists|not.*whatsapp/i.test(text))
-        throw new PermanentChannelError(err.message)
+      // Número sem WhatsApp: não adianta repetir
+      if (res.status === 400 && /exists"?\s*:\s*false|not.*whatsapp/i.test(text))
+        throw new PermanentChannelError(`Esse número não tem WhatsApp (${err.message})`)
+      // Instância apagada no servidor da Evolution
+      if (res.status === 404) throw new InstanceGoneError(err.message)
       throw err
     }
     return (text ? JSON.parse(text) : {}) as T
@@ -42,9 +50,28 @@ export class EvolutionApiProvider implements WhatsAppProvider {
     return { id: r.key?.id }
   }
 
+  private webhookUrl() {
+    return `${env.API_URL}/api/webhooks/evolution?token=${encodeURIComponent(env.EVOLUTION_WEBHOOK_SECRET ?? '')}`
+  }
+
+  /** Garante o webhook de status mesmo em instâncias criadas antes (ou por outra versão). */
+  private async ensureWebhook(instanceName: string) {
+    await this.call('POST', `/webhook/set/${instanceName}`, {
+      webhook: {
+        enabled: true,
+        url: this.webhookUrl(),
+        byEvents: false,
+        base64: false,
+        events: ['CONNECTION_UPDATE'],
+      },
+    }).catch((err) =>
+      logger.warn({ err, instanceName }, 'Falha ao registrar o webhook da Evolution'),
+    )
+  }
+
   async connect(tenantId: string): Promise<WhatsAppConnectResult> {
     const instanceName = this.instance(tenantId)
-    const webhookUrl = `${env.API_URL}/api/webhooks/evolution?token=${encodeURIComponent(env.EVOLUTION_WEBHOOK_SECRET ?? '')}`
+    const webhookUrl = this.webhookUrl()
     try {
       const created = await this.call<{ qrcode?: { base64?: string } }>(
         'POST',
@@ -54,6 +81,7 @@ export class EvolutionApiProvider implements WhatsAppProvider {
           qrcode: true,
           integration: 'WHATSAPP-BAILEYS',
           webhook: {
+            enabled: true,
             url: webhookUrl,
             byEvents: false,
             base64: false,
@@ -61,10 +89,12 @@ export class EvolutionApiProvider implements WhatsAppProvider {
           },
         },
       )
+      await this.ensureWebhook(instanceName)
       if (created.qrcode?.base64) return { status: 'connecting', qrCode: created.qrcode.base64 }
     } catch (err) {
       if (!/already|exists|in use/i.test(String((err as Error).message))) throw err
     }
+    await this.ensureWebhook(instanceName)
     const r = await this.call<{ base64?: string }>('GET', `/instance/connect/${instanceName}`)
     return r.base64 ? { status: 'connecting', qrCode: r.base64 } : this.status(tenantId)
   }
@@ -87,7 +117,16 @@ export class EvolutionApiProvider implements WhatsAppProvider {
   }
 
   async disconnect(tenantId: string) {
-    await this.call('DELETE', `/instance/logout/${this.instance(tenantId)}`).catch(() => undefined)
-    await this.call('DELETE', `/instance/delete/${this.instance(tenantId)}`).catch(() => undefined)
+    // Instância já desconectada/apagada não é erro para quem está desconectando
+    await bestEffort(
+      this.call('DELETE', `/instance/logout/${this.instance(tenantId)}`),
+      'sair da Evolution',
+      { tenantId },
+    )
+    await bestEffort(
+      this.call('DELETE', `/instance/delete/${this.instance(tenantId)}`),
+      'apagar instância da Evolution',
+      { tenantId },
+    )
   }
 }

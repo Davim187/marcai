@@ -26,3 +26,14 @@ export const tooMany = (m = 'Muitas tentativas. Aguarde um pouco e tente de novo
   new AppError(429, m, 'MUITAS_TENTATIVAS')
 
 export const SLOT_TAKEN_MESSAGE = 'Esse horário acabou de ser reservado, escolha outro'
+export const SLOT_UNAVAILABLE_MESSAGE =
+  'Esse horário não está disponível. Escolha outro horário da lista.'
+export const SLOT_OVERLAP_PANEL_MESSAGE =
+  'Já existe um agendamento nesse horário para esse profissional.'
+export const PAST_TIME_MESSAGE =
+  'Não dá para agendar no passado. Escolha um horário a partir de agora.'
+
+export const slotTaken = () => conflict(SLOT_TAKEN_MESSAGE, 'HORARIO_OCUPADO')
+export const slotUnavailable = () => conflict(SLOT_UNAVAILABLE_MESSAGE, 'HORARIO_INDISPONIVEL')
+export const slotOverlapPanel = () => conflict(SLOT_OVERLAP_PANEL_MESSAGE, 'HORARIO_OCUPADO')
+export const pastTime = () => badRequest(PAST_TIME_MESSAGE, 'HORARIO_PASSADO')

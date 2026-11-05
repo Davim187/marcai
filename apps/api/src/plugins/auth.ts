@@ -6,7 +6,9 @@ import { env, isProd } from '../config/env'
 import { hashToken, safeEqual } from '../lib/crypto'
 import { forbidden, paymentRequired, unauthorized } from '../lib/errors'
 import { prisma } from '../lib/prisma'
+import { requestContext } from '../lib/request-context'
 import { forTenant, type TenantDb } from '../lib/tenant-db'
+import { logger } from '../lib/logger'
 
 export const SESSION_COOKIE = 'marcai_session'
 export const CSRF_COOKIE = 'marcai_csrf'
@@ -52,12 +54,13 @@ export function cookieOptions(maxAgeSeconds?: number) {
 export function setSessionCookies(reply: FastifyReply, token: string, csrfToken: string) {
   const maxAge = env.SESSION_TTL_DAYS * 86_400
   reply.setCookie(SESSION_COOKIE, token, cookieOptions(maxAge))
-  reply.setCookie(CSRF_COOKIE, csrfToken, { ...cookieOptions(maxAge), httpOnly: false })
+  // httpOnly: o front recebe o token pelo corpo de /auth/me e /auth/login (JS de terceiros não lê)
+  reply.setCookie(CSRF_COOKIE, csrfToken, cookieOptions(maxAge))
 }
 
 export function clearSessionCookies(reply: FastifyReply) {
   reply.clearCookie(SESSION_COOKIE, cookieOptions())
-  reply.clearCookie(CSRF_COOKIE, { ...cookieOptions(), httpOnly: false })
+  reply.clearCookie(CSRF_COOKIE, cookieOptions())
 }
 
 /** Lê o cookie de sessão em toda requisição e popula `request.auth`. */
@@ -88,8 +91,13 @@ export const authPlugin = fp(async (app) => {
     if (Date.now() - session.lastSeenAt.getTime() > 600_000) {
       prisma.session
         .update({ where: { id: session.id }, data: { lastSeenAt: new Date() } })
-        .catch(() => undefined)
+        .catch((err) => logger.warn({ err }, 'Falha ao atualizar "visto por último" da sessão'))
     }
+  })
+  // Contexto da requisição (ex.: auditoria sabe quando é o suporte agindo). O resto do ciclo
+  // da requisição roda dentro do `run`, então o contexto chega até a rota.
+  app.addHook('onRequest', (request, _reply, done) => {
+    requestContext.run({ impersonatorId: request.auth?.impersonatorId ?? null }, done)
   })
 })
 
@@ -105,6 +113,7 @@ function checkCsrf(request: FastifyRequest) {
 export async function requireAuth(request: FastifyRequest) {
   if (!request.auth) throw unauthorized()
   checkCsrf(request)
+  assertAllowedInSupportMode(request)
 }
 
 export async function requireSuperAdmin(request: FastifyRequest) {
@@ -122,6 +131,28 @@ const READ_ONLY_ALLOWED = [
   /^\/api\/notifications\/(read|read-all)/,
 ]
 
+/**
+ * Modo suporte ("entrar como"): o admin pode ver e ajudar, mas não pode levar dados nem mudar
+ * quem tem acesso ou a cobrança.
+ */
+const SUPPORT_MODE_BLOCKED: Array<{ method?: string; path: RegExp }> = [
+  { path: /^\/api\/customers\/(export\.csv|[^/]+\/export)/ },
+  { path: /^\/api\/reports\/.*\.csv/ },
+  { method: 'write', path: /^\/api\/team/ },
+  { method: 'write', path: /^\/api\/billing/ },
+  { method: 'write', path: /^\/api\/account/ },
+]
+function assertAllowedInSupportMode(request: FastifyRequest) {
+  if (!request.auth?.impersonatorId) return
+  const url = request.url.split('?')[0]!
+  const isWrite = !SAFE_METHODS.has(request.method)
+  const blocked = SUPPORT_MODE_BLOCKED.some(
+    (r) => r.path.test(url) && (r.method !== 'write' || isWrite),
+  )
+  if (blocked)
+    throw forbidden('Ação indisponível no modo suporte: só a própria dona pode fazer isso.')
+}
+
 /** Guard: usuária logada e com estabelecimento ativo na sessão. Popula `request.tenantCtx`. */
 export async function requireTenant(request: FastifyRequest) {
   await requireAuth(request)
@@ -136,7 +167,7 @@ export async function requireTenant(request: FastifyRequest) {
   let role: MemberRole
   let tenant: (Tenant & { subscription: Subscription | null }) | null
   let professionalId: string | null = null
-  if (member) {
+  if (member?.acceptedAt) {
     role = member.role
     tenant = member.tenant
     professionalId = member.professionalId

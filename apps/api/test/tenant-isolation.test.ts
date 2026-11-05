@@ -61,3 +61,20 @@ describe('isolamento entre tenants', () => {
     expect(() => forTenant('')).toThrow(TenantIsolationError)
   })
 })
+
+describe('lista de modelos isolados por tenant', () => {
+  it('todo modelo com tenantId está protegido pelo forTenant (ou é global de propósito)', async () => {
+    const { Prisma } = await import('@prisma/client')
+    const { TENANT_SCOPED_MODELS } = await import('../src/lib/tenant-db')
+    // Globais de propósito: sessão (antes do tenant ser escolhido), fila e auditoria (sistema)
+    // SlugHistory: consultado pela página pública para resolver links antigos
+    const GLOBAL_ON_PURPOSE = new Set(['Session', 'NotificationJob', 'AuditLog', 'SlugHistory'])
+    const withTenantId = Prisma.dmmf.datamodel.models
+      .filter((m) => m.fields.some((f) => f.name === 'tenantId'))
+      .map((m) => m.name)
+    const missing = withTenantId.filter(
+      (m) => !TENANT_SCOPED_MODELS.has(m) && !GLOBAL_ON_PURPOSE.has(m),
+    )
+    expect(missing).toEqual([])
+  })
+})

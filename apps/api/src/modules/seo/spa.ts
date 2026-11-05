@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { env } from '../../config/env'
 import { setNotFoundFallback } from '../../plugins/error-handler'
-import { injectMeta, metaForPath, metaTags, robotsTxt, sitemapXml } from './meta'
+import { escapeHtml, injectMeta, metaForPath, metaTags, robotsTxt, sitemapXml } from './meta'
 
 /**
  * SEO no servidor:
@@ -25,11 +25,17 @@ export async function seoRoutes(app: FastifyInstance) {
   app.get('/api/public/og', { schema: { hide: true } }, async (request, reply) => {
     const p = String((request.query as { path?: string }).path ?? '/')
     const meta = await metaForPath(p)
+    const url = escapeHtml(meta.url)
     reply.header('cache-control', 'public, max-age=300')
+    // Página só para robôs: nenhum script é permitido.
+    reply.header(
+      'content-security-policy',
+      "default-src 'none'; img-src * data:; style-src 'unsafe-inline'",
+    )
     return reply
       .type('text/html; charset=utf-8')
       .send(
-        `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8" />\n    ${metaTags(meta)}\n<meta http-equiv="refresh" content="0;url=${meta.url}" /></head><body><a href="${meta.url}">${meta.title}</a></body></html>`,
+        `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8" />\n    ${metaTags(meta)}\n<meta http-equiv="refresh" content="0;url=${url}" /></head><body><a href="${url}">${escapeHtml(meta.title)}</a></body></html>`,
       )
   })
 }

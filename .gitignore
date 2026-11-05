@@ -9,5 +9,15 @@ test-results
 .DS_Store
 apps/api/uploads/*
 !apps/api/uploads/.gitkeep
+apps/api/uploads-privado/
 dev-dist
 *.tsbuildinfo
+
+# Cópias temporárias de agentes (git worktrees)
+.claude/worktrees/
+
+# Fotos de banco/demos da skill design-taste-frontend (27 MB). Reinstale do repositório leonxlnx/taste-skill se precisar.
+.claude/skills/design-taste-frontend/**/*.jpg
+.claude/skills/design-taste-frontend/**/*.webp
+.claude/skills/design-taste-frontend/**/*.png
+.claude/skills/design-taste-frontend/**/*.avif

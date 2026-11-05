@@ -3,25 +3,12 @@ import { z } from 'zod'
 import { env } from '../../config/env'
 import { hmacSha256Hex, safeEqual } from '../../lib/crypto'
 import { forbidden } from '../../lib/errors'
-import { prisma } from '../../lib/prisma'
-
-declare module 'fastify' {
-  interface FastifyRequest {
-    rawBody?: Buffer
-  }
-}
+import { registerRawJsonBody } from '../../plugins/raw-json-body'
+import { setConnectionStatus } from './channels/whatsapp'
 
 /** Webhooks do WhatsApp. Todos verificam assinatura/segredo antes de processar. */
 export const whatsappWebhookRoutes: FastifyPluginAsync = async (app) => {
-  // Precisamos do corpo bruto para validar a assinatura HMAC da Meta.
-  app.addContentTypeParser('application/json', { parseAs: 'buffer' }, (request, body, done) => {
-    request.rawBody = body as Buffer
-    try {
-      done(null, (body as Buffer).length ? JSON.parse((body as Buffer).toString('utf8')) : {})
-    } catch (err) {
-      done(err as Error, undefined)
-    }
-  })
+  registerRawJsonBody(app)
 
   // ---------- Evolution API ----------
   app.post('/evolution', { schema: { hide: true } }, async (request) => {
@@ -38,14 +25,7 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (app) => {
       const status =
         state === 'open' ? 'connected' : state === 'connecting' ? 'connecting' : 'disconnected'
       const phone = typeof body.data?.wuid === 'string' ? body.data.wuid.split('@')[0] : undefined
-      await prisma.whatsAppConnection.updateMany({
-        where: { tenantId },
-        data: {
-          status,
-          ...(phone ? { phone } : {}),
-          ...(status === 'connected' ? { connectedAt: new Date() } : {}),
-        },
-      })
+      await setConnectionStatus(tenantId, status, phone)
     }
     return { ok: true }
   })
@@ -75,7 +55,17 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (app) => {
     )
       .flatMap((e) => e.changes ?? [])
       .flatMap((c) => c.value?.statuses ?? [])
-    if (statuses.length) request.log.info({ statuses }, 'Status de mensagens da Meta')
+    // Só id e status: o telefone da cliente não vai para o log
+    if (statuses.length)
+      request.log.info(
+        {
+          statuses: (statuses as Array<{ id?: string; status?: string }>).map((st) => ({
+            id: st.id,
+            status: st.status,
+          })),
+        },
+        'Status de mensagens da Meta',
+      )
     return { ok: true }
   })
 }

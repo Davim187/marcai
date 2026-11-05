@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { normalizeBrazilianMobile, updateProfileSchema } from '@marcai/shared'
 import { audit } from '../../lib/audit'
+import { deleteTenantPrivateFiles } from '../uploads/private-cleanup'
 import { badRequest } from '../../lib/errors'
 import { prisma } from '../../lib/prisma'
 import { clearSessionCookies, requireAuth } from '../../plugins/auth'
@@ -86,11 +87,22 @@ export const accountRoutes: FastifyPluginAsyncZod = async (app) => {
         })
         if (owners > 1) continue
         const sub = await prisma.subscription.findUnique({ where: { tenantId: m.tenantId } })
-        if (sub?.providerSubscriptionId && sub.status !== 'canceled')
+        if (
+          sub?.providerSubscriptionId &&
+          sub.billingType === 'CREDIT_CARD' &&
+          sub.status !== 'canceled'
+        )
+          // Se o Mercado Pago falhar, a exclusão para: nunca deixa um cartão cobrando sem conta
           await billingProvider()
-            .cancelSubscription(sub.providerSubscriptionId)
-            .catch(() => undefined)
+            .cancelCardSubscription(sub.providerSubscriptionId)
+            .catch(() => {
+              throw badRequest(
+                'Não conseguimos cancelar a cobrança no cartão agora. Tente de novo em alguns minutos.',
+                'MERCADO_PAGO_INDISPONIVEL',
+              )
+            })
         await prisma.tenant.delete({ where: { id: m.tenantId } })
+        await deleteTenantPrivateFiles(m.tenantId)
         await audit({ action: 'tenant.deleted', tenantId: m.tenantId, actorUserId: userId })
       }
       await prisma.user.delete({ where: { id: userId } })

@@ -11,7 +11,7 @@ import {
   validatorCompiler,
   type ZodTypeProvider,
 } from 'fastify-type-provider-zod'
-import { env, isTest } from './config/env'
+import { env, isProd, isTest } from './config/env'
 import { loggerOptions } from './lib/logger'
 import { authPlugin } from './plugins/auth'
 import { registerErrorHandler } from './plugins/error-handler'
@@ -20,10 +20,43 @@ import { registerModules } from './modules'
 export async function buildApp(opts: FastifyServerOptions = {}) {
   const app = Fastify({
     logger: isTest ? false : loggerOptions,
-    trustProxy: true,
+    // Só confia no X-Forwarded-For quando há um proxy conhecido na frente (TRUST_PROXY).
+    // Com "true" qualquer cliente forjaria o IP e furaria o rate limit.
+    trustProxy:
+      typeof env.TRUST_PROXY === 'string' && /^\d+$/.test(env.TRUST_PROXY)
+        ? (_address: string, hop: number) => hop < Number(env.TRUST_PROXY)
+        : env.TRUST_PROXY,
     bodyLimit: 1_048_576,
     ...opts,
   }).withTypeProvider<ZodTypeProvider>()
+
+  // Headers de segurança em todas as respostas
+  app.addHook('onSend', async (request, reply, payload) => {
+    reply.header('x-content-type-options', 'nosniff')
+    reply.header('x-frame-options', 'DENY')
+    reply.header('referrer-policy', 'strict-origin-when-cross-origin')
+    reply.header('permissions-policy', 'camera=(), microphone=(), geolocation=()')
+    if (isProd) reply.header('strict-transport-security', 'max-age=31536000; includeSubDomains')
+    const type = String(reply.getHeader('content-type') ?? '')
+    if (type.startsWith('text/html') && !reply.hasHeader('content-security-policy')) {
+      reply.header(
+        'content-security-policy',
+        [
+          "default-src 'self'",
+          // index.html tem um script inline mínimo (tema claro/escuro)
+          "script-src 'self' 'unsafe-inline'",
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+          "font-src 'self' https://fonts.gstatic.com",
+          "img-src 'self' data: blob: https:",
+          "connect-src 'self'",
+          "frame-ancestors 'none'",
+          "base-uri 'self'",
+          "form-action 'self'",
+        ].join('; '),
+      )
+    }
+    return payload
+  })
 
   app.setValidatorCompiler(validatorCompiler)
   app.setSerializerCompiler(serializerCompiler)
@@ -71,7 +104,8 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
     },
     transform: jsonSchemaTransform,
   })
-  await app.register(swaggerUi, { routePrefix: '/api/docs' })
+  // Documentação só fora de produção (ou se liberada explicitamente)
+  if (!isProd || env.SWAGGER_PUBLIC) await app.register(swaggerUi, { routePrefix: '/api/docs' })
 
   await app.register(authPlugin)
   await registerModules(app)

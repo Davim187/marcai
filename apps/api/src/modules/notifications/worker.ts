@@ -8,28 +8,39 @@ import {
   renderTemplate,
   toLocalDate,
   toLocalTime,
+  OPEN_BOOKING_STATUSES,
 } from '@marcai/shared'
 import { env } from '../../config/env'
 import { logger as baseLogger } from '../../lib/logger'
 import { prisma } from '../../lib/prisma'
-import { runBillingTick } from '../billing/billing.tick'
 import { channels } from './channels/registry'
-import { PermanentChannelError, type ChannelName, type OutboundMessage } from './channels/types'
+import {
+  outboundMessageSchema,
+  PermanentChannelError,
+  type ChannelName,
+  type OutboundMessage,
+} from './channels/types'
 import { canNotify } from './gating'
 import { getTemplate, loadFullBooking, renderForCustomer } from './messages'
+import { findOwners } from './owners'
 import { enqueue } from './queue'
 
 const BATCH = 20
 const LOCK_TIMEOUT_MS = 5 * 60_000
 
 /** Pega jobs vencidos com FOR UPDATE SKIP LOCKED: vários workers podem rodar em paralelo. */
+// As colunas são timestamp SEM fuso, gravadas em UTC pelo Prisma. Comparar com now() ou com um Date
+// (enviado como timestamptz) converte pelo fuso da sessão do Postgres e, num banco fora de UTC,
+// atrasa a fila em horas. Por isso tudo em "now() AT TIME ZONE 'UTC'".
 async function claimJobs(): Promise<NotificationJob[]> {
   return prisma.$queryRaw<NotificationJob[]>`
-    UPDATE "NotificationJob" SET status = 'processing', "lockedAt" = now(), attempts = attempts + 1
+    UPDATE "NotificationJob"
+    SET status = 'processing', "lockedAt" = (now() AT TIME ZONE 'UTC'), attempts = attempts + 1
     WHERE id IN (
       SELECT id FROM "NotificationJob"
-      WHERE (status = 'pending' AND "runAt" <= now())
-         OR (status = 'processing' AND "lockedAt" < ${new Date(Date.now() - LOCK_TIMEOUT_MS)})
+      WHERE (status = 'pending' AND "runAt" <= (now() AT TIME ZONE 'UTC'))
+         OR (status = 'processing'
+             AND "lockedAt" < (now() AT TIME ZONE 'UTC') - ${LOCK_TIMEOUT_MS} * interval '1 millisecond')
       ORDER BY "runAt" ASC
       LIMIT ${BATCH}
       FOR UPDATE SKIP LOCKED
@@ -39,16 +50,26 @@ async function claimJobs(): Promise<NotificationJob[]> {
 
 /** Jobs especiais são montados na hora do envio (dados sempre atualizados). */
 async function resolveMessage(job: NotificationJob): Promise<OutboundMessage | null> {
-  const payload = job.payload as unknown as OutboundMessage & { startsAt?: string }
-  if (job.kind === 'customer_reminder') {
+  const parsed = outboundMessageSchema.safeParse(job.payload)
+  if (!parsed.success) throw new PermanentChannelError('Mensagem inválida na fila')
+  const payload = parsed.data
+  if (job.kind === 'customer_reminder' || job.kind === 'customer_reminder_email') {
     const b = job.bookingId ? await loadFullBooking(job.bookingId) : null
-    // Lembrete obsoleto: cancelado, remarcado ou plano sem o recurso
-    if (!b || !['pending', 'confirmed'].includes(b.status)) return null
+    // Lembrete obsoleto: cancelado, remarcado, cliente excluída ou plano sem o recurso
+    if (!b || b.status !== 'confirmed' || b.customer.deletedAt) return null
     if (payload.startsAt && b.startsAt.toISOString() !== payload.startsAt) return null
-    if (!canNotify(b.tenant, 'whatsapp_customer')) return null
+    if (job.kind === 'customer_reminder' && !canNotify(b.tenant, 'whatsapp_customer')) return null
     return { ...payload, body: await renderForCustomer(b, 'customer_reminder') }
   }
   if (job.kind === 'daily_summary') return buildDailySummary(job.tenantId!, payload)
+  // LGPD: cliente excluída não recebe mais nada (nem o que já estava na fila ou em retry)
+  if (job.kind.startsWith('customer_') && job.bookingId) {
+    const b = await prisma.booking.findUnique({
+      where: { id: job.bookingId },
+      select: { customer: { select: { deletedAt: true } } },
+    })
+    if (!b || b.customer.deletedAt) return null
+  }
   return payload
 }
 
@@ -65,7 +86,7 @@ async function buildDailySummary(
   const bookings = await prisma.booking.findMany({
     where: {
       tenantId,
-      status: { in: ['pending', 'confirmed'] },
+      status: { in: [...OPEN_BOOKING_STATUSES] },
       startsAt: {
         gte: localToUtc(today, 0, tenant.timezone),
         lt: localToUtc(addDaysToDate(today, 1), 0, tenant.timezone),
@@ -146,8 +167,11 @@ async function fallbackToEmail(job: NotificationJob) {
     where: { tenantId: job.tenantId, role: 'owner' },
     include: { user: true, tenant: true },
   })
-  if (!owner) return
-  const p = job.payload as unknown as OutboundMessage
+  // Se o e-mail já está ligado, a profissional já recebeu por lá
+  if (!owner?.acceptedAt || owner.tenant.notifyEmail) return
+  const parsed = outboundMessageSchema.safeParse(job.payload)
+  if (!parsed.success) return
+  const p = parsed.data
   await enqueue({
     channel: 'email',
     kind: `${job.kind}_fallback`,
@@ -181,6 +205,8 @@ export async function scheduleDailySummaries(now = new Date()) {
       timezone: true,
       notifyPhone: true,
       notifyWhatsappProfessional: true,
+      notifyEmail: true,
+      primaryColor: true,
       name: true,
     },
   })
@@ -211,44 +237,25 @@ export async function scheduleDailySummaries(now = new Date()) {
         message: { ...base, to: t.notifyPhone },
       })
     }
-    await enqueue({
-      channel: 'push',
-      kind: 'daily_summary',
-      dedupeKey: `daily:push:${t.id}:${date}`,
-      message: base,
-    })
-  }
-}
-
-let lastMinuteTick = 0
-export async function tick(log: FastifyBaseLogger | typeof baseLogger = baseLogger) {
-  await processDueJobs(log)
-  if (Date.now() - lastMinuteTick > 60_000) {
-    lastMinuteTick = Date.now()
-    await scheduleDailySummaries().catch((err) =>
-      log.error({ err }, 'Erro ao agendar resumos diários'),
-    )
-    await runBillingTick().catch((err) => log.error({ err }, 'Erro na rotina de cobrança'))
-  }
-}
-
-/** Loop do worker. Retorna uma função para parar. */
-export function startWorker(log: FastifyBaseLogger | typeof baseLogger = baseLogger): () => void {
-  let stopped = false
-  let timer: NodeJS.Timeout | null = null
-  const loop = async () => {
-    if (stopped) return
-    try {
-      await tick(log)
-    } catch (err) {
-      log.error({ err }, 'Erro no worker de notificações')
+    // A agenda inteira do dia é só para a gestão (donas), não para as profissionais
+    const owners = await findOwners(t.id)
+    for (const o of owners) {
+      await enqueue({
+        channel: 'push',
+        kind: 'daily_summary',
+        dedupeKey: `daily:push:${t.id}:${date}:${o.userId}`,
+        message: { ...base, to: o.userId },
+      })
     }
-    if (!stopped) timer = setTimeout(loop, env.WORKER_POLL_MS)
-  }
-  log.info('⚙️  Worker da fila de notificações iniciado')
-  void loop()
-  return () => {
-    stopped = true
-    if (timer) clearTimeout(timer)
+    if (t.notifyEmail) {
+      for (const o of owners) {
+        await enqueue({
+          channel: 'email',
+          kind: 'daily_summary',
+          dedupeKey: `daily:email:${t.id}:${date}:${o.userId}`,
+          message: { ...base, to: o.user.email, fromName: t.name, color: t.primaryColor },
+        })
+      }
+    }
   }
 }

@@ -223,7 +223,7 @@ describe('página pública e reserva', () => {
     )
   })
 
-  it('honeypot: robô recebe sucesso falso e nada é gravado', async () => {
+  it('honeypot: robô recebe erro claro e nada é gravado', async () => {
     const { slug, service, professional, tenant } = await setup()
     const app = await getApp()
     const { slots } = await nextFreeSlots(slug, service.id, professional.id)
@@ -235,7 +235,8 @@ describe('página pública e reserva', () => {
         website: 'http://spam',
       },
     })
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error).toBe('VERIFICACAO_FALHOU')
     expect(await prisma.booking.count({ where: { tenantId: tenant.id } })).toBe(0)
   })
 

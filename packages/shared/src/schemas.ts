@@ -11,18 +11,45 @@ const msg = {
 }
 
 export const hhmm = z.string().regex(/^([01]\d|2[0-4]):[0-5]\d$/, 'Use o formato HH:mm')
-export const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida')
+/** Data local YYYY-MM-DD que existe de verdade no calendário (recusa 2026-11-33, 2026-02-30…). */
+export const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida')
+  .refine((v) => {
+    const [y, m, d] = v.split('-').map(Number) as [number, number, number]
+    const dt = new Date(Date.UTC(y, m - 1, d))
+    return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d
+  }, 'Data inválida')
 export const id = z.string().min(1).max(64)
+
+/**
+ * Imagens do estabelecimento (logo, capa, ícone, fotos): só arquivos enviados pelo próprio
+ * sistema. URL externa permitiria rastrear quem abre a página (pixel espião).
+ */
+export const uploadUrlSchema = z
+  .string()
+  .max(500)
+  .regex(
+    /^\/uploads\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\.(?:jpg|png|webp|gif|heic)$/,
+    'Envie a imagem pelo botão de upload',
+  )
+  .optional()
+  .nullable()
+  .or(z.literal('').transform(() => null))
 
 export const emailSchema = z.string().trim().toLowerCase().email(msg.email).max(160)
 export const passwordSchema = z
   .string()
   .min(8, 'A senha precisa ter pelo menos 8 caracteres')
   .max(128, 'Senha muito longa')
+  .refine((v) => v.trim().length >= 8, 'A senha não pode ser só espaços')
 export const phoneSchema = z
   .string()
   .trim()
-  .refine(isValidBrazilianMobile, 'Informe um celular válido com DDD, ex.: (85) 99999-9999')
+  .refine(
+    isValidBrazilianMobile,
+    'Informe um celular com DDD, ex.: (85) 99999-9999 (telefone fixo não recebe WhatsApp)',
+  )
 export const slugSchema = z
   .string()
   .trim()
@@ -67,7 +94,12 @@ export const updateProfileSchema = z.object({
 // ---------- Onboarding ----------
 export const shiftSchema = z
   .object({ weekday: z.number().int().min(0).max(6), start: hhmm, end: hhmm })
-  .refine((s) => s.start !== s.end, 'Início e fim não podem ser iguais')
+  // "00:00"/"24:00" no fim = até a meia-noite. Fim antes do início (18:00–08:00) abriria a
+  // agenda de madrugada sem ninguém perceber: é recusado.
+  .refine((s) => s.end === '00:00' || s.end === '24:00' || s.end > s.start, {
+    message: 'O fim do turno precisa ser depois do início (ex.: 08:00 às 18:00)',
+    path: ['end'],
+  })
 export type ShiftInput = z.infer<typeof shiftSchema>
 
 export const onboardingSchema = z.object({
@@ -76,7 +108,7 @@ export const onboardingSchema = z.object({
   businessType: z.enum(BUSINESS_TYPES.map((b) => b.id) as [string, ...string[]]),
   shifts: z.array(shiftSchema).max(50),
   primaryColor: colorSchema.optional(),
-  logoUrl: z.string().max(500).optional().nullable(),
+  logoUrl: uploadUrlSchema,
   timezone: z.string().max(60).optional(),
 })
 export type OnboardingInput = z.infer<typeof onboardingSchema>
@@ -90,9 +122,9 @@ export const tenantProfileSchema = z.object({
   instagram: z.string().trim().max(60).optional().nullable(),
   whatsapp: phoneSchema.optional().nullable().or(z.literal('')),
   primaryColor: colorSchema,
-  logoUrl: z.string().max(500).optional().nullable(),
-  coverUrl: z.string().max(500).optional().nullable(),
-  faviconUrl: z.string().max(500).optional().nullable(),
+  logoUrl: uploadUrlSchema,
+  coverUrl: uploadUrlSchema,
+  faviconUrl: uploadUrlSchema,
   timezone: z.string().max(60),
 })
 export type TenantProfileInput = z.infer<typeof tenantProfileSchema>
@@ -129,14 +161,23 @@ export const serviceSchema = z.object({
   name: z.string().trim().min(2, 'Informe o nome do serviço').max(80),
   description: z.string().trim().max(500).optional().nullable(),
   durationMinutes: z
-    .number()
-    .int()
+    .number({ invalid_type_error: 'Informe a duração em minutos' })
+    .int('Use minutos inteiros (ex.: 45)')
     .min(5, 'Mínimo de 5 minutos')
-    .max(12 * 60),
-  priceCents: z.number().int().min(0).max(10_000_000),
+    .max(12 * 60, 'Máximo de 12 horas (720 minutos)'),
+  priceCents: z
+    .number({ invalid_type_error: 'Informe o preço' })
+    .int()
+    .min(0, 'O preço não pode ser negativo')
+    .max(10_000_000, 'O preço máximo é R$ 100.000,00'),
   priceFrom: z.boolean().default(false),
-  bufferMinutes: z.number().int().min(0).max(240).default(0),
-  photoUrl: z.string().max(500).optional().nullable(),
+  bufferMinutes: z
+    .number({ invalid_type_error: 'Informe o intervalo em minutos (ou 0)' })
+    .int('Use minutos inteiros')
+    .min(0, 'O intervalo não pode ser negativo')
+    .max(240, 'Máximo de 240 minutos (4 horas)')
+    .default(0),
+  photoUrl: uploadUrlSchema,
   active: z.boolean().default(true),
   professionalIds: z.array(id).optional(),
 })
@@ -156,6 +197,8 @@ export const timeOffSchema = z
     reason: z.string().trim().max(120).optional().nullable(),
     startsAt: z.coerce.date(),
     endsAt: z.coerce.date(),
+    /** Bloquear mesmo havendo agendamentos no período (eles continuam marcados) */
+    confirmConflicts: z.boolean().optional(),
   })
   .refine((t) => t.endsAt > t.startsAt, {
     message: 'O fim precisa ser depois do início',
@@ -163,13 +206,20 @@ export const timeOffSchema = z
   })
 export type TimeOffInput = z.infer<typeof timeOffSchema>
 
-export const recurringBlockSchema = z.object({
-  professionalId: id.nullable().optional(),
-  weekday: z.number().int().min(0).max(6),
-  start: hhmm,
-  end: hhmm,
-  reason: z.string().trim().max(120).optional().nullable(),
-})
+export const recurringBlockSchema = z
+  .object({
+    professionalId: id.nullable().optional(),
+    weekday: z.number().int().min(0).max(6),
+    start: hhmm,
+    end: hhmm,
+    reason: z.string().trim().max(120).optional().nullable(),
+  })
+  // "00:00"/"24:00" no fim = até a meia-noite. Pausa que atravessa a meia-noite: crie uma por dia.
+  .refine((b) => b.end === '00:00' || b.end === '24:00' || b.end > b.start, {
+    message:
+      'O fim precisa ser depois do início (para passar da meia-noite, crie uma pausa em cada dia)',
+    path: ['end'],
+  })
 
 export const holidaySchema = z.object({
   date: isoDate,
@@ -184,7 +234,14 @@ export const formFieldSchema = z
     type: z.enum(FORM_FIELD_TYPES),
     required: z.boolean().default(false),
     helpText: z.string().trim().max(200).optional().nullable(),
-    options: z.array(z.string().trim().min(1).max(80)).max(30).default([]),
+    options: z
+      .array(z.string().trim().min(1).max(80))
+      .max(30)
+      .default([])
+      .refine(
+        (o) => new Set(o.map((x) => x.toLowerCase())).size === o.length,
+        'Há opções repetidas',
+      ),
     appliesToAll: z.boolean().default(true),
     serviceIds: z.array(id).default([]),
     active: z.boolean().default(true),
@@ -247,7 +304,38 @@ export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   canceled: 'Cancelado',
   no_show: 'Faltou',
 }
-export const ACTIVE_BOOKING_STATUSES: BookingStatus[] = ['pending', 'confirmed', 'completed']
+/** Ocupam horário na agenda (contam para a exclusion constraint e para o faturamento). */
+export const ACTIVE_BOOKING_STATUSES = [
+  'pending',
+  'confirmed',
+  'completed',
+] as const satisfies readonly BookingStatus[]
+/** Ainda vão acontecer: podem ser confirmados, remarcados ou cancelados. */
+export const OPEN_BOOKING_STATUSES = [
+  'pending',
+  'confirmed',
+] as const satisfies readonly BookingStatus[]
+export const isOpenBooking = (status: string) =>
+  (OPEN_BOOKING_STATUSES as readonly string[]).includes(status)
+/**
+ * Mudanças de status permitidas no painel. Concluído e falta podem ser trocados entre si
+ * (corrigir um engano), mas nenhum dos dois volta a ser "confirmado".
+ */
+export const BOOKING_STATUS_TRANSITIONS: Record<BookingStatus, readonly BookingStatus[]> = {
+  pending: ['confirmed', 'canceled'],
+  confirmed: ['completed', 'no_show', 'canceled'],
+  completed: ['no_show'],
+  no_show: ['completed'],
+  canceled: [],
+}
+/** Mensagens de sucesso ao mudar o status no painel. */
+export const BOOKING_STATUS_TOASTS: Record<BookingStatus, string> = {
+  pending: 'Agendamento marcado como pendente',
+  confirmed: 'Agendamento confirmado',
+  completed: 'Atendimento concluído',
+  canceled: 'Agendamento cancelado',
+  no_show: 'Falta registrada',
+}
 
 export const manualBookingSchema = z.object({
   serviceId: id,
@@ -302,7 +390,7 @@ export type CustomerInput = z.infer<typeof customerSchema>
 export const professionalSchema = z.object({
   name: z.string().trim().min(2).max(80),
   bio: z.string().trim().max(300).optional().nullable(),
-  photoUrl: z.string().max(500).optional().nullable(),
+  photoUrl: uploadUrlSchema,
   active: z.boolean().default(true),
   serviceIds: z.array(id).default([]),
 })
@@ -314,6 +402,23 @@ export const inviteMemberSchema = z.object({
 })
 
 // ---------- Notificações ----------
+/** Hosts dos serviços de Web Push (Chrome/Android, Firefox, Edge/Windows, Safari/Apple). */
+const PUSH_HOSTS = [
+  /^fcm\.googleapis\.com$/,
+  /^android\.googleapis\.com$/,
+  /^updates\.push\.services\.mozilla\.com$/,
+  /^[a-z0-9-]+\.push\.services\.mozilla\.com$/,
+  /^[a-z0-9-]+\.notify\.windows\.com$/,
+  /^web\.push\.apple\.com$/,
+]
+export function isTrustedPushEndpoint(value: string) {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && !url.port && PUSH_HOSTS.some((h) => h.test(url.hostname))
+  } catch {
+    return false
+  }
+}
 export const messageTemplateSchema = z.object({
   key: z.enum(MESSAGE_TEMPLATE_KEYS),
   body: z.string().trim().min(5).max(2000),
@@ -330,7 +435,12 @@ export const notificationSettingsSchema = z.object({
 export type NotificationSettingsInput = z.infer<typeof notificationSettingsSchema>
 
 export const pushSubscriptionSchema = z.object({
-  endpoint: z.string().url().max(1000),
+  // Só serviços de push dos navegadores (evita o servidor fazer requisições para endereços internos)
+  endpoint: z
+    .string()
+    .url()
+    .max(1000)
+    .refine(isTrustedPushEndpoint, 'Endereço de notificação inválido'),
   keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }),
 })
 
@@ -342,11 +452,8 @@ export const customerRescheduleSchema = z.object({ startsAt: z.coerce.date() })
 export const changePlanSchema = z.object({
   plan: z.enum(['essencial', 'pro']),
   billingType: z.enum(['PIX', 'BOLETO', 'CREDIT_CARD', 'UNDEFINED']).default('UNDEFINED'),
-  cpfCnpj: z
-    .string()
-    .transform((v) => v.replace(/\D/g, ''))
-    .refine((v) => v.length === 11 || v.length === 14, 'Informe um CPF ou CNPJ válido')
-    .optional(),
+  /** Cadastrar outro cartão (ex.: o anterior foi recusado) */
+  newCard: z.boolean().optional(),
 })
 
 // ---------- Admin ----------

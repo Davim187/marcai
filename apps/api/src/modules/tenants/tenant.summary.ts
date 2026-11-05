@@ -41,6 +41,8 @@ export async function getTenantSummary(tenantId: string, userId: string) {
           trialEndsAt: sub.trialEndsAt,
           currentPeriodEnd: sub.currentPeriodEnd,
           trialDaysLeft: trialDaysLeft(sub),
+          /** Já escolheu plano e forma de pagamento */
+          billingType: sub.billingType,
         }
       : null,
     effectivePlan: effectivePlan(sub, env.APP_MODE),

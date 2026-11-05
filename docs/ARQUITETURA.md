@@ -17,7 +17,7 @@ Este documento explica como o sistema está organizado, como funcionam o agendam
 │ schemas Zod · motor de   │                                │ exclusion constraint         │
 │ disponibilidade · planos │                                │ (tsrange + btree_gist)       │
 └──────────────────────────┘                                └──────────────────────────────┘
-        Provedores externos: Asaas (cobrança) · Evolution/Meta (WhatsApp) · Resend (e-mail) · Web Push
+        Provedores externos: Mercado Pago (cobrança) · Evolution/Meta (WhatsApp) · Resend (e-mail) · Web Push
 ```
 
 - **`packages/shared`** é consumido como código-fonte TypeScript: o Vite compila no front e o tsup empacota na API. Os **mesmos schemas Zod** validam o formulário no navegador e o corpo da requisição no servidor, e o **mesmo motor de disponibilidade** (`availability.ts`) é a fonte da verdade no back-end.
@@ -37,7 +37,7 @@ Este documento explica como o sistema está organizado, como funcionam o agendam
 | `booking`               | Disponibilidade, página pública, criação/remarcação/cancelamento, painel, área da cliente         |
 | `customers`             | Clientes (deduplicadas pelo telefone), estatísticas, CSV, LGPD                                    |
 | `notifications`         | Canais, provedores de WhatsApp, fila, worker, templates, SSE, webhooks                            |
-| `billing`               | `BillingProvider` (Asaas/Fake), assinatura, faturas, webhooks, rotina de vencimento               |
+| `billing`               | `BillingProvider` (Mercado Pago/Fake), assinatura, faturas, webhooks, rotina de vencimento        |
 | `reports` · `dashboard` | Agregações para relatórios e para a tela inicial                                                  |
 | `admin`                 | Painel do super admin (MRR, churn, estender teste, bloquear, "entrar como")                       |
 | `account`               | Perfil, exportação e exclusão da conta (LGPD)                                                     |
@@ -131,7 +131,7 @@ worker (a cada WORKER_POLL_MS)
   - `full`: em dia ou no teste;
   - `grace`: vencida há até 7 dias, com banner;
   - `blocked`: mais de 7 dias, ou tenant bloqueado pelo admin. A página pública mostra "agenda temporariamente indisponível" e a API recusa escritas no painel com `402 SOMENTE_LEITURA`, exceto nas rotas de assinatura, conta e autenticação.
-- Os webhooks de cobrança são verificados (token do Asaas) e **idempotentes** (`WebhookEvent` com `(provider, eventId)` único).
+- Os webhooks de cobrança são verificados (assinatura `x-signature` do Mercado Pago, e o pagamento é sempre consultado na API pelo id) e **idempotentes** (`WebhookEvent` com `(provider, eventId)` único).
 
 ## Segurança
 

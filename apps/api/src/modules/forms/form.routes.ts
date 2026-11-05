@@ -1,12 +1,11 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
-import { z } from 'zod'
+import type { z } from 'zod'
 import { formFieldSchema, MANICURE_FIELDS, reorderSchema } from '@marcai/shared'
 import { notFound } from '../../lib/errors'
 import { prisma } from '../../lib/prisma'
 import { ctx, requireOwner, requireTenant } from '../../plugins/auth'
 import { createPresetFields } from '../tenants/tenant.service'
-
-const idParam = z.object({ id: z.string() })
+import { idParam } from '../../lib/route-schemas'
 
 export async function listFormFields(
   db: ReturnType<typeof ctx>['db'],

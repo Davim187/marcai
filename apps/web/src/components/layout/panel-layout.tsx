@@ -20,6 +20,7 @@ import { useTenant } from '@/lib/session'
 import { useApplyTheme, useTheme } from '@/lib/theme'
 import { cn, copyToClipboard } from '@/lib/utils'
 import { NotificationBell } from '@/features/notifications/notification-bell'
+import { InviteBanner } from '../invite-banner'
 import { SubscriptionBanner } from './subscription-banner'
 import { ADMIN_ITEM, BOTTOM_NAV, filterNav, NAV_GROUPS } from './nav-config'
 
@@ -191,6 +192,7 @@ export default function PanelLayout() {
           </DropdownMenu>
         </header>
 
+        <InviteBanner />
         <SubscriptionBanner />
 
         <main className="mx-auto max-w-6xl px-4 pb-28 pt-5 sm:px-6 sm:pt-8 lg:pb-12">

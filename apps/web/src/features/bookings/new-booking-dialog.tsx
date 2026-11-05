@@ -19,7 +19,7 @@ import { SwitchRow } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api, errorMessage } from '@/lib/api'
 import { localToIso } from '@/lib/dates'
-import { useProfessionals, useServices } from '@/lib/queries'
+import { useProfessionals, useServices, invalidateBookingViews, createTimeOff } from '@/lib/queries'
 import { useHasFeature, useTenant } from '@/lib/session'
 import { cn } from '@/lib/utils'
 
@@ -98,16 +98,15 @@ export function NewBookingDialog({
 
   function done(msg: string) {
     toast.success(msg)
-    ;['calendar', 'bookings', 'dashboard', 'customers', 'customer', 'schedule'].forEach((k) =>
-      qc.invalidateQueries({ queryKey: [k] }),
-    )
+    invalidateBookingViews(qc)
     onClose()
   }
 
   async function saveBooking() {
+    if (!date) return toast.error('Escolha o dia')
     if (!time || !serviceId) return toast.error('Escolha o serviço e o horário')
     if (!customer && (name.trim().length < 2 || !isValidBrazilianMobile(phone)))
-      return toast.error('Informe o nome e um WhatsApp válido da cliente')
+      return toast.error('Informe o nome e um WhatsApp válido do cliente')
     setSaving(true)
     try {
       await api('/bookings', {
@@ -133,17 +132,16 @@ export function NewBookingDialog({
   }
 
   async function saveBlock() {
+    if (!date) return toast.error('Escolha o dia')
     if (!time || !blockEnd || blockEnd <= time)
       return toast.error('Informe o início e o fim do bloqueio')
     setSaving(true)
     try {
-      await api('/schedule/time-off', {
-        body: {
-          professionalId,
-          startsAt: localToIso(date, time, tz),
-          endsAt: localToIso(date, blockEnd, tz),
-          reason: blockReason || null,
-        },
+      await createTimeOff({
+        professionalId,
+        startsAt: localToIso(date, time, tz),
+        endsAt: localToIso(date, blockEnd, tz),
+        reason: blockReason,
       })
       done('Horário bloqueado')
     } catch (err) {

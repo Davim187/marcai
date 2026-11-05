@@ -7,9 +7,10 @@ import {
   formatBRL,
   publicBookingSchema,
   slotsQuerySchema,
+  HOUR_MS,
 } from '@marcai/shared'
 import { env } from '../../config/env'
-import { badRequest, notFound } from '../../lib/errors'
+import { badRequest, notFound, tooMany } from '../../lib/errors'
 import { buildIcs, googleCalendarUrl } from '../../lib/ics'
 import { prisma } from '../../lib/prisma'
 import { storage } from '../../lib/storage'
@@ -32,6 +33,24 @@ async function serviceFor(tenantId: string, serviceId: string, professionalId: s
   })
   if (!service) throw notFound('Serviço não encontrado para essa profissional')
   return service
+}
+
+/**
+ * Cota de fotos de referência por estabelecimento (além do limite por IP): impede que
+ * alguém encha o disco trocando de IP. Em memória por instância.
+ */
+const PUBLIC_UPLOADS_PER_HOUR = 60
+const publicUploads = new Map<string, number[]>()
+function assertPublicUploadQuota(tenantId: string) {
+  const now = Date.now()
+  const recent = (publicUploads.get(tenantId) ?? []).filter((t) => now - t < HOUR_MS)
+  if (recent.length >= PUBLIC_UPLOADS_PER_HOUR) {
+    throw tooMany(
+      'Muitas fotos enviadas agora. Tente de novo mais tarde ou mande a foto pelo WhatsApp.',
+    )
+  }
+  recent.push(now)
+  publicUploads.set(tenantId, recent)
 }
 
 export function bookingLinks(token: string) {
@@ -164,12 +183,14 @@ export const publicRoutes: FastifyPluginAsyncZod = async (app) => {
       if (!available)
         throw badRequest('A agenda está temporariamente indisponível.', 'AGENDA_INDISPONIVEL')
       const b = request.body
-      // Honeypot: robôs preenchem o campo escondido. Fingimos sucesso e não gravamos nada.
+      // Honeypot: robôs preenchem o campo escondido. Nada é gravado, e a resposta é um erro
+      // claro (se uma pessoa cair aqui por engano, ela sabe que NÃO reservou).
       if (b.website) {
         request.log.warn({ ip: request.ip }, 'Honeypot acionado na reserva pública')
-        return reply
-          .status(201)
-          .send({ id: 'ok', status: 'confirmed', startsAt: b.startsAt, manageUrl: env.APP_URL })
+        throw badRequest(
+          'Não conseguimos concluir o agendamento. Recarregue a página e tente de novo.',
+          'VERIFICACAO_FALHOU',
+        )
       }
       const booking = await createBooking({
         tenant,
@@ -206,7 +227,8 @@ export const publicRoutes: FastifyPluginAsyncZod = async (app) => {
         priceCents: booking.priceCents,
         priceFrom: booking.priceFrom,
         professionalName: booking.professional.name,
-        customerName: booking.customer.name,
+        // Nome digitado agora (nunca o nome cadastrado de quem tem esse telefone)
+        customerName: b.customerName,
         cancellationPolicy: tenant.cancellationPolicy,
         googleCalendarUrl: googleCalendarUrl(event),
         ...links,
@@ -223,8 +245,12 @@ export const publicRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request, reply) => {
       const { tenant, available } = await resolvePublicTenant(request.params.slug)
       if (!available) throw badRequest('A agenda está temporariamente indisponível.')
+      assertPublicUploadQuota(tenant.id)
       const { buffer, ext } = await readImageUpload(request)
-      const url = await storage.save(`${tenant.id}-ref`, buffer, ext)
+      // Foto da cliente: pasta privada, sem metadados (GPS), visível só para a equipe
+      const url = await storage.savePrivate(`${tenant.id}-ref`, buffer, ext).catch(() => {
+        throw badRequest('Não conseguimos ler essa imagem. Tente outra foto.', 'ARQUIVO_INVALIDO')
+      })
       return reply.status(201).send({ url })
     },
   )

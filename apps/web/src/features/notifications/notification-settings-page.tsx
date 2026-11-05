@@ -1,5 +1,14 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { BellRing, CheckCircle2, Lock, MessageCircle, RotateCcw, Smartphone } from 'lucide-react'
+import {
+  BellRing,
+  CheckCircle2,
+  Lock,
+  Mail,
+  MessageCircle,
+  RotateCcw,
+  Smartphone,
+  Volume2,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
@@ -9,6 +18,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
+  ConfirmDialog,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -21,8 +31,9 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SwitchRow } from '@/components/ui/switch'
 import { api, errorMessage } from '@/lib/api'
-import { useApiMutation } from '@/lib/queries'
+import { useApiMutation, qk } from '@/lib/queries'
 import { useRefreshSession, useTenant } from '@/lib/session'
+import { playChime } from '@/lib/sound'
 import { cn } from '@/lib/utils'
 import { currentPushSubscription, disablePush, enablePush, pushSupported } from './push'
 
@@ -37,6 +48,7 @@ interface Settings {
   features: { whatsapp: boolean }
   pushConfig: { enabled: boolean; publicKey: string | null }
   whatsapp: { provider: string; perTenantNumber: boolean; status: string; phone: string | null }
+  emailTransport: 'resend' | 'smtp' | 'log'
 }
 interface Template {
   key: string
@@ -54,7 +66,7 @@ export default function NotificationSettingsPage() {
   const isOwner = tenant.role === 'owner'
   const refresh = useRefreshSession()
   const { data, isLoading } = useQuery({
-    queryKey: ['notification-settings'],
+    queryKey: qk.notificationSettings,
     queryFn: () => api<Settings>('/notifications/settings'),
   })
   const [v, setV] = useState<NotificationSettingsInput | null>(null)
@@ -70,15 +82,23 @@ export default function NotificationSettingsPage() {
         notifyPhone: data.notifyPhone?.replace(/^55/, '') ?? '',
       })
   }, [data])
-  const save = useApiMutation(() => api('/notifications/settings', { method: 'PUT', body: v }), {
-    success: 'Preferências salvas',
-    invalidate: [['notification-settings']],
-    onSuccess: () => refresh(),
-  })
+  const save = useApiMutation(
+    (body: NotificationSettingsInput | void) =>
+      api('/notifications/settings', { method: 'PUT', body: body ?? v }),
+    {
+      success: 'Preferências salvas',
+      invalidate: [qk.notificationSettings],
+      onSuccess: () => refresh(),
+    },
+  )
 
   if (isLoading || !v || !data) return <Skeleton className="h-96" />
-  const set = (k: keyof NotificationSettingsInput, val: boolean | string) =>
-    setV({ ...v, [k]: val })
+  // Interruptores salvam na hora (o telefone continua no botão Salvar)
+  const set = (k: keyof NotificationSettingsInput, val: boolean | string) => {
+    const next = { ...v, [k]: val }
+    setV(next)
+    if (typeof val === 'boolean' && isOwner) save.mutate(next)
+  }
   const pro = data.features.whatsapp
   const proBadge = !pro && (
     <Badge variant="outline" className="gap-1">
@@ -110,11 +130,23 @@ export default function NotificationSettingsPage() {
             <SwitchRow
               id="sound"
               label="Tocar um som"
-              description="Enquanto o painel estiver aberto."
+              description="Enquanto o painel estiver aberto (mesmo em outra aba)."
               checked={v.sound}
               onCheckedChange={(c) => set('sound', c)}
               disabled={!isOwner}
             />
+            <div className="flex justify-end pb-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  if (!playChime())
+                    toast.error('O navegador bloqueou o som. Verifique se a aba não está no mudo.')
+                }}
+              >
+                <Volume2 /> Testar som
+              </Button>
+            </div>
             <SwitchRow
               id="push"
               label="Notificação no celular"
@@ -135,11 +167,12 @@ export default function NotificationSettingsPage() {
             <SwitchRow
               id="email"
               label="Por e-mail"
-              description="Usado quando o WhatsApp não está disponível."
+              description="Novos agendamentos, cancelamentos, remarcações e o resumo do dia."
               checked={v.email}
               onCheckedChange={(c) => set('email', c)}
               disabled={!isOwner}
             />
+            {isOwner && <EmailTestRow transport={data.emailTransport} />}
             {pro && v.whatsappProfessional && (
               <div className="pt-3">
                 <Field label="WhatsApp que recebe os avisos" htmlFor="notifyPhone">
@@ -166,7 +199,7 @@ export default function NotificationSettingsPage() {
               <SwitchRow
                 id="wacli"
                 label="Confirmação e lembrete no WhatsApp"
-                description="Com links para confirmar presença ou remarcar. Diminui muito as faltas."
+                description="Com links para confirmar presença ou remarcar. Diminui muito as faltas. Quem informou e-mail recebe também por e-mail."
                 badge={proBadge}
                 checked={pro && v.whatsappCustomer}
                 onCheckedChange={(c) => set('whatsappCustomer', c)}
@@ -186,7 +219,7 @@ export default function NotificationSettingsPage() {
       </div>
       {isOwner && (
         <div className="flex justify-end">
-          <Button size="lg" onClick={() => save.mutate()} loading={save.isPending}>
+          <Button size="lg" onClick={() => save.mutate(v)} loading={save.isPending}>
             Salvar preferências
           </Button>
         </div>
@@ -215,7 +248,8 @@ function PushDeviceCard({ settings }: { settings: Settings }) {
       <CardContent className="space-y-3 text-sm">
         {!settings.pushConfig.enabled ? (
           <p className="text-muted-foreground">
-            As notificações push ainda não foram configuradas no servidor (chaves VAPID).
+            As notificações no celular ainda não estão disponíveis neste sistema. Fale com o
+            suporte.
           </p>
         ) : !pushSupported() ? (
           <p className="text-muted-foreground">
@@ -294,15 +328,50 @@ function WhatsAppCard({ settings }: { settings: Settings }) {
       if (r?.status === 'connected') {
         setQr(null)
         toast.success('WhatsApp conectado! 🎉')
-        qc.invalidateQueries({ queryKey: ['notification-settings'] })
+        qc.invalidateQueries({ queryKey: qk.notificationSettings })
       }
     }, 3000)
     return () => clearInterval(t)
   }, [qr, qc])
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false)
   const disconnect = useApiMutation(
     () => api('/notifications/whatsapp/disconnect', { method: 'POST' }),
-    { success: 'WhatsApp desconectado', invalidate: [['notification-settings']] },
+    {
+      success: 'WhatsApp desconectado',
+      invalidate: [qk.notificationSettings],
+      onSuccess: () => setConfirmDisconnect(false),
+    },
   )
+  async function requestQr(silent = false) {
+    if (!silent) setConnecting(true)
+    try {
+      const r = await api<{ status: string; qrCode?: string }>('/notifications/whatsapp/connect', {
+        method: 'POST',
+      })
+      if (r.qrCode) setQr(r.qrCode)
+      else {
+        setQr(null)
+        qc.invalidateQueries({ queryKey: qk.notificationSettings })
+      }
+    } catch (err) {
+      if (!silent) toast.error(errorMessage(err))
+    } finally {
+      if (!silent) setConnecting(false)
+    }
+  }
+  // O QR Code do WhatsApp expira em ~1 minuto: renova sozinho; depois de 3 min, desiste
+  const [qrOpenedAt, setQrOpenedAt] = useState(0)
+  useEffect(() => {
+    if (!qr) return
+    const t = setTimeout(() => {
+      if (Date.now() - qrOpenedAt > 3 * 60_000) {
+        setQr(null)
+        toast.error('O código expirou. Clique em "Conectar WhatsApp" para gerar outro.')
+      } else void requestQr(true)
+    }, 40_000)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qr, qrOpenedAt])
   const test = useApiMutation(() => api('/notifications/whatsapp/test', { method: 'POST' }), {
     success: 'Mensagem de teste enviada',
   })
@@ -336,7 +405,7 @@ function WhatsAppCard({ settings }: { settings: Settings }) {
               Conectado {settings.whatsapp.phone && `(${settings.whatsapp.phone})`}
             </span>
           ) : status === 'connecting' ? (
-            'Aguardando leitura do QR Code'
+            'Aguardando a leitura do QR Code. Se fechou a janela, clique em Conectar WhatsApp de novo.'
           ) : (
             'Desconectado'
           )}
@@ -355,27 +424,16 @@ function WhatsAppCard({ settings }: { settings: Settings }) {
           )}
           {settings.whatsapp.perTenantNumber &&
             (status === 'connected' ? (
-              <Button variant="ghost" size="sm" onClick={() => disconnect.mutate()}>
+              <Button variant="ghost" size="sm" onClick={() => setConfirmDisconnect(true)}>
                 Desconectar
               </Button>
             ) : (
               <Button
                 size="sm"
                 loading={connecting}
-                onClick={async () => {
-                  setConnecting(true)
-                  try {
-                    const r = await api<{ status: string; qrCode?: string }>(
-                      '/notifications/whatsapp/connect',
-                      { method: 'POST' },
-                    )
-                    if (r.qrCode) setQr(r.qrCode)
-                    else qc.invalidateQueries({ queryKey: ['notification-settings'] })
-                  } catch (err) {
-                    toast.error(errorMessage(err))
-                  } finally {
-                    setConnecting(false)
-                  }
+                onClick={() => {
+                  setQrOpenedAt(Date.now())
+                  void requestQr()
                 }}
               >
                 Conectar WhatsApp
@@ -390,6 +448,9 @@ function WhatsAppCard({ settings }: { settings: Settings }) {
             <DialogDescription>
               No celular: WhatsApp → Configurações → Aparelhos conectados → Conectar aparelho, e
               aponte para o código.
+              <span className="mt-2 block font-medium sm:hidden">
+                Está no celular? Abra esta tela no computador para ler o código com o celular.
+              </span>
             </DialogDescription>
           </DialogHeader>
           {qr && (
@@ -400,17 +461,28 @@ function WhatsAppCard({ settings }: { settings: Settings }) {
             />
           )}
           <p className="text-muted-foreground flex items-center justify-center gap-2 text-sm">
-            <CheckCircle2 className="h-4 w-4 animate-pulse" /> Esperando a leitura…
+            <CheckCircle2 className="h-4 w-4 animate-pulse" /> Esperando a leitura… (o código se
+            renova sozinho)
           </p>
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={confirmDisconnect}
+        onOpenChange={setConfirmDisconnect}
+        title="Desconectar o WhatsApp?"
+        description="As confirmações e lembretes para as clientes param de sair até você conectar de novo."
+        confirmLabel="Desconectar"
+        destructive
+        loading={disconnect.isPending}
+        onConfirm={() => disconnect.mutate()}
+      />
     </Card>
   )
 }
 
 function TemplatesCard({ canEdit }: { canEdit: boolean }) {
   const { data: templates } = useQuery({
-    queryKey: ['templates'],
+    queryKey: qk.templates,
     queryFn: () => api<Template[]>('/notifications/templates'),
   })
   const [selected, setSelected] = useState<string | null>(null)
@@ -433,11 +505,11 @@ function TemplatesCard({ canEdit }: { canEdit: boolean }) {
   }, [body])
   const save = useApiMutation(
     () => api('/notifications/templates', { method: 'PUT', body: { key: current!.key, body } }),
-    { success: 'Mensagem salva', invalidate: [['templates']] },
+    { success: 'Mensagem salva', invalidate: [qk.templates] },
   )
   const reset = useApiMutation(
     () => api(`/notifications/templates/${current!.key}`, { method: 'DELETE' }),
-    { success: 'Texto padrão restaurado', invalidate: [['templates']] },
+    { success: 'Texto padrão restaurado', invalidate: [qk.templates] },
   )
   if (!templates || !current) return null
   return (
@@ -522,5 +594,30 @@ function TemplatesCard({ canEdit }: { canEdit: boolean }) {
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function EmailTestRow({ transport }: { transport: Settings['emailTransport'] }) {
+  const test = useApiMutation(
+    () => api<{ to: string }>('/notifications/email/test', { method: 'POST' }),
+    {
+      success: (r) =>
+        `E-mail de teste enviado para ${r.to}. Não chegou em 2 minutos? Olhe a caixa de Spam/Promoções.`,
+    },
+  )
+  return (
+    <div className="space-y-2 py-3 text-sm">
+      {transport === 'log' && (
+        <p className="border-warning/40 bg-warning/10 rounded-lg border p-3">
+          Os e-mails ainda não estão ativados neste sistema, então avisos por e-mail não chegam.
+          Fale com o suporte para ativar.
+        </p>
+      )}
+      <div className="flex justify-end">
+        <Button variant="ghost" size="sm" onClick={() => test.mutate()} loading={test.isPending}>
+          <Mail /> Enviar e-mail de teste
+        </Button>
+      </div>
+    </div>
   )
 }

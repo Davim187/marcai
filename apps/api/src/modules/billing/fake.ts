@@ -1,31 +1,39 @@
-import { env } from '../../config/env'
+import { env, isProd } from '../../config/env'
 import { randomToken, safeEqual } from '../../lib/crypto'
-import type { BillingEvent, BillingProvider, ProviderPayment } from './provider'
+import {
+  billingEventSchema,
+  type BillingEvent,
+  type BillingProvider,
+  type WebhookRequest,
+} from './provider'
 
 /**
- * Provedor de cobrança simulado para desenvolvimento e testes. As faturas são criadas
- * pela própria aplicação; o botão "Simular pagamento" dispara o mesmo fluxo do webhook.
+ * Provedor simulado (desenvolvimento e testes). O checkout leva para a própria tela de
+ * assinatura com o botão "Simular pagamento", que dispara o mesmo fluxo do webhook.
  */
 export class FakeBillingProvider implements BillingProvider {
   readonly name = 'fake' as const
-  async createCustomer() {
-    return { id: `cus_fake_${randomToken(6)}` }
+  async createCheckout(input: { invoiceId: string }) {
+    return {
+      checkoutId: `pref_fake_${randomToken(6)}`,
+      checkoutUrl: `${env.APP_URL}/painel/assinatura?simular=${input.invoiceId}`,
+    }
   }
-  async createSubscription() {
-    return { id: `sub_fake_${randomToken(6)}` }
+  async createCardSubscription() {
+    return {
+      id: `preapproval_fake_${randomToken(6)}`,
+      checkoutUrl: `${env.APP_URL}/painel/assinatura?cartao=ok`,
+    }
   }
-  async updateSubscription() {}
-  async cancelSubscription() {}
-  async listPayments(): Promise<ProviderPayment[]> {
-    return []
+  async expireCheckout() {}
+  async updateCardSubscriptionAmount() {}
+  async cancelCardSubscription() {}
+  /** Só aceita com MP_WEBHOOK_SECRET definido e nunca em produção. */
+  verifyWebhook(req: WebhookRequest) {
+    if (isProd || !env.MP_WEBHOOK_SECRET) return false
+    return safeEqual(String(req.headers['x-fake-signature'] ?? ''), env.MP_WEBHOOK_SECRET)
   }
-  verifyWebhook(headers: Record<string, string | string[] | undefined>) {
-    return safeEqual(
-      String(headers['asaas-access-token'] ?? ''),
-      env.ASAAS_WEBHOOK_TOKEN ?? 'fake-token',
-    )
-  }
-  parseWebhook(body: unknown): BillingEvent {
-    return body as BillingEvent
+  async resolveWebhook(req: WebhookRequest): Promise<BillingEvent | null> {
+    return billingEventSchema.parse(req.body)
   }
 }
