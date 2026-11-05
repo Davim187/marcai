@@ -16,7 +16,7 @@ const MONTHS = [
   'Novembro',
   'Dezembro',
 ]
-const DOW = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
+const DOW = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
 
 /** Calendário mensal leve. Trabalha com datas locais YYYY-MM-DD (sem fuso). */
 export function MonthCalendar({
@@ -58,7 +58,7 @@ export function MonthCalendar({
           type="button"
           onClick={() => shift(-1)}
           disabled={!!minMonth && month <= minMonth}
-          className="hover:bg-muted rounded-full p-2 disabled:opacity-30"
+          className="hover:bg-muted rounded-lg p-2 transition-colors disabled:opacity-30"
           aria-label="Mês anterior"
         >
           <ChevronLeft className="h-5 w-5" />
@@ -70,14 +70,14 @@ export function MonthCalendar({
           type="button"
           onClick={() => shift(1)}
           disabled={!!maxMonth && month >= maxMonth}
-          className="hover:bg-muted rounded-full p-2 disabled:opacity-30"
+          className="hover:bg-muted rounded-lg p-2 transition-colors disabled:opacity-30"
           aria-label="Próximo mês"
         >
           <ChevronRight className="h-5 w-5" />
         </button>
       </div>
       <div
-        className="text-muted-foreground grid grid-cols-7 gap-1 text-center text-xs font-semibold"
+        className="text-muted-foreground grid grid-cols-7 gap-1.5 text-center text-xs font-medium"
         aria-hidden
       >
         {DOW.map((d, i) => (
@@ -87,7 +87,7 @@ export function MonthCalendar({
         ))}
       </div>
       <div
-        className={cn('grid grid-cols-7 gap-1', loading && 'animate-pulse opacity-60')}
+        className={cn('grid grid-cols-7 gap-1.5', loading && 'animate-pulse opacity-60')}
         role="grid"
       >
         {cells.map((date, i) => {
@@ -103,11 +103,15 @@ export function MonthCalendar({
               aria-pressed={isSel}
               aria-label={`${Number(date.slice(8))} de ${MONTHS[m - 1]}${enabled ? '' : ', sem horários'}`}
               className={cn(
-                'relative flex aspect-square items-center justify-center rounded-full text-sm font-medium transition',
-                enabled ? 'text-foreground hover:bg-primary-soft' : 'text-muted-foreground/40',
-                enabled && !isSel && 'bg-primary-soft/50 font-semibold',
-                isSel && 'bg-primary text-primary-foreground hover:bg-primary',
-                date === today && !isSel && 'ring-primary/40 ring-1',
+                // Dia com horário = casa com borda (dá para tocar); sem horário = só o número apagado.
+                // Hoje ganha um traço embaixo, igual a uma agenda de papel.
+                'relative flex aspect-square items-center justify-center rounded-xl text-sm font-medium transition-[color,background-color,border-color]',
+                enabled
+                  ? 'bg-card hover:border-foreground/40 border font-semibold'
+                  : 'text-muted-foreground/40',
+                isSel && 'border-foreground bg-foreground text-background hover:border-foreground',
+                date === today &&
+                  'after:absolute after:bottom-1.5 after:h-[2px] after:w-3 after:rounded-full after:bg-current',
               )}
             >
               {Number(date.slice(8))}

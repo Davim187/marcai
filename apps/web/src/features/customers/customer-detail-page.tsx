@@ -12,6 +12,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { formatBRL, formatPhone, whatsappLink } from '@marcai/shared'
 import { Avatar } from '@/components/ui/avatar'
+import { Meta } from '@/components/meta'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -73,10 +74,7 @@ export default function CustomerDetailPage() {
         <Avatar name={c.name} className="h-16 w-16 text-lg" />
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-semibold tracking-[-0.02em]">{c.name}</h1>
-          <p className="text-muted-foreground">
-            {formatPhone(c.phone)}
-            {c.email && ` · ${c.email}`}
-          </p>
+          <Meta className="text-base" items={[formatPhone(c.phone), c.email]} />
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {c.tags.map((t) => (
               <Badge key={t} variant="secondary">
@@ -163,9 +161,7 @@ export default function CustomerDetailPage() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{b.serviceName}</p>
-                <p className="text-muted-foreground text-sm">
-                  {fmt(b.startsAt, tz, 'HH:mm')} · {formatBRL(b.priceCents)}
-                </p>
+                <Meta items={[fmt(b.startsAt, tz, 'HH:mm'), formatBRL(b.priceCents)]} />
               </div>
               <StatusBadge status={b.status} />
             </button>

@@ -16,6 +16,7 @@ import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { formatBRL, formatPhone } from '@marcai/shared'
 import { QrCode } from '@/components/qr-code'
+import { Meta } from '@/components/meta'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -166,9 +167,10 @@ export default function DashboardPage() {
                   <Avatar name={data.next.customer.name} className="bg-white/90" />
                   <div className="min-w-0">
                     <p className="truncate font-semibold">{data.next.customer.name}</p>
-                    <p className="truncate text-sm opacity-90">
-                      {data.next.serviceName} · {formatPhone(data.next.customer.phone)}
-                    </p>
+                    <Meta
+                      className="text-primary-foreground/90"
+                      items={[data.next.serviceName, formatPhone(data.next.customer.phone)]}
+                    />
                   </div>
                 </div>
                 <Button
@@ -232,9 +234,7 @@ export default function DashboardPage() {
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-semibold">{b.customer.name}</p>
-                        <p className="text-muted-foreground truncate text-sm">
-                          {b.serviceName} · {formatBRL(b.priceCents)}
-                        </p>
+                        <Meta items={[b.serviceName, formatBRL(b.priceCents)]} />
                       </div>
                       <StatusBadge status={b.status} className="hidden sm:inline-flex" />
                     </button>

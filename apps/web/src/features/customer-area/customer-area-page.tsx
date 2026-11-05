@@ -118,7 +118,7 @@ export default function CustomerAreaPage() {
   const confirm = () =>
     run(
       () => api(`/public/bookings/${token}/confirm`, { method: 'POST' }),
-      'Presença confirmada! Até lá.',
+      'Presença confirmada. Até lá.',
     )
 
   if (isLoading)
@@ -189,7 +189,7 @@ export default function CustomerAreaPage() {
                         api(`/public/bookings/${token}/reschedule`, {
                           body: { startsAt: slot.startsAt },
                         }),
-                      'Horário remarcado!',
+                      'Horário remarcado.',
                     )
                     if (ok) {
                       setMode('view')

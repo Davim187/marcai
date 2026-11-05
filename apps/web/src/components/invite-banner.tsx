@@ -13,7 +13,7 @@ export function InviteBanner() {
   const accept = useApiMutation(
     (tenantId: string) => api(`/auth/invites/${tenantId}/accept`, { method: 'POST' }),
     {
-      success: 'Convite aceito! Você já está na nova equipe.',
+      success: 'Convite aceito. Você já está na nova equipe.',
       onSuccess: () => {
         refresh()
         navigate('/painel')

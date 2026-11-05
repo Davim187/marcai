@@ -1,4 +1,4 @@
-import { CalendarHeart, Clock } from 'lucide-react'
+import { Clock } from 'lucide-react'
 import { formatPrice } from '@marcai/shared'
 import { durationLabel } from '@/lib/dates'
 import { type PublicService, type PublicTenant } from './types'
@@ -88,17 +88,18 @@ export function ServiceSummary({
   professionalName?: string
 }) {
   return (
-    <div className="bg-primary-soft flex items-center gap-3 rounded-2xl p-3">
-      <CalendarHeart className="text-primary h-5 w-5 shrink-0" />
-      <div className="min-w-0 text-sm">
-        <p className="truncate font-semibold">
-          {service.name}
-          {professionalName && ` com ${professionalName}`}
-        </p>
-        <p className="text-muted-foreground">
-          {durationLabel(service.durationMinutes)} ·{' '}
-          {formatPrice(service.priceCents, service.priceFrom)}
-        </p>
+    <div className="flex items-start justify-between gap-4 rounded-2xl border px-4 py-3">
+      <p className="min-w-0 font-semibold">
+        {service.name}
+        {professionalName && (
+          <span className="text-muted-foreground block text-sm font-normal">
+            com {professionalName}
+          </span>
+        )}
+      </p>
+      <div className="shrink-0 text-right text-sm">
+        <p className="font-semibold">{formatPrice(service.priceCents, service.priceFrom)}</p>
+        <p className="text-muted-foreground">{durationLabel(service.durationMinutes)}</p>
       </div>
     </div>
   )

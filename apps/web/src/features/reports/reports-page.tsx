@@ -152,9 +152,12 @@ export default function ReportsPage() {
           sub={data && `${data.totals.bookings} agendamentos`}
         />
         <Tile
-          label="Faltas · cancelamentos"
-          value={data && `${pct(data.totals.noShowRate)} · ${pct(data.totals.cancelRate)}`}
-          sub={data && `${data.totals.noShow} faltas, ${data.totals.canceled} cancelados`}
+          label="Faltas"
+          value={data && pct(data.totals.noShowRate)}
+          sub={
+            data &&
+            `${data.totals.noShow} faltas; ${pct(data.totals.cancelRate)} cancelados (${data.totals.canceled})`
+          }
         />
       </div>
 

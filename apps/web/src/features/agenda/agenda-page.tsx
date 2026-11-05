@@ -320,17 +320,14 @@ function TimeGrid({
         <div className="bg-card sticky top-0 z-10 flex border-b">
           <div className="w-14 shrink-0" />
           {days.map((d) => (
-            <div
-              key={d}
-              className={cn('flex-1 border-l py-2 text-center', d === today && 'text-primary')}
-            >
-              <p className="text-muted-foreground text-xs font-medium uppercase">
+            <div key={d} className="flex-1 border-l py-2 text-center">
+              <p className="text-muted-foreground text-xs font-medium capitalize">
                 {WEEKDAYS_SHORT[weekdayOf(d)]}
               </p>
               <p
                 className={cn(
-                  'mx-auto mt-0.5 flex h-8 w-8 items-center justify-center rounded-full text-base font-bold',
-                  d === today && 'bg-primary text-primary-foreground',
+                  'mx-auto mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg text-base font-semibold',
+                  d === today && 'bg-foreground text-background',
                 )}
               >
                 {Number(d.slice(8))}
@@ -543,7 +540,7 @@ function MonthGrid({
   }
   return (
     <div className="bg-card shadow-soft overflow-hidden rounded-2xl border">
-      <div className="text-muted-foreground grid grid-cols-7 border-b text-center text-xs font-semibold uppercase">
+      <div className="text-muted-foreground grid grid-cols-7 border-b text-center text-xs font-medium capitalize">
         {[1, 2, 3, 4, 5, 6, 0].map((d) => (
           <div key={d} className="py-2">
             {WEEKDAYS_SHORT[d]}

@@ -119,7 +119,8 @@ export function BookingDetailDialog({
                   <p className="text-muted-foreground">{formatPhone(b.customer.phone)}</p>
                   {b.customer.notes && (
                     <p className="bg-warning/10 mt-2 rounded-lg p-2 text-xs">
-                      📌 {b.customer.notes}
+                      <span className="font-semibold">Anotação sobre a cliente: </span>
+                      {b.customer.notes}
                     </p>
                   )}
                 </div>
@@ -140,7 +141,7 @@ export function BookingDetailDialog({
                   <div className="bg-muted/60 space-y-1.5 rounded-xl p-3">
                     {b.answers.map((a) => (
                       <p key={a.fieldId}>
-                        <span className="text-muted-foreground">📝 {a.label}:</span>{' '}
+                        <span className="text-muted-foreground">{a.label}:</span>{' '}
                         {a.type === 'photo' ? (
                           <a
                             href={imageSrc(String(a.value))}
@@ -157,7 +158,7 @@ export function BookingDetailDialog({
                     ))}
                     {b.notes && (
                       <p>
-                        <span className="text-muted-foreground">📝 Observações:</span>{' '}
+                        <span className="text-muted-foreground">Observações:</span>{' '}
                         <span className="font-medium">{b.notes}</span>
                       </p>
                     )}

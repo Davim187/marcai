@@ -170,7 +170,7 @@ export default function OnboardingPage() {
 
   if (done) {
     return (
-      <div className="from-primary-soft to-background flex min-h-dvh items-center justify-center bg-gradient-to-b px-4 py-10">
+      <div className="bg-background flex min-h-dvh items-center justify-center px-4 py-10">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
