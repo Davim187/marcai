@@ -1,35 +1,22 @@
-import { motion } from 'framer-motion'
-import {
-  ArrowRight,
-  BellRing,
-  Check,
-  ChevronDown,
-  Clock,
-  Link2,
-  MessageCircle,
-  ShieldCheck,
-  Sparkles,
-  UserX,
-} from 'lucide-react'
-import { useEffect } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { BellRing, Check, ChevronDown, MessageCircle, ShieldCheck, UserX } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { formatBRL, PLANS } from '@marcai/shared'
 import { Logo } from '@/components/logo'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 const STEPS = [
   {
-    icon: Sparkles,
     title: 'Cadastre seus serviços e horários',
     text: 'Em menos de 3 minutos. Já deixamos serviços e perguntas sugeridos para a sua área.',
   },
   {
-    icon: Link2,
     title: 'Coloque o link na bio',
     text: 'marcai.app/seunome no Instagram, no WhatsApp e no QR Code do balcão.',
   },
   {
-    icon: BellRing,
     title: 'Receba os agendamentos',
     text: 'A cliente escolhe um horário livre e você recebe o aviso na hora, com todos os detalhes.',
   },
@@ -87,82 +74,147 @@ const FAQ = [
   ],
 ]
 
-function PhoneMockup() {
+const DEMO_DAYS = [
+  { key: 'qui', label: 'Qui', day: 6, long: 'quinta, 6 de novembro' },
+  { key: 'sex', label: 'Sex', day: 7, long: 'sexta, 7 de novembro' },
+  { key: 'sab', label: 'Sáb', day: 8, long: 'sábado, 8 de novembro' },
+] as const
+// Horários ocupados aparecem riscados: é a trava contra horário duplicado.
+const DEMO_SLOTS: Record<string, { time: string; taken?: boolean }[]> = {
+  qui: [
+    { time: '08:00' },
+    { time: '09:30', taken: true },
+    { time: '10:00' },
+    { time: '11:30', taken: true },
+    { time: '13:30' },
+    { time: '14:00' },
+    { time: '15:30' },
+    { time: '17:00' },
+  ],
+  sex: [
+    { time: '08:30', taken: true },
+    { time: '09:00' },
+    { time: '10:30' },
+    { time: '13:00', taken: true },
+    { time: '14:30' },
+    { time: '16:00' },
+    { time: '16:30', taken: true },
+    { time: '18:00' },
+  ],
+  sab: [
+    { time: '08:00', taken: true },
+    { time: '08:40', taken: true },
+    { time: '09:20' },
+    { time: '10:00', taken: true },
+    { time: '10:40' },
+    { time: '11:20', taken: true },
+    { time: '13:00' },
+    { time: '13:40' },
+  ],
+}
+
+/** O momento da página: a visitante agenda de verdade e vê o aviso que a dona recebe. */
+function BookingDemo() {
+  const [day, setDay] = useState<(typeof DEMO_DAYS)[number]['key']>('qui')
+  const [picked, setPicked] = useState<string | null>(null)
+  const reduce = useReducedMotion()
+  const dayInfo = DEMO_DAYS.find((d) => d.key === day)!
   return (
-    <div className="relative mx-auto w-[280px] sm:w-[300px]">
-      <div className="bg-primary/15 absolute -inset-10 -z-10 rounded-full blur-3xl" aria-hidden />
-      <div className="overflow-hidden rounded-[2.6rem] border-[10px] border-[#14202A] bg-[#F7F9FB] shadow-[0_30px_60px_-20px_hsl(210_40%_15%/.35)]">
-        <div className="brand-cover h-20" />
-        <div className="-mt-8 flex flex-col items-center px-4 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-[1.25rem] border-4 border-[#F7F9FB] bg-[#E8F1F5] text-xl font-semibold text-[#1F5F7A]">
-            V
+    <div className="relative mx-auto w-full max-w-[26rem]">
+      <div className="bg-card rounded-[1.75rem] border p-5 shadow-[0_24px_60px_-28px_hsl(210_40%_15%/.35)] sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="font-semibold">Corte + barba</p>
+            <p className="text-muted-foreground text-sm">Studio Vértice, com Rafael</p>
           </div>
-          <p className="mt-2 text-sm font-semibold text-[#13212B]">Studio Vértice</p>
-          <p className="text-[10px] text-[#5B6B78]">Cabelo, barba e unhas</p>
+          <div className="text-right">
+            <p className="font-semibold">R$ 70</p>
+            <p className="text-muted-foreground text-sm">1 hora</p>
+          </div>
         </div>
-        <div className="space-y-2 p-3">
-          {[
-            ['Corte + barba', 'R$ 70', '1h'],
-            ['Escova', 'a partir de R$ 60', '45 min'],
-          ].map(([n, p, d]) => (
-            <div key={n} className="rounded-xl border border-[#E1E7EC] bg-white p-2.5 text-left">
-              <p className="text-xs font-semibold text-[#13212B]">{n}</p>
-              <p className="mt-0.5 flex gap-2 text-[10px]">
-                <span className="font-semibold text-[#1F5F7A]">{p}</span>
-                <span className="flex items-center gap-0.5 text-[#5B6B78]">
-                  <Clock className="h-2.5 w-2.5" />
-                  {d}
-                </span>
-              </p>
-            </div>
+
+        <div className="mt-5 grid grid-cols-3 gap-2" role="tablist" aria-label="Dia">
+          {DEMO_DAYS.map((d) => (
+            <button
+              key={d.key}
+              role="tab"
+              aria-selected={day === d.key}
+              onClick={() => {
+                setDay(d.key)
+                setPicked(null)
+              }}
+              className={cn(
+                'rounded-xl border py-2 text-center transition-colors',
+                day === d.key
+                  ? 'border-foreground bg-foreground text-background'
+                  : 'hover:border-foreground/40',
+              )}
+            >
+              <span className="block text-xs opacity-70">{d.label}</span>
+              <span className="block text-lg font-semibold leading-tight">{d.day}</span>
+            </button>
           ))}
-          <p className="pt-1 text-[10px] font-medium text-[#5B6B78]">Quinta, 6 de novembro</p>
-          <div className="grid grid-cols-4 gap-1.5">
-            {['08:00', '09:30', '10:00', '13:30', '14:00', '15:30', '16:00', '17:30'].map(
-              (t, i) => (
-                <span
-                  key={t}
-                  className={`rounded-lg border py-1.5 text-center font-mono text-[10px] font-medium ${i === 4 ? 'border-[#1F5F7A] bg-[#1F5F7A] text-white' : 'border-[#E1E7EC] bg-white text-[#13212B]'}`}
-                >
-                  {t}
-                </span>
-              ),
-            )}
-          </div>
-          <div className="mt-2 rounded-lg bg-[#1F5F7A] py-2 text-center text-xs font-semibold text-white">
-            Confirmar agendamento
-          </div>
         </div>
+
+        <div className="mt-4 grid grid-cols-4 gap-2">
+          {(DEMO_SLOTS[day] ?? []).map((s) => (
+            <button
+              key={s.time}
+              disabled={s.taken}
+              aria-pressed={picked === s.time}
+              aria-label={s.taken ? `${s.time}, ocupado` : `Agendar às ${s.time}`}
+              onClick={() => setPicked(s.time)}
+              className={cn(
+                'rounded-lg border py-2 text-sm font-medium transition-[color,background-color,border-color,transform] active:scale-[0.97]',
+                s.taken && 'text-muted-foreground/60 cursor-not-allowed border-dashed line-through',
+                !s.taken && picked !== s.time && 'hover:border-primary hover:text-primary',
+                picked === s.time && 'border-primary bg-primary text-primary-foreground',
+              )}
+            >
+              {s.time}
+            </button>
+          ))}
+        </div>
+        <p className={cn('text-muted-foreground mt-4 text-sm', picked && 'invisible')}>
+          Escolha um horário, como se fosse sua cliente.
+        </p>
       </div>
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8, type: 'spring', stiffness: 180, damping: 20 }}
-        className="shadow-lift absolute -right-6 top-44 w-52 rounded-2xl border bg-white p-3 text-left sm:-right-16"
+
+      <div
+        aria-live="polite"
+        className="min-h-[7.5rem] pt-4 sm:absolute sm:-right-10 sm:top-full sm:-mt-10 sm:min-h-0 sm:w-72 sm:pt-0 lg:-right-16"
       >
-        <p className="flex items-center gap-1.5 text-xs font-semibold text-[#13212B]">
-          <span className="flex h-5 w-5 items-center justify-center rounded-md bg-[#25D366] text-white">
-            <MessageCircle className="h-3 w-3" />
-          </span>
-          Novo agendamento
-        </p>
-        <p className="mt-1 text-[11px] leading-snug text-[#475569]">
-          Ana Souza
-          <br />
-          Corte + barba
-          <br />
-          Quinta, 06/11 · 14:00
-        </p>
-      </motion.div>
+        <AnimatePresence mode="wait">
+          {picked && (
+            <motion.div
+              key={day + picked}
+              initial={reduce ? { opacity: 0 } : { opacity: 0, y: 14, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+              className="bg-card shadow-lift rounded-2xl border p-4"
+            >
+              <p className="flex items-center gap-2 text-sm font-semibold">
+                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#25D366] text-white">
+                  <MessageCircle className="h-3.5 w-3.5" aria-hidden />
+                </span>
+                Novo agendamento no seu WhatsApp
+              </p>
+              <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+                Ana Souza marcou corte + barba para {dayInfo.long}, às {picked}.
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   )
 }
 
-function SectionTitle({ kicker, title, text }: { kicker: string; title: string; text?: string }) {
+function SectionTitle({ title, text }: { title: string; text?: string }) {
   return (
     <div>
-      <p className="text-primary text-sm font-medium">{kicker}</p>
-      <h2 className="mt-2 text-3xl font-semibold leading-[1.1] tracking-[-0.03em] sm:text-[2.6rem]">
+      <h2 className="text-3xl font-semibold leading-[1.1] tracking-[-0.03em] sm:text-[2.6rem]">
         {title}
       </h2>
       {text && <p className="text-muted-foreground mt-4 max-w-md text-[1.05rem]">{text}</p>}
@@ -215,11 +267,7 @@ export default function LandingPage() {
 
       <main id="conteudo">
         <section className="relative overflow-hidden">
-          <div
-            className="absolute inset-0 -z-10 bg-[radial-gradient(60%_55%_at_85%_10%,hsl(var(--primary)/.12),transparent_70%),radial-gradient(hsl(var(--primary)/.07)_1px,transparent_1px)] [background-size:auto,18px_18px]"
-            aria-hidden
-          />
-          <div className="container grid items-center gap-14 pb-16 pt-12 sm:pb-28 sm:pt-20 lg:grid-cols-[1.15fr_1fr]">
+          <div className="container grid items-center gap-14 pb-16 pt-12 sm:pb-28 sm:pt-20 lg:grid-cols-[1.1fr_1fr]">
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -237,9 +285,7 @@ export default function LandingPage() {
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Button size="lg" asChild>
-                  <Link to="/cadastro">
-                    Começar grátis por 30 dias <ArrowRight />
-                  </Link>
+                  <Link to="/cadastro">Começar grátis por 30 dias</Link>
                 </Button>
                 <a
                   href="/studiovertice"
@@ -256,27 +302,19 @@ export default function LandingPage() {
                 ))}
               </p>
             </motion.div>
-            <PhoneMockup />
+            <BookingDemo />
           </div>
         </section>
 
         <section id="como-funciona" className="bg-card border-y py-20 sm:py-28">
           <div className="container grid gap-12 lg:grid-cols-[1fr_1.4fr] lg:gap-20">
-            <SectionTitle
-              kicker="Como funciona"
-              title="Três passos e a agenda começa a se encher sozinha."
-            />
+            <SectionTitle title="Três passos e a agenda começa a se encher sozinha." />
             <ol className="divide-y border-y">
               {STEPS.map((s, i) => (
                 <li key={s.title} className="grid grid-cols-[3rem_1fr] gap-4 py-7">
-                  <span className="text-muted-foreground font-mono text-sm font-medium">
-                    0{i + 1}
-                  </span>
+                  <span className="text-muted-foreground text-sm font-medium">{i + 1}.</span>
                   <div>
-                    <h3 className="flex items-center gap-2.5 text-lg font-semibold tracking-[-0.01em]">
-                      <s.icon className="text-primary h-5 w-5" aria-hidden />
-                      {s.title}
-                    </h3>
+                    <h3 className="text-lg font-semibold tracking-[-0.01em]">{s.title}</h3>
                     <p className="text-muted-foreground mt-2 max-w-md">{s.text}</p>
                   </div>
                 </li>
@@ -288,7 +326,6 @@ export default function LandingPage() {
         <section id="beneficios" className="py-20 sm:py-28">
           <div className="container">
             <SectionTitle
-              kicker="Benefícios"
               title="Feito para quem vive de agenda."
               text="Menos tempo no celular respondendo, mais tempo atendendo."
             />
@@ -309,7 +346,6 @@ export default function LandingPage() {
         <section id="planos" className="bg-card border-y py-20 sm:py-28">
           <div className="container">
             <SectionTitle
-              kicker="Planos"
               title="Simples, sem surpresa."
               text="Comece com 30 dias grátis de tudo. Depois, escolha o plano que faz sentido para você."
             />
@@ -359,7 +395,6 @@ export default function LandingPage() {
         <section id="duvidas" className="py-20 sm:py-28">
           <div className="container grid gap-10 lg:grid-cols-[1fr_1.4fr] lg:gap-20">
             <SectionTitle
-              kicker="Dúvidas"
               title="Perguntas que sempre chegam."
               text="Não achou a sua? Fale com a gente pelo WhatsApp depois de criar a conta."
             />
@@ -389,9 +424,7 @@ export default function LandingPage() {
                 </p>
               </div>
               <Button size="lg" variant="secondary" className="self-start lg:self-auto" asChild>
-                <Link to="/cadastro">
-                  Criar minha agenda grátis <ArrowRight />
-                </Link>
+                <Link to="/cadastro">Criar minha agenda grátis</Link>
               </Button>
             </div>
           </div>

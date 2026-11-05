@@ -1,6 +1,6 @@
 import { InviteBanner } from '@/components/invite-banner'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, Check, Copy, ExternalLink, Loader2, X } from 'lucide-react'
+import { ArrowLeft, Check, Copy, ExternalLink, Loader2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
@@ -212,7 +212,7 @@ export default function OnboardingPage() {
                 navigate('/painel', { replace: true })
               }}
             >
-              Ir para o meu painel <ArrowRight />
+              Ir para o meu painel
             </Button>
             <Button variant="ghost" asChild>
               <a href={done.publicUrl} target="_blank" rel="noreferrer">
@@ -486,7 +486,7 @@ export default function OnboardingPage() {
             )}
             {step < 3 ? (
               <Button size="lg" onClick={() => setStep((s) => s + 1)} disabled={!canNext}>
-                Continuar <ArrowRight />
+                Continuar
               </Button>
             ) : (
               <Button size="lg" onClick={finish} loading={submitting}>

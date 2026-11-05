@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 import {
-  ArrowRight,
   Hourglass,
   CalendarCheck,
   CalendarDays,
@@ -155,7 +154,7 @@ export default function DashboardPage() {
             >
               <CardContent className="p-5">
                 <p className="text-sm font-medium opacity-80">Próximo atendimento</p>
-                <p className="mt-2 font-mono text-4xl font-medium tracking-[-0.04em]">
+                <p className="mt-2 text-[2.75rem] font-semibold leading-none tracking-[-0.04em]">
                   {fmt(data.next.startsAt, tz, 'HH:mm')}
                 </p>
                 <p className="text-sm opacity-90">
@@ -198,9 +197,7 @@ export default function DashboardPage() {
               <span className="flex-1">
                 {data.pendingCount} agendamento(s) esperando sua confirmação
               </span>
-              <span className="text-warning inline-flex items-center gap-1 font-semibold">
-                Ver <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-              </span>
+              <span className="text-warning inline-flex items-center gap-1 font-semibold">Ver</span>
             </Link>
           )}
         </div>
@@ -230,7 +227,7 @@ export default function DashboardPage() {
                       onClick={() => navigate(`/painel/agenda/${b.id}`)}
                       className="hover:bg-muted/50 -mx-2 flex w-[calc(100%+1rem)] items-center gap-4 rounded-lg px-2 py-3 text-left transition-colors"
                     >
-                      <span className="text-muted-foreground w-12 font-mono text-sm font-medium">
+                      <span className="w-12 text-sm font-semibold">
                         {fmt(b.startsAt, tz, 'HH:mm')}
                       </span>
                       <div className="min-w-0 flex-1">
