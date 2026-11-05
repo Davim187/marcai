@@ -15,10 +15,10 @@ export const buttonVariants = cva(
         outline:
           'border-[1.5px] border-foreground/80 bg-transparent hover:bg-foreground hover:text-background',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
-        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-        success: 'bg-success text-success-foreground hover:bg-success/90',
+        destructive: 'bg-terra text-terra-foreground hover:bg-terra/90',
+        success: 'bg-green text-green-foreground hover:bg-green/90',
         soft: 'bg-primary-soft text-primary hover:bg-primary-soft/70',
-        link: 'text-primary underline-offset-4 hover:underline',
+        link: 'text-cobalt underline-offset-4 hover:underline',
         round: 'border bg-card text-foreground shadow-soft hover:-translate-y-px hover:shadow-lift',
         inverse: 'bg-inverse text-inverse-foreground shadow-soft hover:bg-inverse/90',
       },

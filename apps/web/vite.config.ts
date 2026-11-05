@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'node:path'
 
-const apiTarget = process.env.VITE_API_PROXY ?? 'http://localhost:3333'
+const apiTarget = process.env.VITE_API_PROXY ?? 'http://localhost:3334'
 
 export default defineConfig({
   plugins: [
@@ -23,7 +23,7 @@ export default defineConfig({
         scope: '/',
         display: 'standalone',
         background_color: '#F8FAFC',
-        theme_color: '#0F3B2D',
+        theme_color: '#25282D',
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
@@ -36,7 +36,7 @@ export default defineConfig({
   ],
   resolve: { alias: { '@': path.resolve(__dirname, 'src') } },
   server: {
-    port: Number(process.env.VITE_PORT ?? 5173),
+    port: Number(process.env.VITE_PORT ?? 5175),
     strictPort: true,
     proxy: {
       '/api': { target: apiTarget, changeOrigin: false },

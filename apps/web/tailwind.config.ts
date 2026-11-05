@@ -8,8 +8,8 @@ export default {
     container: { center: true, padding: '1rem', screens: { '2xl': '1200px' } },
     extend: {
       fontFamily: {
-        sans: ['Archivo', 'system-ui', 'sans-serif'],
-        typed: ['"Courier Prime"', 'ui-monospace', 'monospace'],
+        sans: ['Barlow', 'system-ui', 'sans-serif'],
+        letters: ['"Barlow Condensed"', 'Barlow', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: 'hsl(var(--border))',
@@ -38,6 +38,12 @@ export default {
         card: { DEFAULT: 'hsl(var(--card))', foreground: 'hsl(var(--card-foreground))' },
         inverse: { DEFAULT: 'hsl(var(--inverse))', foreground: 'hsl(var(--inverse-foreground))' },
         stamp: { DEFAULT: 'hsl(var(--stamp))', foreground: 'hsl(var(--stamp-foreground))' },
+        // Feltros coloridos (papéis fixos, ver index.css)
+        cobalt: { DEFAULT: 'hsl(var(--cobalt))', foreground: 'hsl(var(--cobalt-foreground))' },
+        mustard: { DEFAULT: 'hsl(var(--mustard))', foreground: 'hsl(var(--mustard-foreground))' },
+        terra: { DEFAULT: 'hsl(var(--terra))', foreground: 'hsl(var(--terra-foreground))' },
+        pink: { DEFAULT: 'hsl(var(--pink))', foreground: 'hsl(var(--pink-foreground))' },
+        green: { DEFAULT: 'hsl(var(--green))', foreground: 'hsl(var(--green-foreground))' },
         sidebar: {
           DEFAULT: 'hsl(var(--sidebar))',
           foreground: 'hsl(var(--sidebar-foreground))',
@@ -57,8 +63,8 @@ export default {
         '3xl': 'calc(var(--radius) + 6px)',
       },
       boxShadow: {
-        soft: '0 1px 1px rgba(10,24,19,.04), 0 10px 24px -14px rgba(10,24,19,.22)',
-        lift: '0 2px 3px rgba(10,24,19,.05), 0 24px 44px -22px rgba(10,24,19,.45)',
+        soft: '0 1px 1px rgba(20,22,26,.04), 0 10px 24px -14px rgba(20,22,26,.22)',
+        lift: '0 2px 3px rgba(20,22,26,.05), 0 24px 44px -22px rgba(20,22,26,.45)',
       },
       keyframes: {
         'accordion-down': {

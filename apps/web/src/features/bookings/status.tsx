@@ -1,42 +1,45 @@
 import { BOOKING_STATUS_LABELS, type BookingStatus } from '@marcai/shared'
 import { Badge } from '@/components/ui/badge'
-import { cn } from '@/lib/utils'
 
+// Cada status tem o seu feltro (ver index.css). O texto do status sempre acompanha a cor.
 export const STATUS_STYLES: Record<
   BookingStatus,
-  { badge: 'warning' | 'default' | 'success' | 'muted' | 'destructive'; block: string; dot: string }
+  {
+    badge: 'mustard' | 'cobalt' | 'green' | 'muted' | 'terra'
+    block: string
+    dot: string
+  }
 > = {
   pending: {
-    badge: 'warning',
-    block: 'border-l-warning bg-warning/10 text-foreground',
-    dot: 'bg-warning',
+    badge: 'mustard',
+    block: 'border-t-mustard bg-mustard/20 text-foreground',
+    dot: 'bg-mustard',
   },
   confirmed: {
-    badge: 'default',
-    block: 'border-l-primary bg-primary-soft text-foreground',
-    dot: 'bg-primary',
+    badge: 'cobalt',
+    block: 'border-t-cobalt bg-cobalt/12 text-foreground',
+    dot: 'bg-cobalt',
   },
   completed: {
-    badge: 'success',
-    block: 'border-l-success bg-success/10 text-foreground',
-    dot: 'bg-success',
+    badge: 'green',
+    block: 'border-t-green bg-green/12 text-foreground',
+    dot: 'bg-green',
   },
   canceled: {
     badge: 'muted',
-    block: 'border-l-muted-foreground/40 bg-muted text-muted-foreground line-through',
+    block: 'border-t-muted-foreground/50 bg-muted text-muted-foreground line-through',
     dot: 'bg-muted-foreground/50',
   },
   no_show: {
-    badge: 'destructive',
-    block: 'border-l-destructive bg-destructive/10 text-foreground',
-    dot: 'bg-destructive',
+    badge: 'terra',
+    block: 'border-t-terra bg-terra/12 text-foreground',
+    dot: 'bg-terra',
   },
 }
 
 export function StatusBadge({ status, className }: { status: BookingStatus; className?: string }) {
   return (
     <Badge variant={STATUS_STYLES[status].badge} className={className}>
-      <span className={cn('h-1.5 w-1.5 rounded-full', STATUS_STYLES[status].dot)} aria-hidden />
       {BOOKING_STATUS_LABELS[status]}
     </Badge>
   )

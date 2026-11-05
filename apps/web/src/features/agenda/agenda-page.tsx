@@ -493,7 +493,7 @@ function EventBlock({
       {...attributes}
       onClick={() => onOpen(b.id)}
       className={cn(
-        'hover:shadow-lift absolute z-[2] flex flex-col items-stretch justify-start overflow-hidden rounded-lg border-l-4 px-1.5 py-1 text-left text-[11px] leading-tight shadow-sm transition-shadow',
+        'hover:shadow-lift absolute z-[2] flex flex-col items-stretch justify-start overflow-hidden rounded-md border-t-[3px] px-1.5 py-1 text-left text-[11px] leading-tight shadow-sm transition-shadow',
         STATUS_STYLES[b.status].block,
         draggable && 'cursor-grab touch-none active:cursor-grabbing',
         isDragging && 'shadow-lift ring-primary z-20 opacity-90 ring-2',
@@ -573,7 +573,7 @@ function MonthGrid({
                   <div
                     key={b.id}
                     className={cn(
-                      'hidden truncate rounded px-1 py-0.5 text-[11px] font-medium sm:block',
+                      'hidden truncate rounded-sm border-t-2 px-1 py-0.5 text-[11px] font-medium sm:block',
                       STATUS_STYLES[b.status].block,
                     )}
                   >

@@ -71,7 +71,7 @@ export function MiniBars({ data, className }: { data: TrendPoint[]; className?: 
         <span
           key={d.date}
           title={`${dayLabel(d.date)}: ${d.count} agendamento(s)`}
-          className="bg-primary hover:bg-foreground w-1.5 rounded-full transition-colors"
+          className="bg-cobalt hover:bg-foreground w-1.5 rounded-sm transition-colors"
           style={{ height: `${Math.max(12, (d.count / max) * 100)}%`, opacity: d.count ? 1 : 0.25 }}
         />
       ))}

@@ -20,7 +20,7 @@ export function LegalLayout({
         </div>
       </header>
       <main className="container max-w-3xl py-10">
-        <h1 className="text-3xl font-semibold tracking-[-0.02em]">{title}</h1>
+        <h1 className="letters text-[2.6rem] leading-none">{title}</h1>
         <p className="text-muted-foreground mt-2 text-sm">
           Última atualização: {updated}. Este é um texto-base; revise com sua assessoria jurídica
           antes de publicar.

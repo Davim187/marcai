@@ -4,91 +4,113 @@
 
 @layer base {
   /*
-   * Mundo do cartão de retorno do salão (o mesmo da landing):
-   * cartão verde, cartão branco, preto de impressão e azul de carimbo.
+   * Mundo do quadro de letras do salão: feltro grafite com letras brancas de encaixe
+   * e feltros coloridos, cada cor com um papel fixo:
+   *   grafite = estrutura (menu, botões principais) · cobalto = interação e "confirmado"
+   *   mostarda = "pendente" e atenção · verde = "concluído" · terracota = "faltou" e perigo
+   *   rosa = novidade. Mostarda e rosa só como fundo com texto escuro.
    * Contraste AA conferido nos modos claro e escuro.
    */
   :root {
     color-scheme: light;
-    --background: 84 13% 92%;
-    --foreground: 192 11% 9%;
-    --card: 80 27% 98%;
-    --card-foreground: 192 11% 9%;
-    --popover: 80 27% 98%;
-    --popover-foreground: 192 11% 9%;
-    --primary: 161 59% 15%;
-    --primary-foreground: 86 20% 93%;
-    --primary-soft: 145 21% 89%;
-    --secondary: 100 11% 89%;
-    --secondary-foreground: 192 11% 9%;
-    --muted: 100 11% 89%;
-    --muted-foreground: 156 6% 32%;
-    --accent: 145 21% 89%;
-    --accent-foreground: 161 59% 15%;
-    --destructive: 4 76% 40%;
+    --background: 220 10% 94%;
+    --foreground: 220 10% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 10% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 10% 12%;
+    --primary: 218 10% 16%;
+    --primary-foreground: 45 33% 95%;
+    --primary-soft: 220 12% 91%;
+    --secondary: 220 12% 91%;
+    --secondary-foreground: 220 10% 12%;
+    --muted: 220 12% 91%;
+    --muted-foreground: 218 9% 37%;
+    --accent: 225 67% 94%;
+    --accent-foreground: 227 63% 46%;
+    --destructive: 13 66% 46%;
     --destructive-foreground: 0 0% 100%;
-    --success: 154 56% 27%;
+    --success: 153 47% 33%;
     --success-foreground: 0 0% 100%;
-    --warning: 34 88% 30%;
+    --warning: 39 100% 27%;
     --warning-foreground: 0 0% 100%;
-    --border: 103 8% 83%;
-    --input: 113 7% 76%;
-    --ring: 229 70% 46%;
-    --stamp: 229 70% 46%;
+    --border: 218 11% 86%;
+    --input: 217 12% 79%;
+    --ring: 227 63% 46%;
+    --stamp: 227 63% 46%;
     --stamp-foreground: 0 0% 100%;
-    --inverse: 161 59% 15%;
-    --inverse-foreground: 86 20% 93%;
-    --sidebar: 161 59% 15%;
-    --sidebar-foreground: 86 20% 93%;
-    --sidebar-muted: 145 28% 77%;
-    --sidebar-border: 157 32% 25%;
-    --sidebar-active: 75 17% 95%;
-    --sidebar-active-foreground: 192 11% 9%;
+    --inverse: 218 10% 16%;
+    --inverse-foreground: 45 33% 95%;
+    --sidebar: 218 10% 16%;
+    --sidebar-foreground: 45 33% 95%;
+    --sidebar-muted: 217 9% 71%;
+    --sidebar-border: 216 8% 25%;
+    --sidebar-active: 45 33% 95%;
+    --sidebar-active-foreground: 220 10% 12%;
+    --cobalt: 227 63% 46%;
+    --cobalt-foreground: 0 0% 100%;
+    --mustard: 42 77% 51%;
+    --mustard-foreground: 220 10% 12%;
+    --terra: 13 66% 46%;
+    --terra-foreground: 0 0% 100%;
+    --pink: 338 61% 74%;
+    --pink-foreground: 220 10% 12%;
+    --green: 153 47% 33%;
+    --green-foreground: 0 0% 100%;
     --radius: 0.375rem;
-    /* Gráficos: verde do cartão + azul de carimbo (contraste >= 4.5:1 no cartão) */
-    --chart-1: #2e7d5b;
-    --chart-2: #2340c8;
-    --chart-grid: #dde1da;
+    --chart-1: #2b4cc0;
+    --chart-2: #c24a28;
+    --chart-grid: #e1e4e8;
   }
   .dark {
     color-scheme: dark;
-    --background: 159 41% 7%;
-    --foreground: 86 20% 93%;
-    --card: 156 38% 10%;
-    --card-foreground: 86 20% 93%;
-    --popover: 157 38% 12%;
-    --popover-foreground: 86 20% 93%;
-    --primary: 147 35% 75%;
-    --primary-foreground: 156 41% 7%;
-    --primary-soft: 158 43% 16%;
-    --secondary: 159 37% 14%;
-    --secondary-foreground: 86 20% 93%;
-    --muted: 159 37% 14%;
-    --muted-foreground: 146 17% 71%;
-    --accent: 158 43% 16%;
-    --accent-foreground: 86 20% 93%;
-    --destructive: 6 79% 72%;
-    --destructive-foreground: 9 68% 6%;
-    --success: 145 42% 65%;
-    --success-foreground: 156 41% 7%;
-    --warning: 36 76% 64%;
-    --warning-foreground: 31 68% 6%;
-    --border: 155 27% 18%;
-    --input: 153 24% 23%;
-    --ring: 230 100% 80%;
-    --stamp: 230 100% 80%;
-    --stamp-foreground: 229 63% 12%;
-    --inverse: 86 20% 93%;
-    --inverse-foreground: 156 41% 7%;
-    --sidebar: 160 46% 5%;
-    --sidebar-foreground: 86 20% 93%;
-    --sidebar-muted: 146 17% 71%;
-    --sidebar-border: 155 30% 15%;
-    --sidebar-active: 86 20% 93%;
-    --sidebar-active-foreground: 156 41% 7%;
-    --chart-1: #5fb58a;
-    --chart-2: #8c9eff;
-    --chart-grid: #1d3329;
+    --background: 216 11% 9%;
+    --foreground: 220 9% 94%;
+    --card: 214 10% 13%;
+    --card-foreground: 220 9% 94%;
+    --popover: 218 10% 15%;
+    --popover-foreground: 220 9% 94%;
+    --primary: 220 9% 94%;
+    --primary-foreground: 216 11% 9%;
+    --primary-soft: 218 9% 17%;
+    --secondary: 218 9% 17%;
+    --secondary-foreground: 220 9% 94%;
+    --muted: 218 9% 17%;
+    --muted-foreground: 216 9% 67%;
+    --accent: 226 33% 20%;
+    --accent-foreground: 228 100% 78%;
+    --destructive: 14 82% 68%;
+    --destructive-foreground: 216 11% 9%;
+    --success: 149 47% 62%;
+    --success-foreground: 216 11% 9%;
+    --warning: 42 84% 62%;
+    --warning-foreground: 216 11% 9%;
+    --border: 216 9% 21%;
+    --input: 215 9% 25%;
+    --ring: 228 100% 78%;
+    --stamp: 228 100% 78%;
+    --stamp-foreground: 216 11% 9%;
+    --inverse: 220 9% 94%;
+    --inverse-foreground: 216 11% 9%;
+    --sidebar: 210 12% 7%;
+    --sidebar-foreground: 220 9% 94%;
+    --sidebar-muted: 216 9% 67%;
+    --sidebar-border: 218 10% 16%;
+    --sidebar-active: 220 9% 94%;
+    --sidebar-active-foreground: 216 11% 9%;
+    --cobalt: 228 100% 78%;
+    --cobalt-foreground: 216 11% 9%;
+    --mustard: 42 84% 62%;
+    --mustard-foreground: 216 11% 9%;
+    --terra: 14 82% 68%;
+    --terra-foreground: 216 11% 9%;
+    --pink: 338 74% 81%;
+    --pink-foreground: 216 11% 9%;
+    --green: 149 47% 62%;
+    --green-foreground: 216 11% 9%;
+    --chart-1: #8da4ff;
+    --chart-2: #f08a6a;
+    --chart-grid: #2a2e34;
   }
   * {
     @apply border-border;
@@ -107,7 +129,6 @@
   h2,
   h3 {
     @apply tracking-tight;
-    font-stretch: 112%;
     text-wrap: balance;
   }
   ::selection {
@@ -120,63 +141,24 @@
 }
 
 @layer components {
-  /* Landing: mundo do cartão de retorno do salão (cartão verde, cartão branco, tinta de carimbo) */
-  .landing {
-    --l-stock: #0f3b2d;
-    --l-stock-ink: #eef1ea;
-    --l-stock-muted: #b3d4c1;
-    --l-stock-rule: #3e6b57;
-    --l-card: #f4f5f1;
-    --l-ink: #15191a;
-    --l-ink-muted: #4c5652;
-    --l-rule: #c9cec6;
-    --l-stamp: #2340c8;
-    font-family: Archivo, system-ui, sans-serif;
-    background: var(--l-stock);
-    color: var(--l-stock-ink);
-    color-scheme: light;
+  /* Feltro do quadro de letras: as canaletas horizontais onde as letras encaixam */
+  .felt {
+    background-color: hsl(var(--sidebar));
+    background-image: repeating-linear-gradient(
+      180deg,
+      transparent 0 11px,
+      rgb(0 0 0 / 0.22) 11px 12px,
+      rgb(255 255 255 / 0.035) 12px 13px
+    );
+    color: hsl(var(--sidebar-foreground));
   }
-  .landing ::selection {
-    background: var(--l-stamp);
-    color: #fff;
+  /* Letras de encaixe: condensada, caixa-alta, espaçada */
+  .letters {
+    font-family: 'Barlow Condensed', 'Barlow', system-ui, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
   }
-  .landing :focus-visible {
-    outline: 2px solid var(--l-stamp);
-    outline-offset: 3px;
-    box-shadow: 0 0 0 5px var(--l-card);
-    --tw-ring-shadow: 0 0 #0000;
-  }
-  .landing .on-card :focus-visible {
-    box-shadow: none;
-  }
-  /* Campos datilografados do cartão (valores preenchidos e horários) */
-  .font-typed {
-    font-family: 'Courier Prime', ui-monospace, monospace;
-  }
-  .landing .wide {
-    font-stretch: 118%;
-  }
-  .landing .xwide {
-    font-stretch: 125%;
-  }
-  /* Picote: linha tracejada com os dois furinhos do destaque */
-  .perf-v {
-    background-image: linear-gradient(var(--l-rule) 55%, transparent 0);
-    background-size: 1.5px 9px;
-    background-repeat: repeat-y;
-  }
-  .perf-h {
-    background-image: linear-gradient(90deg, var(--l-stock-rule) 55%, transparent 0);
-    background-size: 9px 1.5px;
-    background-repeat: repeat-x;
-  }
-  .dot-leader {
-    flex: 1;
-    min-width: 1rem;
-    border-bottom: 1.5px dotted var(--l-rule);
-    transform: translateY(-0.3em);
-  }
-
   .select-chevron {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23888' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-position: right 0.75rem center;

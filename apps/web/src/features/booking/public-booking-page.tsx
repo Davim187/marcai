@@ -117,7 +117,7 @@ export default function PublicBookingPage() {
           ) : (
             <LogoMark className="h-12 w-12" />
           )}
-          <h1 className="text-xl font-semibold">{t.name}</h1>
+          <h1 className="letters text-[1.75rem] leading-none">{t.name}</h1>
           <p className="text-muted-foreground max-w-xs">
             Agenda temporariamente indisponível. Fale direto com o estabelecimento.
           </p>

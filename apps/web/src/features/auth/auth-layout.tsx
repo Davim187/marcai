@@ -23,21 +23,17 @@ export function AuthLayout({
           <BrandLogo />
         </Link>
         <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center pb-16">
-          <h1 className="text-[1.75rem] font-extrabold tracking-[-0.03em]">{title}</h1>
+          <h1 className="letters text-[2.4rem] leading-none">{title}</h1>
           {subtitle && <p className="text-muted-foreground mt-1.5 text-sm">{subtitle}</p>}
           <div className="mt-8">{children}</div>
           {footer && <div className="text-muted-foreground mt-6 text-center text-sm">{footer}</div>}
         </div>
       </div>
       <div
-        className={
-          whiteLabel
-            ? 'hidden'
-            : 'bg-sidebar text-sidebar-foreground relative hidden flex-1 overflow-hidden lg:block'
-        }
+        className={whiteLabel ? 'hidden' : 'felt relative hidden flex-1 overflow-hidden lg:block'}
       >
         <div className="absolute inset-0 flex flex-col justify-center px-16">
-          <p className="max-w-[15ch] text-[3.2rem] font-extrabold leading-[1] tracking-[-0.035em] [font-stretch:118%]">
+          <p className="letters max-w-[13ch] text-[4.2rem] leading-[0.95]">
             Sua agenda cheia, sem precisar responder mensagem.
           </p>
           <ul className="text-sidebar-muted mt-12 space-y-5 text-[15px]">
@@ -46,9 +42,11 @@ export function AuthLayout({
               { icon: LockKeyhole, text: 'Nunca mais dois clientes no mesmo horário' },
               { icon: BellRing, text: 'Aviso na hora, no painel e no WhatsApp' },
               { icon: CalendarCheck2, text: 'Lembrete automático: menos faltas' },
-            ].map(({ icon: Icon, text }) => (
+            ].map(({ icon: Icon, text }, i) => (
               <li key={text} className="flex items-center gap-3">
-                <span className="text-sidebar-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-[1.5px] border-current">
+                <span
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${['bg-cobalt text-cobalt-foreground', 'bg-mustard text-mustard-foreground', 'bg-terra text-terra-foreground', 'bg-pink text-pink-foreground'][i]}`}
+                >
                   <Icon className="h-4 w-4" aria-hidden />
                 </span>
                 {text}

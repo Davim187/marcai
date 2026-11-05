@@ -26,7 +26,7 @@ import { capitalize, fmt, todayIn } from '@/lib/dates'
 import { useTenant } from '@/lib/session'
 import type { BookingDTO } from '@/lib/types'
 import { cn, copyToClipboard } from '@/lib/utils'
-import { StatusBadge } from '../bookings/status'
+import { STATUS_STYLES, StatusBadge } from '../bookings/status'
 import { NewBookingDialog } from '../bookings/new-booking-dialog'
 import { Gauge, MiniBars, RevenueArea, Sparkline, type TrendPoint } from './widgets'
 
@@ -63,7 +63,7 @@ export default function DashboardPage() {
     <div className="space-y-4 sm:space-y-5">
       <div className="flex flex-col gap-3 pb-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold sm:text-[28px]">
+          <h1 className="letters text-4xl leading-none sm:text-5xl">
             {greeting()}, {user.name.split(' ')[0]}!
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
@@ -87,18 +87,18 @@ export default function DashboardPage() {
           {data && <MiniBars data={last7} className="hidden sm:flex" />}
         </Card>
         <Card className="flex items-center gap-3 p-4 sm:p-5">
-          <IconBubble icon={UserPlus} className="hidden sm:flex" />
+          <IconBubble icon={UserPlus} tone="pink" className="hidden sm:flex" />
           <Metric label="Clientes novos no mês" value={data && String(data.newCustomers)} />
         </Card>
         <Card className="flex items-center gap-3 p-4 sm:p-5">
-          <IconBubble icon={Wallet} tone="sand" className="hidden sm:flex" />
+          <IconBubble icon={Wallet} tone="mustard" className="hidden sm:flex" />
           <Metric label="Previsto na semana" value={data && formatBRL(data.revenue.week.cents)} />
         </Card>
-        <Card className="bg-primary text-primary-foreground flex items-end justify-between gap-2 border-transparent p-4 sm:p-5 dark:border-transparent">
+        <Card className="bg-cobalt text-cobalt-foreground flex items-end justify-between gap-2 border-transparent p-4 sm:p-5 dark:border-transparent">
           <Metric
             label="Previsto no mês"
             value={data && formatBRL(data.revenue.month.cents)}
-            className="[&_p:first-child]:text-primary-foreground/80"
+            className="[&_p:first-child]:text-cobalt-foreground/85"
           />
           {data && (
             <Sparkline values={data.trend.map((t) => t.cents)} className="hidden sm:block" />
@@ -188,7 +188,10 @@ export default function DashboardPage() {
                     to={`/painel/agenda/${b.id}`}
                     className="hover:bg-muted flex items-center gap-3 rounded-xl px-2 py-2 transition-colors"
                   >
-                    <span className="bg-primary h-9 w-1 shrink-0 rounded-full" aria-hidden />
+                    <span
+                      className={cn('h-9 w-1.5 shrink-0 rounded-sm', STATUS_STYLES[b.status].dot)}
+                      aria-hidden
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{b.customer.name}</p>
                       <p className="text-muted-foreground truncate text-xs">
@@ -207,7 +210,7 @@ export default function DashboardPage() {
         <Card className="flex flex-col items-center justify-center gap-2 p-5 text-center lg:col-span-3">
           {data && data.pendingCount > 0 ? (
             <>
-              <IconBubble icon={Hourglass} tone="sand" size="lg" />
+              <IconBubble icon={Hourglass} tone="mustard" size="lg" />
               <p className="mt-1 font-semibold">{data.pendingCount} pedido(s) esperando você</p>
               <p className="text-muted-foreground text-sm">
                 Confirme ou recuse para a cliente saber se o horário está garantido.
@@ -218,7 +221,7 @@ export default function DashboardPage() {
             </>
           ) : (
             <>
-              <IconBubble icon={CheckCircle2} size="lg" />
+              <IconBubble icon={CheckCircle2} tone="green" size="lg" />
               <p className="mt-1 font-semibold">Tudo em dia</p>
               <p className="text-muted-foreground text-sm">
                 Nenhum pedido esperando sua confirmação.
@@ -268,7 +271,9 @@ function Metric({
     <div className={cn('min-w-0', className)}>
       <p className="text-muted-foreground line-clamp-2 text-xs font-medium sm:text-sm">{label}</p>
       {value ? (
-        <p className="mt-1 truncate text-lg font-bold tabular-nums sm:text-2xl">{value}</p>
+        <p className="letters mt-1 truncate text-2xl tabular-nums leading-none sm:text-[1.75rem]">
+          {value}
+        </p>
       ) : (
         <Skeleton className="mt-1 h-7 w-20" />
       )}
@@ -278,20 +283,25 @@ function Metric({
 
 function IconBubble({
   icon: Icon,
-  tone = 'sage',
+  tone = 'cobalt',
   size = 'md',
   className,
 }: {
   icon: typeof Wallet
-  tone?: 'sage' | 'sand'
+  tone?: 'cobalt' | 'mustard' | 'pink' | 'green'
   size?: 'md' | 'lg'
   className?: string
 }) {
   return (
     <span
       className={cn(
-        'flex shrink-0 items-center justify-center rounded-full',
-        tone === 'sage' ? 'bg-primary-soft text-primary' : 'bg-warning/15 text-warning',
+        'flex shrink-0 items-center justify-center rounded-md',
+        {
+          cobalt: 'bg-cobalt text-cobalt-foreground',
+          mustard: 'bg-mustard text-mustard-foreground',
+          pink: 'bg-pink text-pink-foreground',
+          green: 'bg-green text-green-foreground',
+        }[tone],
         size === 'lg' ? 'h-14 w-14 [&_svg]:size-6' : 'h-11 w-11 [&_svg]:size-5',
         className,
       )}
@@ -421,8 +431,8 @@ function ShareCard({ onQr }: { onQr: () => void }) {
         className="bg-muted group relative hidden h-44 overflow-hidden rounded-2xl sm:block"
         aria-label={`Copiar ${shortUrl}`}
       >
-        <span className="bg-primary/25 absolute left-1/2 top-4 h-24 w-40 -translate-x-1/2 rotate-[-8deg] rounded-xl transition-transform group-hover:rotate-[-10deg]" />
-        <span className="bg-primary/60 absolute left-1/2 top-8 h-24 w-40 -translate-x-1/2 rotate-[-4deg] rounded-xl transition-transform group-hover:rotate-[-5deg]" />
+        <span className="bg-mustard absolute left-1/2 top-4 h-24 w-40 -translate-x-1/2 rotate-[-8deg] rounded-xl transition-transform group-hover:rotate-[-10deg]" />
+        <span className="bg-pink absolute left-1/2 top-8 h-24 w-40 -translate-x-1/2 rotate-[-4deg] rounded-xl transition-transform group-hover:rotate-[-5deg]" />
         <span className="bg-inverse text-inverse-foreground absolute left-1/2 top-12 flex h-24 w-40 -translate-x-1/2 flex-col justify-between rounded-xl p-3 text-left shadow-lg transition-transform group-hover:-translate-y-1">
           <span className="truncate text-xs font-bold">{tenant.name}</span>
           <span className="truncate text-[11px] opacity-75">{shortUrl}</span>

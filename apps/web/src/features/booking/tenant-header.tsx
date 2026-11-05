@@ -22,7 +22,7 @@ export function TenantHeader({ t }: { t: PublicTenant }) {
             {t.name.charAt(0)}
           </div>
         )}
-        <h1 className="mt-3 text-[1.7rem] font-semibold tracking-[-0.02em]">{t.name}</h1>
+        <h1 className="letters mt-3 text-[2.2rem] leading-none">{t.name}</h1>
         {t.bio && <p className="text-muted-foreground mt-1.5 max-w-md text-sm">{t.bio}</p>}
         <div className="mt-4 flex flex-wrap justify-center gap-2">
           {location && (

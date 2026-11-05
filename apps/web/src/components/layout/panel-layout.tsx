@@ -32,9 +32,7 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
         if (!items.length) return null
         return (
           <div key={group.label}>
-            <p className="text-sidebar-muted mb-1.5 px-3 text-[11px] font-bold uppercase tracking-[0.12em] [font-stretch:118%]">
-              {group.label}
-            </p>
+            <p className="letters text-sidebar-muted mb-1.5 px-3 text-xs">{group.label}</p>
             <ul className="space-y-0.5">
               {items.map((item) => (
                 <li key={item.to}>
@@ -106,16 +104,16 @@ export default function PanelLayout() {
         </div>
       )}
       {/* Sidebar desktop */}
-      {/* Menu lateral: o cartão verde, com o cartão branco do salão por cima */}
-      <aside className="bg-sidebar text-sidebar-foreground fixed inset-y-0 left-0 z-30 hidden w-64 flex-col lg:flex">
+      {/* Menu lateral: o quadro de feltro, com a plaquinha do salão por cima */}
+      <aside className="felt fixed inset-y-0 left-0 z-30 hidden w-64 flex-col lg:flex">
         <div className="flex h-16 items-center px-5">
           <BrandLogo className="[&_svg]:ring-sidebar-border [&_svg]:rounded-lg [&_svg]:ring-1" />
         </div>
         <div className="bg-sidebar-active text-sidebar-active-foreground shadow-lift mx-3 mb-5 rounded-md p-3">
-          <p className="truncate text-sm font-bold [font-stretch:112%]">{tenant.name}</p>
+          <p className="letters truncate text-base">{tenant.name}</p>
           <button
             onClick={copyLink}
-            className="text-stamp font-typed mt-1 flex w-full items-center gap-1.5 truncate text-xs underline-offset-4 hover:underline"
+            className="text-cobalt mt-0.5 flex w-full items-center gap-1.5 truncate text-xs underline-offset-4 hover:underline"
           >
             <Copy className="h-3 w-3 shrink-0" />
             <span className="truncate">{tenant.publicUrl.replace(/^https?:\/\//, '')}</span>
@@ -196,10 +194,7 @@ export default function PanelLayout() {
       </div>
 
       {/* Bottom navigation (celular) */}
-      <nav
-        className="bg-sidebar pb-safe fixed inset-x-0 bottom-0 z-30 lg:hidden"
-        aria-label="Navegação"
-      >
+      <nav className="felt pb-safe fixed inset-x-0 bottom-0 z-30 lg:hidden" aria-label="Navegação">
         <ul className="grid grid-cols-5 gap-1 px-2 pt-1.5">
           {BOTTOM_NAV.map((item) => (
             <li key={item.to}>
