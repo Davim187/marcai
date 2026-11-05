@@ -23,7 +23,7 @@ export function AuthLayout({
           <BrandLogo />
         </Link>
         <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center pb-16">
-          <h1 className="text-[1.65rem] font-semibold tracking-[-0.02em]">{title}</h1>
+          <h1 className="text-[1.75rem] font-extrabold tracking-[-0.03em]">{title}</h1>
           {subtitle && <p className="text-muted-foreground mt-1.5 text-sm">{subtitle}</p>}
           <div className="mt-8">{children}</div>
           {footer && <div className="text-muted-foreground mt-6 text-center text-sm">{footer}</div>}
@@ -33,14 +33,14 @@ export function AuthLayout({
         className={
           whiteLabel
             ? 'hidden'
-            : 'soft-surface relative m-3 hidden flex-1 overflow-hidden rounded-3xl lg:block'
+            : 'bg-sidebar text-sidebar-foreground relative hidden flex-1 overflow-hidden lg:block'
         }
       >
         <div className="absolute inset-0 flex flex-col justify-center px-16">
-          <p className="max-w-md text-[2.6rem] font-semibold leading-[1.08] tracking-[-0.03em]">
+          <p className="max-w-[15ch] text-[3.2rem] font-extrabold leading-[1] tracking-[-0.035em] [font-stretch:118%]">
             Sua agenda cheia, sem precisar responder mensagem.
           </p>
-          <ul className="text-muted-foreground mt-10 space-y-4">
+          <ul className="text-sidebar-muted mt-12 space-y-5 text-[15px]">
             {[
               { icon: Link2, text: 'Link de agendamento para a bio do Instagram' },
               { icon: LockKeyhole, text: 'Nunca mais dois clientes no mesmo horário' },
@@ -48,7 +48,7 @@ export function AuthLayout({
               { icon: CalendarCheck2, text: 'Lembrete automático: menos faltas' },
             ].map(({ icon: Icon, text }) => (
               <li key={text} className="flex items-center gap-3">
-                <span className="bg-card text-primary shadow-soft flex h-9 w-9 items-center justify-center rounded-xl">
+                <span className="text-sidebar-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-[1.5px] border-current">
                   <Icon className="h-4 w-4" aria-hidden />
                 </span>
                 {text}

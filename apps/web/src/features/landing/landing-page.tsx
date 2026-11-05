@@ -1,13 +1,13 @@
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import {
   ArrowRight,
   BellRing,
   CalendarCheck2,
   Check,
-  ChevronDown,
   Clock,
   Link2,
   MessageCircle,
+  Plus,
   ShieldCheck,
   Sparkles,
   UserX,
@@ -15,8 +15,14 @@ import {
 import { useEffect } from 'react'
 import { Link } from 'react-router'
 import { formatBRL, PLANS } from '@marcai/shared'
-import { Logo } from '@/components/logo'
-import { Button } from '@/components/ui/button'
+import { LogoMark } from '@/components/logo'
+import { cn } from '@/lib/utils'
+
+/*
+ * Mundo visual da landing: o cartão de retorno que o salão entrega no balcão.
+ * Cartão verde como chão, cartão branco como objeto, preto de impressão e
+ * azul de carimbo. Estado é dito pelo carimbo, nunca só pela cor.
+ */
 
 const STEPS = [
   {
@@ -87,78 +93,160 @@ const FAQ = [
     'Sim. Seguimos a LGPD: as clientes dão consentimento ao agendar e você pode exportar ou excluir os dados quando quiser.',
   ],
 ]
+const SLOTS = ['08:00', '09:30', '10:00', '13:30', '14:00', '15:30', '16:00', '17:30']
+const PICKED = '14:00'
+const EASE = [0.16, 1, 0.3, 1] as const
 
-function PhoneMockup() {
+/** Botão impresso: cheio (verde do cartão) ou só contorno de tinta. */
+function PrintButton({
+  to,
+  href,
+  children,
+  tone = 'stock',
+  className,
+}: {
+  to?: string
+  href?: string
+  children: React.ReactNode
+  tone?: 'stock' | 'outline' | 'card'
+  className?: string
+}) {
+  const cls = cn(
+    'inline-flex h-12 items-center justify-center gap-2 rounded-[3px] px-6 text-[15px] font-bold transition-[transform,background-color,box-shadow] duration-200 hover:-translate-y-px active:translate-y-0 [&_svg]:size-4',
+    tone === 'stock' &&
+      'bg-[var(--l-stock)] text-[var(--l-stock-ink)] shadow-[0_6px_14px_-8px_rgba(15,59,45,.8)] hover:bg-[#164d3b]',
+    tone === 'outline' &&
+      'border-[1.5px] border-[var(--l-ink)] text-[var(--l-ink)] hover:bg-[var(--l-ink)] hover:text-[var(--l-card)]',
+    tone === 'card' &&
+      'bg-[var(--l-card)] text-[var(--l-ink)] shadow-[0_6px_14px_-8px_rgba(0,0,0,.6)] hover:bg-white',
+    className,
+  )
+  return href ? (
+    <a href={href} className={cls}>
+      {children}
+    </a>
+  ) : (
+    <Link to={to!} className={cls}>
+      {children}
+    </Link>
+  )
+}
+
+/** Carimbo retangular de borda dupla, em tinta azul. */
+function Stamp({
+  children,
+  className,
+  rotate = -7,
+  animate = false,
+}: {
+  children: React.ReactNode
+  className?: string
+  rotate?: number
+  animate?: boolean
+}) {
+  const reduce = useReducedMotion()
+  const still = !animate || reduce
   return (
-    <div className="relative mx-auto w-[280px] sm:w-[300px]">
-      <div
-        className="from-primary/30 absolute -inset-8 -z-10 rounded-full bg-gradient-to-tr via-[#CFE3D8]/40 to-transparent blur-3xl"
-        aria-hidden
-      />
-      <div className="overflow-hidden rounded-[2.6rem] border-[10px] border-[#0F172A] bg-[#F8FAFC] shadow-2xl">
-        <div className="h-20 bg-gradient-to-br from-[#6366F1] to-[#3730A3]" />
-        <div className="-mt-8 flex flex-col items-center px-4 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-[#F8FAFC] bg-[#E3EDE7] text-xl font-bold text-[#3F7B5E]">
-            M
-          </div>
-          <p className="mt-2 text-sm font-bold text-[#0F172A]">Studio Vértice</p>
-          <p className="text-[10px] text-[#64748B]">Unhas, cabelo e estética</p>
-        </div>
-        <div className="space-y-2 p-3">
-          {[
-            ['Corte + barba', 'R$ 70', '1h'],
-            ['Escova', 'a partir de R$ 60', '45 min'],
-          ].map(([n, p, d]) => (
-            <div key={n} className="rounded-xl border border-[#E2E8F0] bg-white p-2.5 text-left">
-              <p className="text-xs font-semibold text-[#0F172A]">{n}</p>
-              <p className="mt-0.5 flex gap-2 text-[10px]">
-                <span className="font-bold text-[#3F7B5E]">{p}</span>
-                <span className="flex items-center gap-0.5 text-[#64748B]">
-                  <Clock className="h-2.5 w-2.5" />
-                  {d}
-                </span>
-              </p>
+    <motion.span
+      initial={still ? false : { opacity: 0, scale: 1.45, rotate: rotate - 6, filter: 'blur(3px)' }}
+      animate={{ opacity: 1, scale: 1, rotate, filter: 'blur(0px)' }}
+      transition={{ delay: 1.15, duration: 0.42, ease: EASE }}
+      style={{ rotate }}
+      className={cn(
+        'pointer-events-none inline-block select-none rounded-[4px] border-[2.5px] border-[var(--l-stamp)] p-[3px] text-[var(--l-stamp)] mix-blend-multiply',
+        className,
+      )}
+    >
+      <span className="xwide block rounded-[2px] border border-[var(--l-stamp)] px-3 py-1.5 text-center text-xs font-black uppercase leading-tight tracking-[0.08em]">
+        {children}
+      </span>
+    </motion.span>
+  )
+}
+
+/** O cartão do salão de demonstração: serviços, horários e o pedido carimbado. */
+function SalonStub() {
+  const reduce = useReducedMotion()
+  return (
+    <div className="relative flex flex-col p-6 text-[var(--l-ink)] sm:p-7">
+      <p className="wide text-lg font-extrabold leading-tight">Studio Vértice</p>
+      <p className="text-sm text-[var(--l-ink-muted)]">Unhas, cabelo e estética</p>
+
+      <ul className="mt-5 space-y-2.5 text-sm">
+        {[
+          ['Corte + barba', 'R$ 70', '1h'],
+          ['Escova', 'a partir de R$ 60', '45 min'],
+        ].map(([n, p, d]) => (
+          <li key={n}>
+            <div className="flex items-baseline gap-2">
+              <span className="font-semibold">{n}</span>
+              <span className="dot-leader" aria-hidden />
+              <span className="font-bold tabular-nums">{p}</span>
             </div>
-          ))}
-          <p className="pt-1 text-[10px] font-semibold uppercase tracking-wider text-[#64748B]">
-            Quinta, 6 de novembro
-          </p>
-          <div className="grid grid-cols-4 gap-1.5">
-            {['08:00', '09:30', '10:00', '13:30', '14:00', '15:30', '16:00', '17:30'].map(
-              (t, i) => (
-                <span
-                  key={t}
-                  className={`rounded-lg border py-1.5 text-center text-[10px] font-semibold ${i === 4 ? 'border-[#3F7B5E] bg-[#3F7B5E] text-white' : 'border-[#E2E8F0] bg-white text-[#0F172A]'}`}
-                >
-                  {t}
-                </span>
-              ),
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-[var(--l-ink-muted)]">
+              <Clock className="h-3 w-3" aria-hidden />
+              {d}
+            </p>
+          </li>
+        ))}
+      </ul>
+
+      <p className="xwide mt-6 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--l-ink-muted)]">
+        Quinta, 6 de novembro
+      </p>
+      <div className="mt-2 grid grid-cols-4 border-l border-t border-[var(--l-rule)]">
+        {SLOTS.map((t) => (
+          <span
+            key={t}
+            className={cn(
+              'font-typed relative border-b border-r border-[var(--l-rule)] py-2 text-center text-sm tabular-nums',
+              t === PICKED && 'font-bold text-[var(--l-stamp)]',
             )}
-          </div>
-          <div className="mt-2 rounded-lg bg-[#3F7B5E] py-2 text-center text-xs font-semibold text-white">
-            Confirmar agendamento
-          </div>
-        </div>
-      </div>
-      <motion.div
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.8 }}
-        className="shadow-lift absolute -right-6 top-44 w-52 rounded-2xl border bg-white p-3 text-left sm:-right-16"
-      >
-        <p className="flex items-center gap-1.5 text-xs font-bold text-[#0F172A]">
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#25D366] text-white">
-            <MessageCircle className="h-3 w-3" />
+          >
+            {t}
+            {t === PICKED && (
+              <svg
+                viewBox="0 0 64 34"
+                className="pointer-events-none absolute -inset-x-1 -inset-y-0.5 h-[calc(100%+4px)] w-[calc(100%+8px)] overflow-visible"
+                aria-hidden
+              >
+                <motion.path
+                  d="M8 9C18 1 50 0 58 9c7 9-6 21-27 22C10 32 1 24 4 15 6 9 15 5 26 4"
+                  fill="none"
+                  stroke="var(--l-stamp)"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  initial={reduce ? false : { pathLength: 0 }}
+                  animate={{ pathLength: 1 }}
+                  transition={{ delay: 0.55, duration: 0.5, ease: EASE }}
+                />
+              </svg>
+            )}
           </span>
-          Novo agendamento!
-        </p>
-        <p className="mt-1 text-[11px] leading-snug text-[#475569]">
-          👤 Ana Souza
-          <br />✨ Corte + barba
-          <br />
-          📅 Quinta, 06/11 · 14:00
-        </p>
-      </motion.div>
+        ))}
+      </div>
+
+      <dl className="mt-6 space-y-2 text-sm">
+        {[
+          ['Cliente', 'Ana Souza'],
+          ['Serviço', 'Corte + barba'],
+          ['Dia', 'Quinta, 06/11 · 14:00'],
+        ].map(([k, v]) => (
+          <div key={k} className="flex items-baseline gap-3 border-b border-[var(--l-rule)] pb-1">
+            <dt className="w-16 shrink-0 text-xs text-[var(--l-ink-muted)]">{k}</dt>
+            <dd className="font-typed text-[15px] text-[var(--l-stamp)]">{v}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <p className="mt-6 rounded-[3px] border-[1.5px] border-[var(--l-ink)] py-2 text-center text-sm font-bold">
+        Confirmar agendamento
+      </p>
+
+      <Stamp animate rotate={-8} className="mr-1 mt-3 self-end bg-[var(--l-card)]">
+        <MessageCircle className="mx-auto mb-0.5 h-3.5 w-3.5" aria-hidden />
+        Novo agendamento!
+      </Stamp>
     </div>
   )
 }
@@ -168,130 +256,173 @@ export default function LandingPage() {
     document.title = 'Marcaí — Sua agenda cheia, sem precisar responder mensagem'
   }, [])
   return (
-    <div className="bg-background min-h-dvh">
-      <header className="bg-background/80 sticky top-0 z-30 border-b border-transparent backdrop-blur-md">
-        <div className="container flex h-16 items-center justify-between">
-          <Logo />
+    <div className="landing min-h-dvh">
+      <header className="bg-[var(--l-stock)]/95 sticky top-0 z-30 backdrop-blur-sm">
+        <div className="container flex h-16 items-center justify-between gap-4">
+          <Link to="/" className="flex items-center gap-2" aria-label="Marcaí, início">
+            <LogoMark className="h-8 w-8 rounded-lg ring-1 ring-[var(--l-stock-rule)]" />
+            <span className="xwide text-xl font-black tracking-tight">Marcaí</span>
+          </Link>
           <nav
-            className="text-muted-foreground hidden items-center gap-6 text-sm font-medium md:flex"
+            className="hidden items-center gap-7 text-sm font-medium text-[var(--l-stock-muted)] md:flex"
             aria-label="Seções"
           >
-            <a href="#como-funciona" className="hover:text-foreground">
-              Como funciona
-            </a>
-            <a href="#beneficios" className="hover:text-foreground">
-              Benefícios
-            </a>
-            <a href="#planos" className="hover:text-foreground">
-              Planos
-            </a>
-            <a href="#duvidas" className="hover:text-foreground">
-              Dúvidas
-            </a>
+            {[
+              ['#como-funciona', 'Como funciona'],
+              ['#beneficios', 'Benefícios'],
+              ['#planos', 'Planos'],
+              ['#duvidas', 'Dúvidas'],
+            ].map(([href, label]) => (
+              <a
+                key={href}
+                href={href}
+                className="underline-offset-[6px] transition-colors hover:text-[var(--l-stock-ink)] hover:underline"
+              >
+                {label}
+              </a>
+            ))}
           </nav>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" asChild>
-              <Link to="/entrar">Entrar</Link>
-            </Button>
-            <Button asChild className="hidden sm:inline-flex">
-              <Link to="/cadastro">Começar grátis</Link>
-            </Button>
+          <div className="flex items-center gap-5">
+            <Link
+              to="/entrar"
+              className="text-sm font-semibold underline-offset-[6px] hover:underline"
+            >
+              Entrar
+            </Link>
+            <PrintButton
+              to="/cadastro"
+              tone="card"
+              className="hidden h-10 px-4 text-sm sm:inline-flex"
+            >
+              Começar grátis
+            </PrintButton>
           </div>
         </div>
       </header>
 
       <main>
-        <section className="relative overflow-hidden">
-          <div
-            className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,#E0E7FF_0%,transparent_55%)]"
-            aria-hidden
-          />
-          <div className="container grid items-center gap-12 py-12 sm:py-20 lg:grid-cols-2">
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <span className="bg-primary-soft text-primary inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold">
-                <Sparkles className="h-3.5 w-3.5" /> Para salões, barbearias, estúdios e
-                profissionais de beleza
-              </span>
-              <h1 className="mt-5 text-4xl font-extrabold leading-[1.08] sm:text-5xl lg:text-6xl">
-                Sua agenda cheia, sem precisar responder mensagem.
-              </h1>
-              <p className="text-muted-foreground mt-5 max-w-lg text-lg">
-                Coloque seu link na bio do Instagram. A cliente escolhe o serviço, vê só os horários
-                livres e agenda sozinha. Você recebe o aviso na hora, até no WhatsApp.
-              </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Button size="lg" asChild>
-                  <Link to="/cadastro">
-                    Começar grátis por 30 dias <ArrowRight />
-                  </Link>
-                </Button>
-                <Button size="lg" variant="outline" asChild>
-                  <a href="/studiovertice">Ver uma página de exemplo</a>
-                </Button>
+        {/* Abertura: o próprio cartão de retorno, com o canhoto do salão */}
+        <section className="pb-16 pt-6 sm:pb-24 sm:pt-10">
+          <div className="container">
+            <div className="on-card grid overflow-hidden rounded-[6px] bg-[var(--l-card)] text-[var(--l-ink)] shadow-[0_40px_70px_-40px_rgba(0,0,0,.75)] lg:grid-cols-[1fr_340px]">
+              <div className="flex flex-col p-6 sm:p-10 lg:p-12">
+                <h1 className="wide max-w-[17ch] text-[clamp(2.4rem,5vw,4.25rem)] font-extrabold leading-[1] tracking-[-0.035em]">
+                  Sua agenda cheia, sem precisar responder mensagem.
+                </h1>
+                <p className="mt-7 max-w-[46ch] text-lg leading-relaxed text-[var(--l-ink-muted)]">
+                  Coloque seu link na bio do Instagram. A cliente escolhe o serviço, vê só os
+                  horários livres e agenda sozinha. Você recebe o aviso na hora, até no WhatsApp.
+                </p>
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <PrintButton to="/cadastro">
+                    Começar grátis por 30 dias <ArrowRight aria-hidden />
+                  </PrintButton>
+                  <PrintButton href="/studiovertice" tone="outline">
+                    Ver uma página de exemplo
+                  </PrintButton>
+                </div>
+                <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium">
+                  {['Sem cartão', 'Pronto em 3 minutos', 'Cancele quando quiser'].map((t) => (
+                    <li key={t} className="flex items-center gap-1.5">
+                      <Check className="h-4 w-4 text-[var(--l-stamp)]" aria-hidden /> {t}
+                    </li>
+                  ))}
+                </ul>
+                <p className="xwide mt-10 border-t border-[var(--l-rule)] pt-5 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--l-ink-muted)] lg:mt-auto">
+                  Para salões, barbearias, estúdios e profissionais de beleza
+                </p>
               </div>
-              <p className="text-muted-foreground mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm">
-                <span className="flex items-center gap-1.5">
-                  <Check className="text-success h-4 w-4" /> Sem cartão
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Check className="text-success h-4 w-4" /> Pronto em 3 minutos
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Check className="text-success h-4 w-4" /> Cancele quando quiser
-                </span>
-              </p>
-            </motion.div>
-            <PhoneMockup />
+              {/* Picote entre o cartão e o canhoto */}
+              <div className="relative border-t border-dashed border-[var(--l-rule)] lg:border-t-0">
+                <span
+                  className="perf-v absolute inset-y-6 left-0 hidden w-[1.5px] lg:block"
+                  aria-hidden
+                />
+                <span
+                  className="absolute -left-3 -top-3 hidden h-6 w-6 rounded-full bg-[var(--l-stock)] lg:block"
+                  aria-hidden
+                />
+                <span
+                  className="absolute -bottom-3 -left-3 hidden h-6 w-6 rounded-full bg-[var(--l-stock)] lg:block"
+                  aria-hidden
+                />
+                <SalonStub />
+              </div>
+            </div>
           </div>
         </section>
 
-        <section id="como-funciona" className="bg-card border-y py-16 sm:py-24">
+        {/* Como funciona: três canhotos destacáveis, numerados */}
+        <section
+          id="como-funciona"
+          className="scroll-mt-16 bg-[var(--l-card)] py-20 text-[var(--l-ink)] sm:py-28"
+        >
           <div className="container">
-            <h2 className="text-center text-3xl font-extrabold sm:text-4xl">Como funciona</h2>
-            <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-center">
-              Três passos e sua agenda começa a se encher sozinha.
-            </p>
-            <ol className="mt-12 grid gap-6 md:grid-cols-3">
+            <div className="grid gap-4 lg:grid-cols-12">
+              <h2 className="wide text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl lg:col-span-5">
+                Como funciona
+              </h2>
+              <p className="max-w-md text-lg text-[var(--l-ink-muted)] lg:col-span-6 lg:col-start-7 lg:self-end">
+                Três passos e sua agenda começa a se encher sozinha.
+              </p>
+            </div>
+            <ol className="mt-12">
               {STEPS.map((s, i) => (
-                <li key={s.title} className="bg-background relative rounded-3xl border p-6">
+                <li
+                  key={s.title}
+                  className="grid items-baseline gap-x-8 gap-y-2 border-t-[1.5px] border-dashed border-[var(--l-rule)] py-8 last:border-b-[1.5px] sm:grid-cols-[7rem_1fr] lg:grid-cols-[9rem_5fr_6fr]"
+                >
                   <span
-                    className="text-primary/10 absolute right-5 top-4 text-5xl font-extrabold"
+                    className="xwide text-7xl font-black tabular-nums leading-none text-[var(--l-stock)] sm:text-8xl"
                     aria-hidden
                   >
                     {i + 1}
                   </span>
-                  <span className="bg-primary-soft text-primary flex h-12 w-12 items-center justify-center rounded-2xl">
-                    <s.icon className="h-6 w-6" />
-                  </span>
-                  <h3 className="mt-4 text-lg font-bold">{s.title}</h3>
-                  <p className="text-muted-foreground mt-2 text-sm">{s.text}</p>
+                  <h3 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight">
+                    <s.icon className="h-5 w-5 shrink-0 text-[var(--l-stamp)]" aria-hidden />
+                    <span>
+                      <span className="sr-only">Passo {i + 1}: </span>
+                      {s.title}
+                    </span>
+                  </h3>
+                  <p className="text-lg text-[var(--l-ink-muted)] sm:col-start-2 lg:col-start-3">
+                    {s.text}
+                  </p>
                 </li>
               ))}
             </ol>
           </div>
         </section>
 
-        <section id="beneficios" className="py-16 sm:py-24">
+        {/* Benefícios: cartão fidelidade, um carimbo por benefício */}
+        <section id="beneficios" className="scroll-mt-16 py-20 sm:py-28">
           <div className="container">
-            <h2 className="text-center text-3xl font-extrabold sm:text-4xl">
+            <h2 className="wide max-w-[16ch] text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">
               Feito para quem vive de agenda
             </h2>
-            <div className="mt-12 grid gap-6 sm:grid-cols-2">
-              {BENEFITS.map((b) => (
+            <div className="on-card mt-12 grid overflow-hidden rounded-[6px] bg-[var(--l-card)] text-[var(--l-ink)] shadow-[0_40px_70px_-40px_rgba(0,0,0,.75)] sm:grid-cols-2">
+              {BENEFITS.map((b, i) => (
                 <div
                   key={b.title}
-                  className="bg-card shadow-soft flex gap-4 rounded-3xl border p-6"
+                  className={cn(
+                    'flex gap-5 p-7 sm:p-9',
+                    i > 0 && 'border-t border-[var(--l-rule)]',
+                    i === 1 && 'sm:border-t-0',
+                    i % 2 === 1 && 'sm:border-l',
+                  )}
                 >
-                  <span className="bg-primary text-primary-foreground flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl">
-                    <b.icon className="h-6 w-6" />
+                  <span
+                    className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-[2.5px] border-[var(--l-stamp)] text-[var(--l-stamp)] mix-blend-multiply [&_svg]:size-7"
+                    style={{ transform: `rotate(${[-9, 6, -4, 11][i]}deg)` }}
+                    aria-hidden
+                  >
+                    <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full border border-dashed border-[var(--l-stamp)]">
+                      <b.icon />
+                    </span>
                   </span>
                   <div>
-                    <h3 className="text-lg font-bold">{b.title}</h3>
-                    <p className="text-muted-foreground mt-1.5">{b.text}</p>
+                    <h3 className="text-xl font-bold tracking-tight">{b.title}</h3>
+                    <p className="mt-2 text-[var(--l-ink-muted)]">{b.text}</p>
                   </div>
                 </div>
               ))}
@@ -299,103 +430,148 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="planos" className="bg-card border-y py-16 sm:py-24">
+        {/* Planos: tabela de preços do balcão */}
+        <section
+          id="planos"
+          className="scroll-mt-16 bg-[var(--l-card)] py-20 text-[var(--l-ink)] sm:py-28"
+        >
           <div className="container">
-            <h2 className="text-center text-3xl font-extrabold sm:text-4xl">
-              Planos simples, sem surpresa
-            </h2>
-            <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-center">
-              Comece com 30 dias grátis de tudo. Depois, escolha o plano que faz sentido para você.
-            </p>
-            <div className="mx-auto mt-12 grid max-w-4xl gap-6 md:grid-cols-2">
-              {Object.values(PLANS).map((p) => (
+            <div className="grid gap-4 lg:grid-cols-12">
+              <h2 className="wide text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl lg:col-span-6">
+                Planos simples, sem surpresa
+              </h2>
+              <p className="max-w-md text-lg text-[var(--l-ink-muted)] lg:col-span-5 lg:col-start-8 lg:self-end">
+                Comece com 30 dias grátis de tudo. Depois, escolha o plano que faz sentido para
+                você.
+              </p>
+            </div>
+            <div className="mt-12 grid border-y-[1.5px] border-[var(--l-ink)] md:grid-cols-2">
+              {Object.values(PLANS).map((p, i) => (
                 <div
                   key={p.id}
-                  className={`bg-background relative flex flex-col rounded-3xl border p-7 ${p.id === 'pro' ? 'border-primary shadow-lift ring-primary/30 ring-1' : ''}`}
-                >
-                  {p.id === 'pro' && (
-                    <span className="bg-primary text-primary-foreground absolute -top-3 left-7 rounded-full px-3 py-1 text-xs font-bold">
-                      Mais escolhido
-                    </span>
+                  className={cn(
+                    'relative flex flex-col py-9 md:px-10',
+                    i === 0
+                      ? 'md:pl-0'
+                      : 'border-t border-[var(--l-rule)] md:border-l md:border-t-0 md:pr-0',
                   )}
-                  <h3 className="text-xl font-bold">{p.name}</h3>
-                  <p className="text-muted-foreground mt-1 text-sm">{p.tagline}</p>
-                  <p className="mt-5">
-                    <span className="text-4xl font-extrabold">
-                      {formatBRL(p.priceCents).replace(',00', '')}
-                    </span>
-                    <span className="text-muted-foreground">/mês</span>
-                  </p>
-                  <ul className="mt-6 flex-1 space-y-2.5 text-sm">
+                >
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <h3 className="xwide text-2xl font-black uppercase tracking-[0.02em]">
+                      {p.name}
+                    </h3>
+                    <span className="dot-leader hidden sm:block" aria-hidden />
+                    <p className="whitespace-nowrap max-sm:w-full">
+                      <span className="wide text-4xl font-extrabold tabular-nums tracking-[-0.03em] sm:text-5xl">
+                        {formatBRL(p.priceCents).replace(',00', '')}
+                      </span>
+                      <span className="text-[var(--l-ink-muted)]">/mês</span>
+                    </p>
+                  </div>
+                  <p className="mt-2 text-[var(--l-ink-muted)]">{p.tagline}</p>
+                  {p.id === 'pro' && (
+                    <Stamp
+                      rotate={-6}
+                      className="absolute -top-5 right-3 bg-[var(--l-card)] md:right-6"
+                    >
+                      Mais escolhido
+                    </Stamp>
+                  )}
+                  <ul className="mt-7 flex-1 space-y-3">
                     {p.highlights.map((h) => (
-                      <li key={h} className="flex gap-2">
-                        <Check className="text-success h-4 w-4 shrink-0" />
+                      <li key={h} className="flex gap-2.5">
+                        <Check
+                          className="mt-1 h-4 w-4 shrink-0 text-[var(--l-stamp)]"
+                          aria-hidden
+                        />
                         {h}
                       </li>
                     ))}
                   </ul>
-                  <Button
-                    className="mt-7"
-                    size="lg"
-                    variant={p.id === 'pro' ? 'default' : 'outline'}
-                    asChild
+                  <PrintButton
+                    to="/cadastro"
+                    tone={p.id === 'pro' ? 'stock' : 'outline'}
+                    className="mt-9 w-full sm:w-auto sm:self-start"
                   >
-                    <Link to="/cadastro">Começar grátis</Link>
-                  </Button>
+                    Começar grátis
+                  </PrintButton>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section id="duvidas" className="py-16 sm:py-24">
-          <div className="container max-w-3xl">
-            <h2 className="text-center text-3xl font-extrabold sm:text-4xl">Dúvidas frequentes</h2>
-            <div className="bg-card mt-10 divide-y rounded-3xl border">
+        {/* Dúvidas: folha pautada */}
+        <section id="duvidas" className="scroll-mt-16 py-20 sm:py-28">
+          <div className="container grid gap-10 lg:grid-cols-12">
+            <h2 className="wide text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl lg:col-span-4">
+              Dúvidas frequentes
+            </h2>
+            <div className="border-t-[1.5px] border-[var(--l-stock-muted)] lg:col-span-8">
               {FAQ.map(([q, a]) => (
-                <details key={q} className="group p-5 [&_summary::-webkit-details-marker]:hidden">
-                  <summary className="flex cursor-pointer items-center justify-between gap-4 font-semibold">
+                <details
+                  key={q}
+                  className="group border-b border-[var(--l-stock-rule)] [&_summary::-webkit-details-marker]:hidden"
+                >
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-6 py-5 text-lg font-semibold transition-colors hover:text-white">
                     {q}
-                    <ChevronDown className="text-muted-foreground h-5 w-5 shrink-0 transition group-open:rotate-180" />
+                    <Plus
+                      className="h-5 w-5 shrink-0 text-[var(--l-stock-muted)] transition-transform duration-300 group-open:rotate-45"
+                      aria-hidden
+                    />
                   </summary>
-                  <p className="text-muted-foreground mt-3">{a}</p>
+                  <p className="max-w-[60ch] pb-6 text-[var(--l-stock-muted)]">{a}</p>
                 </details>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="pb-20">
+        {/* Fechamento: o verso do cartão, com o carimbo do convite */}
+        <section className="pb-20 sm:pb-28">
           <div className="container">
-            <div className="rounded-[2rem] bg-gradient-to-br from-[#3F7B5E] to-[#24473A] px-6 py-14 text-center text-white sm:px-12">
-              <CalendarCheck2 className="mx-auto h-10 w-10 opacity-90" />
-              <h2 className="mt-4 text-3xl font-extrabold sm:text-4xl">
-                Sua próxima cliente pode agendar hoje.
-              </h2>
-              <p className="mx-auto mt-3 max-w-lg opacity-90">
-                Crie sua página em 3 minutos e coloque o link na bio. É grátis por 30 dias.
-              </p>
-              <Button size="lg" variant="secondary" className="mt-8" asChild>
-                <Link to="/cadastro">
-                  Criar minha agenda grátis <ArrowRight />
-                </Link>
-              </Button>
+            {/* Fio de impressão por dentro da borda do cartão (outline, não um segundo cartão) */}
+            <div className="on-card flex flex-col items-start gap-8 rounded-[6px] bg-[var(--l-card)] p-10 text-[var(--l-ink)] shadow-[0_40px_70px_-40px_rgba(0,0,0,.75)] outline outline-[1.5px] outline-offset-[-14px] outline-[var(--l-ink)] sm:p-16 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <CalendarCheck2 className="h-9 w-9 text-[var(--l-stamp)]" aria-hidden />
+                <h2 className="wide mt-5 max-w-[18ch] text-4xl font-extrabold leading-[1.02] tracking-[-0.03em] sm:text-6xl">
+                  Sua próxima cliente pode agendar hoje.
+                </h2>
+                <p className="mt-4 max-w-[48ch] text-lg text-[var(--l-ink-muted)]">
+                  Crie sua página em 3 minutos e coloque o link na bio. É grátis por 30 dias.
+                </p>
+              </div>
+              <PrintButton to="/cadastro" className="h-14 shrink-0 px-7 text-base">
+                Criar minha agenda grátis <ArrowRight aria-hidden />
+              </PrintButton>
             </div>
           </div>
         </section>
       </main>
 
-      <footer className="border-t py-10">
-        <div className="text-muted-foreground container flex flex-col items-center justify-between gap-4 text-sm sm:flex-row">
-          <Logo />
-          <nav className="flex gap-5" aria-label="Rodapé">
-            <Link to="/termos" className="hover:text-foreground">
+      <footer className="perf-h bg-top py-10">
+        <div className="container flex flex-col items-start justify-between gap-5 text-sm text-[var(--l-stock-muted)] sm:flex-row sm:items-center">
+          <span className="flex items-center gap-2 text-[var(--l-stock-ink)]">
+            <LogoMark className="h-7 w-7 rounded-lg ring-1 ring-[var(--l-stock-rule)]" />
+            <span className="xwide text-lg font-black">Marcaí</span>
+          </span>
+          <nav className="flex flex-wrap gap-x-6 gap-y-2" aria-label="Rodapé">
+            <Link
+              to="/termos"
+              className="underline-offset-[5px] hover:text-[var(--l-stock-ink)] hover:underline"
+            >
               Termos de uso
             </Link>
-            <Link to="/privacidade" className="hover:text-foreground">
+            <Link
+              to="/privacidade"
+              className="underline-offset-[5px] hover:text-[var(--l-stock-ink)] hover:underline"
+            >
               Privacidade (LGPD)
             </Link>
-            <Link to="/entrar" className="hover:text-foreground">
+            <Link
+              to="/entrar"
+              className="underline-offset-[5px] hover:text-[var(--l-stock-ink)] hover:underline"
+            >
               Entrar
             </Link>
           </nav>

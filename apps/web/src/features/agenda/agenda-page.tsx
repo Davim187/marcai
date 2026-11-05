@@ -573,7 +573,7 @@ function MonthGrid({
                   <div
                     key={b.id}
                     className={cn(
-                      'hidden truncate rounded px-1 py-0.5 text-[10px] font-medium sm:block',
+                      'hidden truncate rounded px-1 py-0.5 text-[11px] font-medium sm:block',
                       STATUS_STYLES[b.status].block,
                     )}
                   >
@@ -581,12 +581,12 @@ function MonthGrid({
                   </div>
                 ))}
                 {list.length > 0 && (
-                  <p className="text-primary text-[10px] font-semibold sm:hidden">
+                  <p className="text-primary text-[11px] font-semibold sm:hidden">
                     {list.length} ag.
                   </p>
                 )}
                 {list.length > 3 && (
-                  <p className="text-muted-foreground hidden text-[10px] font-semibold sm:block">
+                  <p className="text-muted-foreground hidden text-[11px] font-semibold sm:block">
                     +{list.length - 3} mais
                   </p>
                 )}

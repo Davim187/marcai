@@ -3,73 +3,92 @@
 @tailwind utilities;
 
 @layer base {
-  /* Paleta: neutros quentes (pedra) + sálvia. Contraste AA conferido nos dois modos. */
+  /*
+   * Mundo do cartão de retorno do salão (o mesmo da landing):
+   * cartão verde, cartão branco, preto de impressão e azul de carimbo.
+   * Contraste AA conferido nos modos claro e escuro.
+   */
   :root {
     color-scheme: light;
-    --background: 45 17% 91%;
-    --foreground: 140 5% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 140 5% 11%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 140 5% 11%;
-    --primary: 151 32% 36%;
-    --primary-foreground: 0 0% 100%;
-    --primary-soft: 144 22% 91%;
-    --secondary: 48 16% 94%;
-    --secondary-foreground: 140 5% 16%;
-    --muted: 48 16% 94%;
-    --muted-foreground: 100 3% 38%;
-    --accent: 132 17% 94%;
-    --accent-foreground: 151 32% 27%;
-    --destructive: 0 65% 45%;
+    --background: 84 13% 92%;
+    --foreground: 192 11% 9%;
+    --card: 80 27% 98%;
+    --card-foreground: 192 11% 9%;
+    --popover: 80 27% 98%;
+    --popover-foreground: 192 11% 9%;
+    --primary: 161 59% 15%;
+    --primary-foreground: 86 20% 93%;
+    --primary-soft: 145 21% 89%;
+    --secondary: 100 11% 89%;
+    --secondary-foreground: 192 11% 9%;
+    --muted: 100 11% 89%;
+    --muted-foreground: 156 6% 32%;
+    --accent: 145 21% 89%;
+    --accent-foreground: 161 59% 15%;
+    --destructive: 4 76% 40%;
     --destructive-foreground: 0 0% 100%;
-    --success: 151 40% 32%;
+    --success: 154 56% 27%;
     --success-foreground: 0 0% 100%;
-    --warning: 33 85% 38%;
+    --warning: 34 88% 30%;
     --warning-foreground: 0 0% 100%;
-    --border: 45 12% 87%;
-    --input: 47 10% 82%;
-    --ring: 151 32% 36%;
-    /* Destaque invertido (item ativo do menu, botões redondos escuros) */
-    --inverse: 140 5% 11%;
-    --inverse-foreground: 0 0% 100%;
-    --radius: 0.875rem;
-    /* Gráficos: sálvia + terracota (validados: CVD, contraste 3:1 no cartão) */
-    --chart-1: #3f7b5e;
-    --chart-2: #c2782c;
-    --chart-grid: #e7e5df;
+    --border: 103 8% 83%;
+    --input: 113 7% 76%;
+    --ring: 229 70% 46%;
+    --stamp: 229 70% 46%;
+    --stamp-foreground: 0 0% 100%;
+    --inverse: 161 59% 15%;
+    --inverse-foreground: 86 20% 93%;
+    --sidebar: 161 59% 15%;
+    --sidebar-foreground: 86 20% 93%;
+    --sidebar-muted: 145 28% 77%;
+    --sidebar-border: 157 32% 25%;
+    --sidebar-active: 75 17% 95%;
+    --sidebar-active-foreground: 192 11% 9%;
+    --radius: 0.375rem;
+    /* Gráficos: verde do cartão + azul de carimbo (contraste >= 4.5:1 no cartão) */
+    --chart-1: #2e7d5b;
+    --chart-2: #2340c8;
+    --chart-grid: #dde1da;
   }
   .dark {
     color-scheme: dark;
-    --background: 160 9% 6%;
-    --foreground: 140 7% 92%;
-    --card: 140 6% 10%;
-    --card-foreground: 140 7% 92%;
-    --popover: 150 7% 12%;
-    --popover-foreground: 140 7% 92%;
-    --primary: 148 26% 54%;
-    --primary-foreground: 140 9% 7%;
-    --primary-soft: 150 18% 15%;
-    --secondary: 150 6% 14%;
-    --secondary-foreground: 140 7% 92%;
-    --muted: 150 6% 14%;
-    --muted-foreground: 137 4% 63%;
-    --accent: 158 11% 14%;
-    --accent-foreground: 140 7% 92%;
-    --destructive: 0 65% 58%;
-    --destructive-foreground: 0 0% 8%;
-    --success: 148 30% 52%;
-    --success-foreground: 0 0% 8%;
-    --warning: 35 80% 56%;
-    --warning-foreground: 0 0% 8%;
-    --border: 144 6% 16%;
-    --input: 150 6% 21%;
-    --ring: 148 26% 54%;
-    --inverse: 140 7% 92%;
-    --inverse-foreground: 140 9% 7%;
-    --chart-1: #5f9e7e;
-    --chart-2: #c47f34;
-    --chart-grid: #262b28;
+    --background: 159 41% 7%;
+    --foreground: 86 20% 93%;
+    --card: 156 38% 10%;
+    --card-foreground: 86 20% 93%;
+    --popover: 157 38% 12%;
+    --popover-foreground: 86 20% 93%;
+    --primary: 147 35% 75%;
+    --primary-foreground: 156 41% 7%;
+    --primary-soft: 158 43% 16%;
+    --secondary: 159 37% 14%;
+    --secondary-foreground: 86 20% 93%;
+    --muted: 159 37% 14%;
+    --muted-foreground: 146 17% 71%;
+    --accent: 158 43% 16%;
+    --accent-foreground: 86 20% 93%;
+    --destructive: 6 79% 72%;
+    --destructive-foreground: 9 68% 6%;
+    --success: 145 42% 65%;
+    --success-foreground: 156 41% 7%;
+    --warning: 36 76% 64%;
+    --warning-foreground: 31 68% 6%;
+    --border: 155 27% 18%;
+    --input: 153 24% 23%;
+    --ring: 230 100% 80%;
+    --stamp: 230 100% 80%;
+    --stamp-foreground: 229 63% 12%;
+    --inverse: 86 20% 93%;
+    --inverse-foreground: 156 41% 7%;
+    --sidebar: 160 46% 5%;
+    --sidebar-foreground: 86 20% 93%;
+    --sidebar-muted: 146 17% 71%;
+    --sidebar-border: 155 30% 15%;
+    --sidebar-active: 86 20% 93%;
+    --sidebar-active-foreground: 156 41% 7%;
+    --chart-1: #5fb58a;
+    --chart-2: #8c9eff;
+    --chart-grid: #1d3329;
   }
   * {
     @apply border-border;
@@ -88,10 +107,76 @@
   h2,
   h3 {
     @apply tracking-tight;
+    font-stretch: 112%;
+    text-wrap: balance;
+  }
+  ::selection {
+    background: hsl(var(--stamp));
+    color: hsl(var(--stamp-foreground));
+  }
+  p {
+    text-wrap: pretty;
   }
 }
 
 @layer components {
+  /* Landing: mundo do cartão de retorno do salão (cartão verde, cartão branco, tinta de carimbo) */
+  .landing {
+    --l-stock: #0f3b2d;
+    --l-stock-ink: #eef1ea;
+    --l-stock-muted: #b3d4c1;
+    --l-stock-rule: #3e6b57;
+    --l-card: #f4f5f1;
+    --l-ink: #15191a;
+    --l-ink-muted: #4c5652;
+    --l-rule: #c9cec6;
+    --l-stamp: #2340c8;
+    font-family: Archivo, system-ui, sans-serif;
+    background: var(--l-stock);
+    color: var(--l-stock-ink);
+    color-scheme: light;
+  }
+  .landing ::selection {
+    background: var(--l-stamp);
+    color: #fff;
+  }
+  .landing :focus-visible {
+    outline: 2px solid var(--l-stamp);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 5px var(--l-card);
+    --tw-ring-shadow: 0 0 #0000;
+  }
+  .landing .on-card :focus-visible {
+    box-shadow: none;
+  }
+  /* Campos datilografados do cartão (valores preenchidos e horários) */
+  .font-typed {
+    font-family: 'Courier Prime', ui-monospace, monospace;
+  }
+  .landing .wide {
+    font-stretch: 118%;
+  }
+  .landing .xwide {
+    font-stretch: 125%;
+  }
+  /* Picote: linha tracejada com os dois furinhos do destaque */
+  .perf-v {
+    background-image: linear-gradient(var(--l-rule) 55%, transparent 0);
+    background-size: 1.5px 9px;
+    background-repeat: repeat-y;
+  }
+  .perf-h {
+    background-image: linear-gradient(90deg, var(--l-stock-rule) 55%, transparent 0);
+    background-size: 9px 1.5px;
+    background-repeat: repeat-x;
+  }
+  .dot-leader {
+    flex: 1;
+    min-width: 1rem;
+    border-bottom: 1.5px dotted var(--l-rule);
+    transform: translateY(-0.3em);
+  }
+
   .select-chevron {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23888' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-position: right 0.75rem center;

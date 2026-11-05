@@ -106,7 +106,7 @@ export default function BookingsPage() {
               role="tab"
               aria-selected={period === p.id}
               onClick={() => set('periodo', p.id)}
-              className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium ${period === p.id ? 'border-primary bg-primary text-primary-foreground' : 'bg-card hover:bg-muted'}`}
+              className={`whitespace-nowrap rounded-md border px-3 py-1.5 text-sm font-medium ${period === p.id ? 'border-primary bg-primary text-primary-foreground' : 'bg-card hover:bg-muted'}`}
             >
               {p.label}
             </button>

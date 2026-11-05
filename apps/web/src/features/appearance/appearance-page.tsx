@@ -112,7 +112,7 @@ export default function AppearancePage() {
                       style={{ background: c }}
                     />
                   ))}
-                  <label className="flex h-9 items-center gap-2 rounded-full border px-3 text-sm">
+                  <label className="flex h-9 items-center gap-2 rounded-md border px-3 text-sm">
                     <input
                       type="color"
                       value={v.primaryColor}
@@ -248,20 +248,20 @@ export default function AppearancePage() {
               )}
               <p className="mt-2 font-bold">{v.name}</p>
               {v.bio && <p className="text-muted-foreground mt-1 line-clamp-3 text-xs">{v.bio}</p>}
-              <div className="mt-3 flex flex-wrap justify-center gap-1.5 text-[10px]">
+              <div className="mt-3 flex flex-wrap justify-center gap-1.5 text-[11px]">
                 {v.city && (
-                  <span className="flex items-center gap-1 rounded-full border px-2 py-1">
+                  <span className="flex items-center gap-1 rounded-md border px-2 py-1">
                     <MapPin className="text-primary h-3 w-3" />
                     {v.city}
                   </span>
                 )}
                 {v.instagram && (
-                  <span className="flex items-center gap-1 rounded-full border px-2 py-1">
+                  <span className="flex items-center gap-1 rounded-md border px-2 py-1">
                     <Instagram className="text-primary h-3 w-3" />@{v.instagram.replace(/^@/, '')}
                   </span>
                 )}
                 {v.whatsapp && (
-                  <span className="flex items-center gap-1 rounded-full border px-2 py-1">
+                  <span className="flex items-center gap-1 rounded-md border px-2 py-1">
                     <MessageCircle className="text-primary h-3 w-3" />
                     WhatsApp
                   </span>

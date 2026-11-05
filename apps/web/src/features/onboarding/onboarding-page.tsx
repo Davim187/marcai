@@ -438,7 +438,7 @@ export default function OnboardingPage() {
                         aria-pressed={color === c}
                       />
                     ))}
-                    <label className="flex h-10 items-center gap-2 rounded-full border px-3 text-sm">
+                    <label className="flex h-10 items-center gap-2 rounded-md border px-3 text-sm">
                       <input
                         type="color"
                         value={color}

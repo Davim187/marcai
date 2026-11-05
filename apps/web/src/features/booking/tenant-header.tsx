@@ -30,7 +30,7 @@ export function TenantHeader({ t }: { t: PublicTenant }) {
               href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}
               target="_blank"
               rel="noreferrer"
-              className="bg-card hover:border-primary inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium"
+              className="bg-card hover:border-primary inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium"
             >
               <MapPin className="text-primary h-3.5 w-3.5" /> {t.city ?? 'Ver no mapa'}
             </a>
@@ -40,7 +40,7 @@ export function TenantHeader({ t }: { t: PublicTenant }) {
               href={`https://instagram.com/${t.instagram}`}
               target="_blank"
               rel="noreferrer"
-              className="bg-card hover:border-primary inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium"
+              className="bg-card hover:border-primary inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium"
             >
               <Instagram className="text-primary h-3.5 w-3.5" /> @{t.instagram}
             </a>
@@ -50,7 +50,7 @@ export function TenantHeader({ t }: { t: PublicTenant }) {
               href={whatsappLink(t.whatsapp)}
               target="_blank"
               rel="noreferrer"
-              className="bg-card hover:border-primary inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium"
+              className="bg-card hover:border-primary inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium"
             >
               <MessageCircle className="text-primary h-3.5 w-3.5" /> WhatsApp
             </a>

@@ -107,7 +107,7 @@ export default function ReportsPage() {
             onClick={() => setRange({ id: p.id, from: p.from, to: p.to })}
             aria-pressed={range.id === p.id}
             className={cn(
-              'rounded-full border px-3 py-1.5 text-sm font-medium',
+              'rounded-md border px-3 py-1.5 text-sm font-medium',
               range.id === p.id
                 ? 'border-primary bg-primary text-primary-foreground'
                 : 'bg-card hover:bg-muted',

@@ -32,7 +32,7 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
         if (!items.length) return null
         return (
           <div key={group.label}>
-            <p className="text-muted-foreground mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider">
+            <p className="text-sidebar-muted mb-1.5 px-3 text-[11px] font-bold uppercase tracking-[0.12em] [font-stretch:118%]">
               {group.label}
             </p>
             <ul className="space-y-0.5">
@@ -44,9 +44,9 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
                     onClick={onNavigate}
                     className={({ isActive }) =>
                       cn(
-                        'text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-3 rounded-full px-3 py-2 text-sm font-medium transition-colors',
+                        'text-sidebar-muted hover:text-sidebar-foreground flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-white/[0.06]',
                         isActive &&
-                          'bg-inverse text-inverse-foreground hover:bg-inverse hover:text-inverse-foreground',
+                          'bg-sidebar-active text-sidebar-active-foreground hover:bg-sidebar-active hover:text-sidebar-active-foreground font-semibold',
                       )
                     }
                   >
@@ -62,7 +62,7 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
       {user.isSuperAdmin && (
         <NavLink
           to={ADMIN_ITEM.to}
-          className="text-muted-foreground hover:bg-muted flex items-center gap-3 rounded-full px-3 py-2 text-sm font-medium"
+          className="text-sidebar-muted hover:text-sidebar-foreground flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-white/[0.06]"
         >
           <ADMIN_ITEM.icon className="h-[18px] w-[18px]" /> {ADMIN_ITEM.label}
         </NavLink>
@@ -106,15 +106,16 @@ export default function PanelLayout() {
         </div>
       )}
       {/* Sidebar desktop */}
-      <aside className="bg-card shadow-soft fixed bottom-4 left-4 top-4 z-30 hidden w-60 flex-col overflow-hidden rounded-[1.75rem] border lg:flex">
+      {/* Menu lateral: o cartão verde, com o cartão branco do salão por cima */}
+      <aside className="bg-sidebar text-sidebar-foreground fixed inset-y-0 left-0 z-30 hidden w-64 flex-col lg:flex">
         <div className="flex h-16 items-center px-5">
-          <BrandLogo />
+          <BrandLogo className="[&_svg]:ring-sidebar-border [&_svg]:rounded-lg [&_svg]:ring-1" />
         </div>
-        <div className="bg-muted mx-3 mb-4 rounded-2xl p-3">
-          <p className="truncate text-sm font-semibold">{tenant.name}</p>
+        <div className="bg-sidebar-active text-sidebar-active-foreground shadow-lift mx-3 mb-5 rounded-md p-3">
+          <p className="truncate text-sm font-bold [font-stretch:112%]">{tenant.name}</p>
           <button
             onClick={copyLink}
-            className="text-primary mt-1 flex w-full items-center gap-1.5 truncate text-xs hover:underline"
+            className="text-stamp font-typed mt-1 flex w-full items-center gap-1.5 truncate text-xs underline-offset-4 hover:underline"
           >
             <Copy className="h-3 w-3 shrink-0" />
             <span className="truncate">{tenant.publicUrl.replace(/^https?:\/\//, '')}</span>
@@ -125,8 +126,8 @@ export default function PanelLayout() {
         </div>
       </aside>
 
-      <div className="lg:pl-[17rem]">
-        <header className="bg-background/85 sticky top-0 z-20 flex h-14 items-center gap-2 px-4 backdrop-blur-md sm:h-16 sm:px-6 lg:top-4 lg:mx-4 lg:h-14 lg:rounded-full lg:px-3">
+      <div className="lg:pl-64">
+        <header className="bg-background/90 sticky top-0 z-20 flex h-14 items-center gap-2 border-b px-4 backdrop-blur-md sm:h-16 sm:px-6">
           <div className="flex min-w-0 flex-1 items-center gap-2 lg:hidden">
             <span className="truncate text-base font-bold">{tenant.name}</span>
           </div>
@@ -196,10 +197,10 @@ export default function PanelLayout() {
 
       {/* Bottom navigation (celular) */}
       <nav
-        className="pb-safe pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3 lg:hidden"
+        className="bg-sidebar pb-safe fixed inset-x-0 bottom-0 z-30 lg:hidden"
         aria-label="Navegação"
       >
-        <ul className="bg-card/95 shadow-lift pointer-events-auto grid grid-cols-5 rounded-full border p-1.5 backdrop-blur-md">
+        <ul className="grid grid-cols-5 gap-1 px-2 pt-1.5">
           {BOTTOM_NAV.map((item) => (
             <li key={item.to}>
               <NavLink
@@ -207,8 +208,8 @@ export default function PanelLayout() {
                 end={item.to === '/painel'}
                 className={({ isActive }) =>
                   cn(
-                    'text-muted-foreground flex flex-col items-center gap-0.5 rounded-full py-1.5 text-[11px] font-medium transition-colors',
-                    isActive && 'bg-inverse text-inverse-foreground',
+                    'text-sidebar-muted flex flex-col items-center gap-0.5 rounded-md py-1.5 text-[11px] font-medium transition-colors',
+                    isActive && 'bg-sidebar-active text-sidebar-active-foreground font-semibold',
                   )
                 }
               >
@@ -222,8 +223,8 @@ export default function PanelLayout() {
               to="/painel/mais"
               className={({ isActive }) =>
                 cn(
-                  'text-muted-foreground flex flex-col items-center gap-0.5 rounded-full py-1.5 text-[11px] font-medium transition-colors',
-                  isActive && 'bg-inverse text-inverse-foreground',
+                  'text-sidebar-muted flex flex-col items-center gap-0.5 rounded-md py-1.5 text-[11px] font-medium transition-colors',
+                  isActive && 'bg-sidebar-active text-sidebar-active-foreground font-semibold',
                 )
               }
             >
