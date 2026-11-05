@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import {
+  ArrowRight,
+  Hourglass,
   CalendarCheck,
   CalendarDays,
   Copy,
@@ -61,7 +63,7 @@ export default function DashboardPage() {
       await navigator
         .share({ title: tenant.name, text, url: tenant.publicUrl })
         .catch(() => undefined)
-    else if (await copyToClipboard(tenant.publicUrl)) toast.success('Link copiado!')
+    else if (await copyToClipboard(tenant.publicUrl)) toast.success('Link copiado.')
   }
 
   return (
@@ -71,8 +73,8 @@ export default function DashboardPage() {
           <p className="text-muted-foreground text-sm">
             {capitalize(fmt(new Date().toISOString(), tz, "EEEE, d 'de' MMMM"))}
           </p>
-          <h1 className="text-2xl font-bold sm:text-[28px]">
-            {greeting()}, {user.name.split(' ')[0]}! 👋
+          <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.025em] sm:text-[2rem]">
+            {greeting()}, {user.name.split(' ')[0]}
           </h1>
         </div>
         <Button onClick={() => setNewOpen(true)} className="hidden sm:inline-flex">
@@ -80,11 +82,14 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      <Card className="border-primary/20 from-primary-soft via-card to-card overflow-hidden bg-gradient-to-br">
+      <section
+        aria-label="Seu link de agendamento"
+        className="soft-surface overflow-hidden rounded-2xl"
+      >
         <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:p-5">
           <div className="min-w-0 flex-1">
             <p className="text-muted-foreground text-sm font-medium">Seu link de agendamento</p>
-            <p className="text-primary truncate text-lg font-bold">
+            <p className="text-primary truncate text-lg font-semibold tracking-[-0.01em]">
               {tenant.publicUrl.replace(/^https?:\/\//, '')}
             </p>
           </div>
@@ -92,7 +97,7 @@ export default function DashboardPage() {
             <Button
               onClick={async () =>
                 (await copyToClipboard(tenant.publicUrl)) &&
-                toast.success('Link copiado! Cole na bio do Instagram')
+                toast.success('Link copiado. Cole na bio do Instagram')
               }
             >
               <Copy /> Copiar link
@@ -110,7 +115,7 @@ export default function DashboardPage() {
             </Button>
           </div>
         </CardContent>
-      </Card>
+      </section>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat
@@ -144,10 +149,15 @@ export default function DashboardPage() {
           {isLoading ? (
             <Skeleton className="h-40 rounded-2xl" />
           ) : data?.next ? (
-            <Card className="bg-primary text-primary-foreground">
+            <section
+              aria-label="Próximo atendimento"
+              className="brand-cover text-primary-foreground rounded-2xl"
+            >
               <CardContent className="p-5">
                 <p className="text-sm font-medium opacity-80">Próximo atendimento</p>
-                <p className="mt-2 text-3xl font-bold">{fmt(data.next.startsAt, tz, 'HH:mm')}</p>
+                <p className="mt-2 font-mono text-4xl font-medium tracking-[-0.04em]">
+                  {fmt(data.next.startsAt, tz, 'HH:mm')}
+                </p>
                 <p className="text-sm opacity-90">
                   {fmt(data.next.startsAt, tz, 'yyyy-MM-dd') === todayIn(tz)
                     ? 'Hoje'
@@ -171,7 +181,7 @@ export default function DashboardPage() {
                   Ver detalhes
                 </Button>
               </CardContent>
-            </Card>
+            </section>
           ) : (
             <EmptyState
               icon={CalendarCheck}
@@ -182,10 +192,15 @@ export default function DashboardPage() {
           {data && data.pendingCount > 0 && (
             <Link
               to="/painel/agendamentos?status=pending"
-              className="border-warning/40 bg-warning/10 flex items-center justify-between rounded-2xl border p-4 text-sm font-medium"
+              className="border-warning/30 bg-warning/[0.07] hover:bg-warning/[0.12] flex items-center gap-3 rounded-2xl border p-4 text-sm font-medium transition-colors"
             >
-              ⏳ {data.pendingCount} agendamento(s) esperando sua confirmação
-              <span className="text-warning font-semibold">Ver</span>
+              <Hourglass className="text-warning h-4 w-4 shrink-0" aria-hidden />
+              <span className="flex-1">
+                {data.pendingCount} agendamento(s) esperando sua confirmação
+              </span>
+              <span className="text-warning inline-flex items-center gap-1 font-semibold">
+                Ver <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+              </span>
             </Link>
           )}
         </div>
@@ -205,17 +220,17 @@ export default function DashboardPage() {
               </div>
             ) : !data?.today.length ? (
               <p className="bg-muted/60 text-muted-foreground rounded-xl p-6 text-center text-sm">
-                Nenhum horário marcado para hoje. Aproveite para descansar ✨
+                Nenhum horário marcado para hoje.
               </p>
             ) : (
-              <ol className="space-y-2">
+              <ol className="divide-y">
                 {data.today.map((b) => (
                   <li key={b.id}>
                     <button
                       onClick={() => navigate(`/painel/agenda/${b.id}`)}
-                      className="hover:border-primary/50 hover:bg-muted/40 flex w-full items-center gap-3 rounded-xl border p-3 text-left transition"
+                      className="hover:bg-muted/50 -mx-2 flex w-[calc(100%+1rem)] items-center gap-4 rounded-lg px-2 py-3 text-left transition-colors"
                     >
-                      <span className="w-12 text-center text-sm font-bold tabular-nums">
+                      <span className="text-muted-foreground w-12 font-mono text-sm font-medium">
                         {fmt(b.startsAt, tz, 'HH:mm')}
                       </span>
                       <div className="min-w-0 flex-1">
@@ -272,13 +287,13 @@ function Stat({
   sub?: string
 }) {
   return (
-    <Card className="p-4">
+    <Card className="p-4 shadow-none sm:p-5">
       <div className="text-muted-foreground flex items-center gap-2">
-        <Icon className="text-primary h-4 w-4" aria-hidden />
+        <Icon className="h-4 w-4" aria-hidden />
         <span className="text-xs font-medium sm:text-sm">{label}</span>
       </div>
       {value ? (
-        <p className="mt-2 text-xl font-bold tabular-nums sm:text-2xl">{value}</p>
+        <p className="mt-3 text-xl font-semibold tracking-[-0.02em] sm:text-[1.65rem]">{value}</p>
       ) : (
         <Skeleton className="mt-2 h-7 w-24" />
       )}

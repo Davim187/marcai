@@ -144,9 +144,7 @@ export default function ServicesPage() {
           {grouped.map(({ category, items }) => (
             <section key={category.id || 'none'}>
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-muted-foreground text-sm font-semibold uppercase tracking-wider">
-                  {category.name}
-                </h2>
+                <h2 className="text-muted-foreground text-sm font-medium">{category.name}</h2>
                 {category.id && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

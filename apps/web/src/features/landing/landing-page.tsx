@@ -2,7 +2,6 @@ import { motion } from 'framer-motion'
 import {
   ArrowRight,
   BellRing,
-  CalendarCheck2,
   Check,
   ChevronDown,
   Clock,
@@ -91,74 +90,82 @@ const FAQ = [
 function PhoneMockup() {
   return (
     <div className="relative mx-auto w-[280px] sm:w-[300px]">
-      <div
-        className="from-primary/30 absolute -inset-8 -z-10 rounded-full bg-gradient-to-tr via-indigo-200/40 to-transparent blur-3xl"
-        aria-hidden
-      />
-      <div className="overflow-hidden rounded-[2.6rem] border-[10px] border-[#0F172A] bg-[#F8FAFC] shadow-2xl">
-        <div className="h-20 bg-gradient-to-br from-[#6366F1] to-[#3730A3]" />
+      <div className="bg-primary/15 absolute -inset-10 -z-10 rounded-full blur-3xl" aria-hidden />
+      <div className="overflow-hidden rounded-[2.6rem] border-[10px] border-[#14202A] bg-[#F7F9FB] shadow-[0_30px_60px_-20px_hsl(210_40%_15%/.35)]">
+        <div className="brand-cover h-20" />
         <div className="-mt-8 flex flex-col items-center px-4 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-[#F8FAFC] bg-[#EEF2FF] text-xl font-bold text-[#4F46E5]">
-            M
+          <div className="flex h-16 w-16 items-center justify-center rounded-[1.25rem] border-4 border-[#F7F9FB] bg-[#E8F1F5] text-xl font-semibold text-[#1F5F7A]">
+            V
           </div>
-          <p className="mt-2 text-sm font-bold text-[#0F172A]">Studio Vértice</p>
-          <p className="text-[10px] text-[#64748B]">Unhas, cabelo e estética</p>
+          <p className="mt-2 text-sm font-semibold text-[#13212B]">Studio Vértice</p>
+          <p className="text-[10px] text-[#5B6B78]">Cabelo, barba e unhas</p>
         </div>
         <div className="space-y-2 p-3">
           {[
             ['Corte + barba', 'R$ 70', '1h'],
             ['Escova', 'a partir de R$ 60', '45 min'],
           ].map(([n, p, d]) => (
-            <div key={n} className="rounded-xl border border-[#E2E8F0] bg-white p-2.5 text-left">
-              <p className="text-xs font-semibold text-[#0F172A]">{n}</p>
+            <div key={n} className="rounded-xl border border-[#E1E7EC] bg-white p-2.5 text-left">
+              <p className="text-xs font-semibold text-[#13212B]">{n}</p>
               <p className="mt-0.5 flex gap-2 text-[10px]">
-                <span className="font-bold text-[#4F46E5]">{p}</span>
-                <span className="flex items-center gap-0.5 text-[#64748B]">
+                <span className="font-semibold text-[#1F5F7A]">{p}</span>
+                <span className="flex items-center gap-0.5 text-[#5B6B78]">
                   <Clock className="h-2.5 w-2.5" />
                   {d}
                 </span>
               </p>
             </div>
           ))}
-          <p className="pt-1 text-[10px] font-semibold uppercase tracking-wider text-[#64748B]">
-            Quinta, 6 de novembro
-          </p>
+          <p className="pt-1 text-[10px] font-medium text-[#5B6B78]">Quinta, 6 de novembro</p>
           <div className="grid grid-cols-4 gap-1.5">
             {['08:00', '09:30', '10:00', '13:30', '14:00', '15:30', '16:00', '17:30'].map(
               (t, i) => (
                 <span
                   key={t}
-                  className={`rounded-lg border py-1.5 text-center text-[10px] font-semibold ${i === 4 ? 'border-[#4F46E5] bg-[#4F46E5] text-white' : 'border-[#E2E8F0] bg-white text-[#0F172A]'}`}
+                  className={`rounded-lg border py-1.5 text-center font-mono text-[10px] font-medium ${i === 4 ? 'border-[#1F5F7A] bg-[#1F5F7A] text-white' : 'border-[#E1E7EC] bg-white text-[#13212B]'}`}
                 >
                   {t}
                 </span>
               ),
             )}
           </div>
-          <div className="mt-2 rounded-lg bg-[#4F46E5] py-2 text-center text-xs font-semibold text-white">
+          <div className="mt-2 rounded-lg bg-[#1F5F7A] py-2 text-center text-xs font-semibold text-white">
             Confirmar agendamento
           </div>
         </div>
       </div>
       <motion.div
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.8 }}
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8, type: 'spring', stiffness: 180, damping: 20 }}
         className="shadow-lift absolute -right-6 top-44 w-52 rounded-2xl border bg-white p-3 text-left sm:-right-16"
       >
-        <p className="flex items-center gap-1.5 text-xs font-bold text-[#0F172A]">
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#25D366] text-white">
+        <p className="flex items-center gap-1.5 text-xs font-semibold text-[#13212B]">
+          <span className="flex h-5 w-5 items-center justify-center rounded-md bg-[#25D366] text-white">
             <MessageCircle className="h-3 w-3" />
           </span>
-          Novo agendamento!
+          Novo agendamento
         </p>
         <p className="mt-1 text-[11px] leading-snug text-[#475569]">
-          👤 Ana Souza
-          <br />✨ Corte + barba
+          Ana Souza
           <br />
-          📅 Quinta, 06/11 · 14:00
+          Corte + barba
+          <br />
+          Quinta, 06/11 · 14:00
         </p>
       </motion.div>
+    </div>
+  )
+}
+
+function SectionTitle({ kicker, title, text }: { kicker: string; title: string; text?: string }) {
+  return (
+    <div>
+      <p className="text-primary text-sm font-medium">{kicker}</p>
+      <h2 className="mt-2 text-3xl font-semibold leading-[1.1] tracking-[-0.03em] sm:text-[2.6rem]">
+        {title}
+      </h2>
+      {text && <p className="text-muted-foreground mt-4 max-w-md text-[1.05rem]">{text}</p>}
     </div>
   )
 }
@@ -169,23 +176,29 @@ export default function LandingPage() {
   }, [])
   return (
     <div className="bg-background min-h-dvh">
+      <a
+        href="#conteudo"
+        className="bg-primary text-primary-foreground sr-only z-50 rounded-md px-3 py-2 focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
+      >
+        Pular para o conteúdo
+      </a>
       <header className="bg-background/80 sticky top-0 z-30 border-b border-transparent backdrop-blur-md">
         <div className="container flex h-16 items-center justify-between">
           <Logo />
           <nav
-            className="text-muted-foreground hidden items-center gap-6 text-sm font-medium md:flex"
+            className="text-muted-foreground hidden items-center gap-7 text-sm font-medium md:flex"
             aria-label="Seções"
           >
-            <a href="#como-funciona" className="hover:text-foreground">
+            <a href="#como-funciona" className="hover:text-foreground transition-colors">
               Como funciona
             </a>
-            <a href="#beneficios" className="hover:text-foreground">
+            <a href="#beneficios" className="hover:text-foreground transition-colors">
               Benefícios
             </a>
-            <a href="#planos" className="hover:text-foreground">
+            <a href="#planos" className="hover:text-foreground transition-colors">
               Planos
             </a>
-            <a href="#duvidas" className="hover:text-foreground">
+            <a href="#duvidas" className="hover:text-foreground transition-colors">
               Dúvidas
             </a>
           </nav>
@@ -200,142 +213,137 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <main>
+      <main id="conteudo">
         <section className="relative overflow-hidden">
           <div
-            className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,#E0E7FF_0%,transparent_55%)]"
+            className="absolute inset-0 -z-10 bg-[radial-gradient(60%_55%_at_85%_10%,hsl(var(--primary)/.12),transparent_70%),radial-gradient(hsl(var(--primary)/.07)_1px,transparent_1px)] [background-size:auto,18px_18px]"
             aria-hidden
           />
-          <div className="container grid items-center gap-12 py-12 sm:py-20 lg:grid-cols-2">
+          <div className="container grid items-center gap-14 pb-16 pt-12 sm:pb-28 sm:pt-20 lg:grid-cols-[1.15fr_1fr]">
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
+              transition={{ type: 'spring', stiffness: 120, damping: 20 }}
             >
-              <span className="bg-primary-soft text-primary inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold">
-                <Sparkles className="h-3.5 w-3.5" /> Para salões, barbearias, estúdios e
-                profissionais de beleza
-              </span>
-              <h1 className="mt-5 text-4xl font-extrabold leading-[1.08] sm:text-5xl lg:text-6xl">
+              <p className="text-muted-foreground text-sm font-medium">
+                Para salões, barbearias, estúdios e profissionais de beleza
+              </p>
+              <h1 className="mt-4 text-[2.6rem] font-semibold leading-[1.02] tracking-[-0.04em] sm:text-6xl lg:text-[4.25rem]">
                 Sua agenda cheia, sem precisar responder mensagem.
               </h1>
-              <p className="text-muted-foreground mt-5 max-w-lg text-lg">
+              <p className="text-muted-foreground mt-6 max-w-[34rem] text-lg leading-relaxed">
                 Coloque seu link na bio do Instagram. A cliente escolhe o serviço, vê só os horários
                 livres e agenda sozinha. Você recebe o aviso na hora, até no WhatsApp.
               </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Button size="lg" asChild>
                   <Link to="/cadastro">
                     Começar grátis por 30 dias <ArrowRight />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" asChild>
-                  <a href="/studiovertice">Ver uma página de exemplo</a>
-                </Button>
+                <a
+                  href="/studiovertice"
+                  className="text-foreground hover:text-primary inline-flex h-12 items-center justify-center gap-1.5 px-2 text-sm font-semibold underline-offset-4 transition-colors hover:underline"
+                >
+                  Ver uma página de exemplo
+                </a>
               </div>
-              <p className="text-muted-foreground mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm">
-                <span className="flex items-center gap-1.5">
-                  <Check className="text-success h-4 w-4" /> Sem cartão
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Check className="text-success h-4 w-4" /> Pronto em 3 minutos
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Check className="text-success h-4 w-4" /> Cancele quando quiser
-                </span>
+              <p className="text-muted-foreground mt-6 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                {['Sem cartão', 'Pronto em 3 minutos', 'Cancele quando quiser'].map((t) => (
+                  <span key={t} className="flex items-center gap-1.5">
+                    <Check className="text-primary h-4 w-4" aria-hidden /> {t}
+                  </span>
+                ))}
               </p>
             </motion.div>
             <PhoneMockup />
           </div>
         </section>
 
-        <section id="como-funciona" className="bg-card border-y py-16 sm:py-24">
-          <div className="container">
-            <h2 className="text-center text-3xl font-extrabold sm:text-4xl">Como funciona</h2>
-            <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-center">
-              Três passos e sua agenda começa a se encher sozinha.
-            </p>
-            <ol className="mt-12 grid gap-6 md:grid-cols-3">
+        <section id="como-funciona" className="bg-card border-y py-20 sm:py-28">
+          <div className="container grid gap-12 lg:grid-cols-[1fr_1.4fr] lg:gap-20">
+            <SectionTitle
+              kicker="Como funciona"
+              title="Três passos e a agenda começa a se encher sozinha."
+            />
+            <ol className="divide-y border-y">
               {STEPS.map((s, i) => (
-                <li key={s.title} className="bg-background relative rounded-3xl border p-6">
-                  <span
-                    className="text-primary/10 absolute right-5 top-4 text-5xl font-extrabold"
-                    aria-hidden
-                  >
-                    {i + 1}
+                <li key={s.title} className="grid grid-cols-[3rem_1fr] gap-4 py-7">
+                  <span className="text-muted-foreground font-mono text-sm font-medium">
+                    0{i + 1}
                   </span>
-                  <span className="bg-primary-soft text-primary flex h-12 w-12 items-center justify-center rounded-2xl">
-                    <s.icon className="h-6 w-6" />
-                  </span>
-                  <h3 className="mt-4 text-lg font-bold">{s.title}</h3>
-                  <p className="text-muted-foreground mt-2 text-sm">{s.text}</p>
+                  <div>
+                    <h3 className="flex items-center gap-2.5 text-lg font-semibold tracking-[-0.01em]">
+                      <s.icon className="text-primary h-5 w-5" aria-hidden />
+                      {s.title}
+                    </h3>
+                    <p className="text-muted-foreground mt-2 max-w-md">{s.text}</p>
+                  </div>
                 </li>
               ))}
             </ol>
           </div>
         </section>
 
-        <section id="beneficios" className="py-16 sm:py-24">
+        <section id="beneficios" className="py-20 sm:py-28">
           <div className="container">
-            <h2 className="text-center text-3xl font-extrabold sm:text-4xl">
-              Feito para quem vive de agenda
-            </h2>
-            <div className="mt-12 grid gap-6 sm:grid-cols-2">
+            <SectionTitle
+              kicker="Benefícios"
+              title="Feito para quem vive de agenda."
+              text="Menos tempo no celular respondendo, mais tempo atendendo."
+            />
+            <div className="mt-14 grid gap-x-16 gap-y-10 sm:grid-cols-2">
               {BENEFITS.map((b) => (
-                <div
-                  key={b.title}
-                  className="bg-card shadow-soft flex gap-4 rounded-3xl border p-6"
-                >
-                  <span className="bg-primary text-primary-foreground flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl">
-                    <b.icon className="h-6 w-6" />
+                <div key={b.title} className="border-t pt-6">
+                  <span className="bg-primary-soft text-primary flex h-10 w-10 items-center justify-center rounded-xl">
+                    <b.icon className="h-5 w-5" aria-hidden />
                   </span>
-                  <div>
-                    <h3 className="text-lg font-bold">{b.title}</h3>
-                    <p className="text-muted-foreground mt-1.5">{b.text}</p>
-                  </div>
+                  <h3 className="mt-5 text-lg font-semibold tracking-[-0.01em]">{b.title}</h3>
+                  <p className="text-muted-foreground mt-2 max-w-md">{b.text}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section id="planos" className="bg-card border-y py-16 sm:py-24">
+        <section id="planos" className="bg-card border-y py-20 sm:py-28">
           <div className="container">
-            <h2 className="text-center text-3xl font-extrabold sm:text-4xl">
-              Planos simples, sem surpresa
-            </h2>
-            <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-center">
-              Comece com 30 dias grátis de tudo. Depois, escolha o plano que faz sentido para você.
-            </p>
-            <div className="mx-auto mt-12 grid max-w-4xl gap-6 md:grid-cols-2">
+            <SectionTitle
+              kicker="Planos"
+              title="Simples, sem surpresa."
+              text="Comece com 30 dias grátis de tudo. Depois, escolha o plano que faz sentido para você."
+            />
+            <div className="mt-14 grid max-w-4xl gap-6 md:grid-cols-2">
               {Object.values(PLANS).map((p) => (
                 <div
                   key={p.id}
-                  className={`bg-background relative flex flex-col rounded-3xl border p-7 ${p.id === 'pro' ? 'border-primary shadow-lift ring-primary/30 ring-1' : ''}`}
+                  className={`relative flex flex-col rounded-3xl border p-7 sm:p-8 ${p.id === 'pro' ? 'border-primary/60 bg-primary-soft/60 ring-primary/20 ring-1' : 'bg-background'}`}
                 >
-                  {p.id === 'pro' && (
-                    <span className="bg-primary text-primary-foreground absolute -top-3 left-7 rounded-full px-3 py-1 text-xs font-bold">
-                      Mais escolhido
-                    </span>
-                  )}
-                  <h3 className="text-xl font-bold">{p.name}</h3>
-                  <p className="text-muted-foreground mt-1 text-sm">{p.tagline}</p>
-                  <p className="mt-5">
-                    <span className="text-4xl font-extrabold">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-xl font-semibold">{p.name}</h3>
+                    {p.id === 'pro' && (
+                      <span className="bg-primary text-primary-foreground rounded-md px-2 py-0.5 text-xs font-semibold">
+                        Mais escolhido
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-muted-foreground mt-1 min-h-[2.5rem] text-sm">{p.tagline}</p>
+                  <p className="mt-5 flex items-baseline gap-1">
+                    <span className="text-[2.6rem] font-semibold tracking-[-0.04em]">
                       {formatBRL(p.priceCents).replace(',00', '')}
                     </span>
                     <span className="text-muted-foreground">/mês</span>
                   </p>
-                  <ul className="mt-6 flex-1 space-y-2.5 text-sm">
+                  <ul className="mt-6 flex-1 space-y-3 text-sm">
                     {p.highlights.map((h) => (
-                      <li key={h} className="flex gap-2">
-                        <Check className="text-success h-4 w-4 shrink-0" />
+                      <li key={h} className="flex gap-2.5">
+                        <Check className="text-primary h-4 w-4 shrink-0" aria-hidden />
                         {h}
                       </li>
                     ))}
                   </ul>
                   <Button
-                    className="mt-7"
+                    className="mt-8"
                     size="lg"
                     variant={p.id === 'pro' ? 'default' : 'outline'}
                     asChild
@@ -348,34 +356,39 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="duvidas" className="py-16 sm:py-24">
-          <div className="container max-w-3xl">
-            <h2 className="text-center text-3xl font-extrabold sm:text-4xl">Dúvidas frequentes</h2>
-            <div className="bg-card mt-10 divide-y rounded-3xl border">
+        <section id="duvidas" className="py-20 sm:py-28">
+          <div className="container grid gap-10 lg:grid-cols-[1fr_1.4fr] lg:gap-20">
+            <SectionTitle
+              kicker="Dúvidas"
+              title="Perguntas que sempre chegam."
+              text="Não achou a sua? Fale com a gente pelo WhatsApp depois de criar a conta."
+            />
+            <div className="divide-y border-y">
               {FAQ.map(([q, a]) => (
-                <details key={q} className="group p-5 [&_summary::-webkit-details-marker]:hidden">
-                  <summary className="flex cursor-pointer items-center justify-between gap-4 font-semibold">
+                <details key={q} className="group py-5 [&_summary::-webkit-details-marker]:hidden">
+                  <summary className="hover:text-primary flex cursor-pointer items-center justify-between gap-4 font-medium transition-colors">
                     {q}
-                    <ChevronDown className="text-muted-foreground h-5 w-5 shrink-0 transition group-open:rotate-180" />
+                    <ChevronDown className="text-muted-foreground h-5 w-5 shrink-0 transition-transform duration-200 group-open:rotate-180" />
                   </summary>
-                  <p className="text-muted-foreground mt-3">{a}</p>
+                  <p className="text-muted-foreground mt-3 max-w-xl">{a}</p>
                 </details>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="pb-20">
+        <section className="pb-24">
           <div className="container">
-            <div className="rounded-[2rem] bg-gradient-to-br from-[#4F46E5] to-[#312E81] px-6 py-14 text-center text-white sm:px-12">
-              <CalendarCheck2 className="mx-auto h-10 w-10 opacity-90" />
-              <h2 className="mt-4 text-3xl font-extrabold sm:text-4xl">
-                Sua próxima cliente pode agendar hoje.
-              </h2>
-              <p className="mx-auto mt-3 max-w-lg opacity-90">
-                Crie sua página em 3 minutos e coloque o link na bio. É grátis por 30 dias.
-              </p>
-              <Button size="lg" variant="secondary" className="mt-8" asChild>
+            <div className="brand-cover text-primary-foreground flex flex-col gap-8 rounded-[2rem] px-7 py-14 sm:px-14 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <h2 className="max-w-xl text-3xl font-semibold leading-[1.1] tracking-[-0.03em] sm:text-[2.6rem]">
+                  Sua próxima cliente pode agendar hoje.
+                </h2>
+                <p className="mt-4 max-w-lg opacity-85">
+                  Crie sua página em 3 minutos e coloque o link na bio. É grátis por 30 dias.
+                </p>
+              </div>
+              <Button size="lg" variant="secondary" className="self-start lg:self-auto" asChild>
                 <Link to="/cadastro">
                   Criar minha agenda grátis <ArrowRight />
                 </Link>

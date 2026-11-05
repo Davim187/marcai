@@ -33,7 +33,7 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
         if (!items.length) return null
         return (
           <div key={group.label}>
-            <p className="text-muted-foreground/80 mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider">
+            <p className="text-muted-foreground/75 mb-1.5 px-3 text-xs font-medium">
               {group.label}
             </p>
             <ul className="space-y-0.5">
@@ -45,9 +45,9 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
                     onClick={onNavigate}
                     className={({ isActive }) =>
                       cn(
-                        'text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition',
+                        'text-muted-foreground hover:bg-muted hover:text-foreground relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                         isActive &&
-                          'bg-primary-soft text-primary hover:bg-primary-soft hover:text-primary',
+                          'bg-primary-soft text-primary hover:bg-primary-soft hover:text-primary before:bg-primary font-semibold before:absolute before:inset-y-2 before:-left-3 before:w-[3px] before:rounded-r-full',
                       )
                     }
                   >
@@ -98,7 +98,7 @@ export default function PanelLayout() {
 
   async function copyLink() {
     if (await copyToClipboard(tenant.publicUrl))
-      toast.success('Link copiado! Cole na bio do Instagram')
+      toast.success('Link copiado. Cole na bio do Instagram')
   }
 
   return (
@@ -111,12 +111,18 @@ export default function PanelLayout() {
           </button>
         </div>
       )}
+      <a
+        href="#conteudo"
+        className="bg-primary text-primary-foreground sr-only z-50 rounded-md px-3 py-2 focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
+      >
+        Pular para o conteúdo
+      </a>
       {/* Sidebar desktop */}
       <aside className="bg-card fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r lg:flex">
         <div className="flex h-16 items-center px-5">
           <BrandLogo />
         </div>
-        <div className="bg-background mx-3 mb-4 rounded-xl border p-3">
+        <div className="bg-muted/60 mx-3 mb-5 rounded-xl px-3 py-2.5">
           <p className="truncate text-sm font-semibold">{tenant.name}</p>
           <button
             onClick={copyLink}
@@ -195,7 +201,7 @@ export default function PanelLayout() {
         <InviteBanner />
         <SubscriptionBanner />
 
-        <main className="mx-auto max-w-6xl px-4 pb-28 pt-5 sm:px-6 sm:pt-8 lg:pb-12">
+        <main id="conteudo" className="mx-auto max-w-6xl px-4 pb-28 pt-5 sm:px-6 sm:pt-8 lg:pb-14">
           <Outlet />
         </main>
       </div>
@@ -213,7 +219,7 @@ export default function PanelLayout() {
                 end={item.to === '/painel'}
                 className={({ isActive }) =>
                   cn(
-                    'text-muted-foreground flex flex-col items-center gap-0.5 pt-2 text-[11px] font-medium',
+                    'text-muted-foreground flex flex-col items-center gap-0.5 pt-2 text-[11px] font-medium transition-colors',
                     isActive && 'text-primary',
                   )
                 }
@@ -228,7 +234,7 @@ export default function PanelLayout() {
               to="/painel/mais"
               className={({ isActive }) =>
                 cn(
-                  'text-muted-foreground flex flex-col items-center gap-0.5 pt-2 text-[11px] font-medium',
+                  'text-muted-foreground flex flex-col items-center gap-0.5 pt-2 text-[11px] font-medium transition-colors',
                   isActive && 'text-primary',
                 )
               }

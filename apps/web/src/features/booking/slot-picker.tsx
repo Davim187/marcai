@@ -126,9 +126,7 @@ export function SlotPicker({
             <div className="space-y-4">
               {groups.map((g) => (
                 <div key={g.label}>
-                  <p className="text-muted-foreground mb-2 text-xs font-semibold uppercase tracking-wider">
-                    {g.label}
-                  </p>
+                  <p className="text-muted-foreground mb-2 text-[0.8rem] font-medium">{g.label}</p>
                   <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
                     {g.items.map((s) => (
                       <button

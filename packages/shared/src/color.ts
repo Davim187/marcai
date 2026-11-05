@@ -75,7 +75,7 @@ export interface Palette {
 }
 
 export function generatePalette(base: string): Palette {
-  const safe = isHexColor(base) ? base : '#4F46E5'
+  const safe = isHexColor(base) ? base : '#1F5F7A'
   const primary = ensureContrastOnWhite(safe)
   return {
     primary,

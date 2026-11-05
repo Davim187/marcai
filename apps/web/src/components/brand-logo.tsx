@@ -8,7 +8,7 @@ export function BrandLogo({ className }: { className?: string }) {
   if (data.appMode === 'single_tenant' && data.brand) {
     return (
       <span
-        className={`inline-flex items-center gap-2 font-extrabold tracking-tight ${className ?? ''}`}
+        className={`inline-flex items-center gap-2 font-semibold tracking-tight ${className ?? ''}`}
       >
         {data.brand.logoUrl ? (
           <img src={data.brand.logoUrl} alt="" className="h-8 w-8 rounded-lg object-cover" />

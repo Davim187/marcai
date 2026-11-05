@@ -1,4 +1,4 @@
-import { CalendarHeart, Clock, Sparkles } from 'lucide-react'
+import { CalendarHeart, Clock } from 'lucide-react'
 import { formatPrice } from '@marcai/shared'
 import { durationLabel } from '@/lib/dates'
 import { type PublicService, type PublicTenant } from './types'
@@ -34,15 +34,11 @@ export function ServiceList({
   }
   return (
     <div className="mt-8 space-y-8">
-      <h2 className="flex items-center gap-2 text-lg font-bold">
-        <Sparkles className="text-primary h-5 w-5" /> Escolha o serviço
-      </h2>
+      <h2 className="text-xl font-semibold tracking-[-0.02em]">Escolha o serviço</h2>
       {groups.map((g) => (
         <section key={g.id}>
           {groups.length > 1 && (
-            <h3 className="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wider">
-              {g.name}
-            </h3>
+            <h3 className="text-muted-foreground mb-3 text-[0.8rem] font-medium">{g.name}</h3>
           )}
           <div className="space-y-3">
             {g.items.map((s) => (

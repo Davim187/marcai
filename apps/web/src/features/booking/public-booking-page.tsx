@@ -103,7 +103,7 @@ export default function PublicBookingPage() {
     return (
       <Centered>
         <LogoMark className="h-12 w-12" />
-        <h1 className="text-xl font-bold">Página não encontrada</h1>
+        <h1 className="text-xl font-semibold">Página não encontrada</h1>
         <p className="text-muted-foreground">Confira se o link está certinho.</p>
       </Centered>
     )
@@ -117,7 +117,7 @@ export default function PublicBookingPage() {
           ) : (
             <LogoMark className="h-12 w-12" />
           )}
-          <h1 className="text-xl font-bold">{t.name}</h1>
+          <h1 className="text-xl font-semibold">{t.name}</h1>
           <p className="text-muted-foreground max-w-xs">
             Agenda temporariamente indisponível. Fale direto com o estabelecimento.
           </p>
@@ -199,7 +199,7 @@ export default function PublicBookingPage() {
 
             {step === 'professional' && (
               <div className="space-y-3 pt-5">
-                <h2 className="text-lg font-bold">Com quem você quer agendar?</h2>
+                <h2 className="text-lg font-semibold">Com quem você quer agendar?</h2>
                 {professionalsForService.map((p) => (
                   <button
                     key={p.id}

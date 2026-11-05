@@ -72,7 +72,7 @@ export default function CustomerDetailPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <Avatar name={c.name} className="h-16 w-16 text-lg" />
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-bold">{c.name}</h1>
+          <h1 className="text-2xl font-semibold tracking-[-0.02em]">{c.name}</h1>
           <p className="text-muted-foreground">
             {formatPhone(c.phone)}
             {c.email && ` · ${c.email}`}

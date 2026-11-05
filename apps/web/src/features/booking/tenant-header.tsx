@@ -7,7 +7,7 @@ export function TenantHeader({ t }: { t: PublicTenant }) {
   const location = [t.address, t.city].filter(Boolean).join(' - ')
   return (
     <header>
-      <div className="from-primary/80 to-primary relative h-36 overflow-hidden bg-gradient-to-br sm:h-44 sm:rounded-b-3xl">
+      <div className="brand-cover relative h-36 overflow-hidden sm:h-44 sm:rounded-b-3xl">
         {t.coverUrl && <img src={t.coverUrl} alt="" className="h-full w-full object-cover" />}
       </div>
       <div className="relative z-10 -mt-12 flex flex-col items-center px-4 text-center">
@@ -15,14 +15,14 @@ export function TenantHeader({ t }: { t: PublicTenant }) {
           <img
             src={t.logoUrl}
             alt={`Logo de ${t.name}`}
-            className="border-background bg-card shadow-soft h-24 w-24 rounded-full border-4 object-cover"
+            className="border-background bg-card shadow-lift h-24 w-24 rounded-[1.75rem] border-4 object-cover"
           />
         ) : (
-          <div className="border-background bg-primary-soft text-primary shadow-soft flex h-24 w-24 items-center justify-center rounded-full border-4 text-3xl font-bold">
+          <div className="border-background bg-primary-soft text-primary shadow-lift flex h-24 w-24 items-center justify-center rounded-[1.75rem] border-4 text-3xl font-semibold">
             {t.name.charAt(0)}
           </div>
         )}
-        <h1 className="mt-3 text-2xl font-bold">{t.name}</h1>
+        <h1 className="mt-3 text-[1.7rem] font-semibold tracking-[-0.02em]">{t.name}</h1>
         {t.bio && <p className="text-muted-foreground mt-1.5 max-w-md text-sm">{t.bio}</p>}
         <div className="mt-4 flex flex-wrap justify-center gap-2">
           {location && (

@@ -133,7 +133,7 @@ export function BookingDetailDialog({
                     <dd className="font-semibold">{b.professional.name}</dd>
                   </div>
                   {b.customerConfirmedAt && (
-                    <div className="text-success col-span-2">✅ A cliente confirmou presença</div>
+                    <div className="text-success col-span-2">A cliente confirmou presença</div>
                   )}
                 </dl>
                 {(b.answers.length > 0 || b.notes) && (

@@ -226,14 +226,12 @@ export default function AppearancePage() {
         </div>
         {/* Pré-visualização ao vivo */}
         <div className="lg:sticky lg:top-24 lg:self-start">
-          <p className="text-muted-foreground mb-2 text-xs font-semibold uppercase tracking-wider">
-            Pré-visualização
-          </p>
+          <p className="text-muted-foreground mb-2 text-[0.8rem] font-medium">Pré-visualização</p>
           <div
             className="border-foreground/90 bg-background shadow-lift mx-auto w-full max-w-[340px] overflow-hidden rounded-[2rem] border-[6px]"
             style={brandStyle(v.primaryColor)}
           >
-            <div className="from-primary/80 to-primary h-24 bg-gradient-to-br">
+            <div className="brand-cover h-24">
               {v.coverUrl && <img src={v.coverUrl} alt="" className="h-full w-full object-cover" />}
             </div>
             <div className="relative z-10 -mt-9 flex flex-col items-center px-4 text-center">

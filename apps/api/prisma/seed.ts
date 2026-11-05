@@ -123,7 +123,7 @@ async function main() {
       city: 'Fortaleza - CE',
       instagram: 'studiovertice',
       whatsapp: '5585988887777',
-      primaryColor: '#4F46E5',
+      primaryColor: '#1F5F7A',
       timezone: TZ,
       minAdvanceMinutes: 120,
       maxAdvanceDays: 30,

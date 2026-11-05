@@ -18,7 +18,7 @@ export function RouteError() {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-4 p-6 text-center">
       <LogoMark className="h-12 w-12" />
-      <h1 className="text-2xl font-bold">
+      <h1 className="text-2xl font-semibold tracking-[-0.02em]">
         {notFound ? 'Página não encontrada' : 'Ops, algo deu errado'}
       </h1>
       <p className="text-muted-foreground max-w-sm">

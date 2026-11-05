@@ -49,7 +49,7 @@ function RequireOwner() {
 function NoAccess() {
   return (
     <div className="mx-auto max-w-md py-16 text-center">
-      <h1 className="text-xl font-bold">Esta área é só da gestão</h1>
+      <h1 className="text-xl font-semibold">Esta área é só da gestão</h1>
       <p className="text-muted-foreground mt-2">
         Peça para quem administra o estabelecimento fazer essa alteração ou liberar seu acesso.
       </p>

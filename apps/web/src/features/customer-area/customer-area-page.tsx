@@ -132,7 +132,7 @@ export default function CustomerAreaPage() {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 p-6 text-center">
         <LogoMark className="h-12 w-12" />
-        <h1 className="text-xl font-bold">Agendamento não encontrado</h1>
+        <h1 className="text-xl font-semibold">Agendamento não encontrado</h1>
         <p className="text-muted-foreground">Confira se o link está completo.</p>
       </div>
     )
@@ -155,14 +155,14 @@ export default function CustomerAreaPage() {
             <p className="text-muted-foreground text-sm">
               Oi, {b.customerName}! Este é o seu horário em
             </p>
-            <h1 className="font-bold">{b.tenant.name}</h1>
+            <h1 className="font-semibold">{b.tenant.name}</h1>
           </div>
         </header>
 
         {mode === 'reschedule' ? (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold">Escolha o novo horário</h2>
+              <h2 className="text-lg font-semibold">Escolha o novo horário</h2>
               <Button variant="ghost" size="sm" onClick={() => setMode('view')}>
                 Voltar
               </Button>

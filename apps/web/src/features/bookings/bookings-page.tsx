@@ -175,7 +175,7 @@ export default function BookingsPage() {
               return (
                 <div key={b.id}>
                   {header && (
-                    <h2 className="text-muted-foreground mb-2 mt-5 text-xs font-semibold uppercase tracking-wider first:mt-0">
+                    <h2 className="text-muted-foreground mb-2 mt-5 text-[0.8rem] font-medium first:mt-0">
                       {capitalize(fmt(b.startsAt, tz, "EEEE, dd 'de' MMMM"))}
                     </h2>
                   )}

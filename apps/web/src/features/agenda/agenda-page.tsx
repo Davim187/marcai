@@ -140,7 +140,7 @@ export default function AgendaPage() {
           <Button variant="ghost" size="icon-sm" onClick={() => shift(1)} aria-label="Próximo">
             <ChevronRight />
           </Button>
-          <h1 className="ml-1 text-lg font-bold sm:text-xl" aria-live="polite">
+          <h1 className="ml-1 text-lg font-semibold sm:text-xl" aria-live="polite">
             {title}
           </h1>
         </div>
@@ -433,7 +433,7 @@ function DayColumn({
             className="text-muted-foreground pointer-events-none absolute inset-x-0 overflow-hidden bg-[repeating-linear-gradient(45deg,hsl(var(--muted))_0_6px,transparent_6px_12px)] px-1.5 py-1 text-[11px] font-medium"
             style={{ top, height: Math.max(12, (e - Math.max(s, startMin)) * PX) }}
           >
-            🔒 {t.reason || 'Bloqueado'}
+            {t.reason || 'Bloqueado'}
           </div>
         )
       })}

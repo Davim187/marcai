@@ -184,7 +184,7 @@ export default function OnboardingPage() {
           >
             <Check className="h-8 w-8" strokeWidth={3} />
           </motion.div>
-          <h1 className="text-2xl font-bold">Sua agenda está no ar! 🎉</h1>
+          <h1 className="text-2xl font-semibold tracking-[-0.02em]">Sua agenda está no ar</h1>
           <p className="text-muted-foreground mt-2 text-sm">
             Coloque esse link na bio do Instagram e mande para suas clientes.
           </p>
@@ -195,7 +195,7 @@ export default function OnboardingPage() {
             <Button
               size="sm"
               onClick={async () =>
-                (await copyToClipboard(done.publicUrl)) && toast.success('Link copiado!')
+                (await copyToClipboard(done.publicUrl)) && toast.success('Link copiado.')
               }
             >
               <Copy /> Copiar
@@ -266,7 +266,9 @@ export default function OnboardingPage() {
             {step === 0 && (
               <div className="space-y-5">
                 <div>
-                  <h1 className="text-2xl font-bold">Como se chama o seu negócio?</h1>
+                  <h1 className="text-2xl font-semibold tracking-[-0.02em]">
+                    Como se chama o seu negócio?
+                  </h1>
                   <p className="text-muted-foreground mt-1 text-sm">
                     É o nome que suas clientes vão ver na página de agendamento.
                   </p>
@@ -355,7 +357,7 @@ export default function OnboardingPage() {
             {step === 1 && (
               <div className="space-y-5">
                 <div>
-                  <h1 className="text-2xl font-bold">Qual é a sua área?</h1>
+                  <h1 className="text-2xl font-semibold tracking-[-0.02em]">Qual é a sua área?</h1>
                   <p className="text-muted-foreground mt-1 text-sm">
                     Já deixamos serviços e perguntas sugeridos. Você ajusta tudo depois.
                   </p>
@@ -389,7 +391,7 @@ export default function OnboardingPage() {
             {step === 2 && (
               <div className="space-y-5">
                 <div>
-                  <h1 className="text-2xl font-bold">Quando você atende?</h1>
+                  <h1 className="text-2xl font-semibold tracking-[-0.02em]">Quando você atende?</h1>
                   <p className="text-muted-foreground mt-1 text-sm">
                     Dá para ter mais de um turno por dia, com pausa para o almoço.
                   </p>
@@ -401,7 +403,9 @@ export default function OnboardingPage() {
             {step === 3 && (
               <div className="space-y-6">
                 <div>
-                  <h1 className="text-2xl font-bold">Deixe com a sua cara</h1>
+                  <h1 className="text-2xl font-semibold tracking-[-0.02em]">
+                    Deixe com a sua cara
+                  </h1>
                   <p className="text-muted-foreground mt-1 text-sm">
                     Logo e cor principal. Se preferir, pule e faça depois.
                   </p>

@@ -8,7 +8,8 @@ export default {
     container: { center: true, padding: '1rem', screens: { '2xl': '1200px' } },
     extend: {
       fontFamily: {
-        sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
+        sans: ['Geist', 'system-ui', 'sans-serif'],
+        mono: ['"Geist Mono"', 'ui-monospace', 'monospace'],
       },
       colors: {
         border: 'hsl(var(--border))',
@@ -44,8 +45,9 @@ export default {
         '2xl': 'calc(var(--radius) + 10px)',
       },
       boxShadow: {
-        soft: '0 1px 2px rgba(43,32,36,.04), 0 4px 16px rgba(43,32,36,.06)',
-        lift: '0 2px 4px rgba(43,32,36,.05), 0 12px 32px rgba(43,32,36,.10)',
+        // Sombras tingidas com o mesmo azul-acinzentado dos neutros (luz vindo de cima)
+        soft: '0 1px 2px hsl(210 30% 20% / .05), 0 2px 8px hsl(210 30% 20% / .04)',
+        lift: '0 2px 4px hsl(210 30% 20% / .06), 0 12px 32px hsl(210 30% 20% / .10)',
       },
       keyframes: {
         'accordion-down': {
