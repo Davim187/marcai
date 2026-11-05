@@ -51,6 +51,12 @@ export type Session =
         role: string
         tenant: { id: string; name: string; slug: string; logoUrl: string | null }
       }>
+      /** Convites para equipes de outros estabelecimentos, aguardando aceite */
+      invites?: Array<{
+        tenantId: string
+        role: string
+        tenant: { id: string; name: string; slug: string; logoUrl: string | null }
+      }>
       activeTenantId: string | null
       tenant: TenantSummary | null
     }

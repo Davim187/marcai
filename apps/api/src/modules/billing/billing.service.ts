@@ -1,5 +1,5 @@
 import type { Invoice, Prisma, Subscription, Tenant } from '@prisma/client'
-import { DAY_MS, PLANS, type PlanId } from '@marcai/shared'
+import { DAY_MS, OPEN_INVOICE_STATUSES, PLANS, type PlanId } from '@marcai/shared'
 import { env } from '../../config/env'
 import { audit } from '../../lib/audit'
 import { badRequest, notFound } from '../../lib/errors'
@@ -25,7 +25,7 @@ export function resetBillingProvider() {
 
 type Tx = Prisma.TransactionClient
 
-const OPEN_INVOICE = ['pending', 'overdue'] as const
+const OPEN_INVOICE = OPEN_INVOICE_STATUSES
 /** Dias depois do vencimento em que o link de pagamento continua válido. */
 const CHECKOUT_GRACE_DAYS = 7
 
@@ -240,8 +240,8 @@ export async function subscribe(opts: {
           provider: p.name,
         },
       })
-      // O cartão vai pagar: faturas PIX/boleto em aberto deixam de valer (e o link expira)
-      await cancelOpenInvoices(sub.id)
+      // A fatura PIX/boleto em aberto continua valendo até o cartão ser AUTORIZADO
+      // (quem desiste no Mercado Pago não fica sem ter como pagar)
     }
   } else {
     sub = await detachCard(sub)
@@ -351,6 +351,8 @@ interface Outcome {
   tenantId?: string
   notify?: { title: string; body: string }
   audit?: { action: string; entity?: string; entityId?: string; metadata?: Prisma.InputJsonValue }
+  /** Depois do commit: cancela as faturas avulsas em aberto (o cartão passou a pagar) */
+  cancelInvoicesOf?: string
 }
 
 /**
@@ -381,6 +383,7 @@ export async function handleBillingEvent(evt: BillingEvent, providerName: string
     if ((err as { code?: string }).code === 'P2002') return { duplicated: true }
     throw err
   }
+  if (outcome.cancelInvoicesOf) await cancelOpenInvoices(outcome.cancelInvoicesOf)
   if (outcome.tenantId && outcome.audit)
     await audit({ tenantId: outcome.tenantId, ...outcome.audit })
   if (outcome.tenantId && outcome.notify)
@@ -444,6 +447,7 @@ async function applyEvent(tx: Tx, evt: BillingEvent): Promise<Outcome> {
     return {
       result: { ok: true },
       tenantId: sub.tenantId,
+      cancelInvoicesOf: sub.id,
       notify: {
         title: 'Cartão autorizado',
         body: 'Sua assinatura no cartão foi autorizada. A mensalidade é cobrada todo mês, automaticamente.',
@@ -540,7 +544,9 @@ async function applyRefund(tx: Tx, evt: BillingEvent): Promise<Outcome> {
       sub.billingDay ?? sub.currentPeriodEnd.getUTCDate(),
     )
     // O mês estornado era o primeiro pago: volta para o teste (se ainda houver) ou atraso
-    const backToTrial = !!sub.trialEndsAt && end.getTime() <= sub.trialEndsAt.getTime()
+    // (compara só a data: o vencimento fica ao meio-dia e o teste termina em qualquer horário)
+    const backToTrial =
+      !!sub.trialEndsAt && atNoon(end).getTime() <= atNoon(sub.trialEndsAt).getTime()
     const data: Prisma.SubscriptionUpdateInput = backToTrial
       ? {
           currentPeriodEnd: null,
@@ -646,8 +652,20 @@ async function confirmInvoicePayment(
 }
 
 /** Avisos de cobrança para as donas (painel + e-mail). */
-export function notifyBillingOwners(tenantId: string, title: string, body: string, dedupe?: string) {
-  return notifyOwners({ tenantId, kind: 'billing', title, body, path: '/painel/assinatura', dedupe })
+export function notifyBillingOwners(
+  tenantId: string,
+  title: string,
+  body: string,
+  dedupe?: string,
+) {
+  return notifyOwners({
+    tenantId,
+    kind: 'billing',
+    title,
+    body,
+    path: '/painel/assinatura',
+    dedupe,
+  })
 }
 
 /** Visão geral para a tela de Assinatura. */

@@ -30,7 +30,11 @@ function senderName(t: Tenant) {
 async function recipients(b: FullBooking) {
   // Donas + a profissional do agendamento (se tiver acesso ao painel)
   const members = await prisma.tenantMember.findMany({
-    where: { tenantId: b.tenantId, OR: [{ role: 'owner' }, { professionalId: b.professionalId }] },
+    where: {
+      tenantId: b.tenantId,
+      acceptedAt: { not: null },
+      OR: [{ role: 'owner' }, { professionalId: b.professionalId }],
+    },
     include: { user: { select: { id: true, email: true } } },
   })
   return members

@@ -90,7 +90,11 @@ export const apiUrl = (path: string) => `${BASE}/api${path}`
 export const imageSrc = (url: string) => (url.startsWith('/api/') ? apiUrl(url.slice(4)) : url)
 
 /** Mensagem amigável em português. Nunca repassa erro técnico cru (ex.: "Invalid time value"). */
+/** Erro de validação feito no próprio front: a mensagem é mostrada como está. */
+export class FriendlyError extends Error {}
+
 export function errorMessage(err: unknown) {
+  if (err instanceof FriendlyError) return err.message
   if (err instanceof ApiError) {
     const first = err.fields && Object.values(err.fields)[0]
     return err.code === 'VALIDACAO' && first ? `Confira os campos: ${first}` : err.message

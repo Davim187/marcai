@@ -9,13 +9,17 @@ import {
   toLocalDate,
   toLocalTime,
   OPEN_BOOKING_STATUSES,
-  isOpenBooking,
 } from '@marcai/shared'
 import { env } from '../../config/env'
 import { logger as baseLogger } from '../../lib/logger'
 import { prisma } from '../../lib/prisma'
 import { channels } from './channels/registry'
-import { PermanentChannelError, type ChannelName, type OutboundMessage } from './channels/types'
+import {
+  outboundMessageSchema,
+  PermanentChannelError,
+  type ChannelName,
+  type OutboundMessage,
+} from './channels/types'
 import { canNotify } from './gating'
 import { getTemplate, loadFullBooking, renderForCustomer } from './messages'
 import { findOwners } from './owners'
@@ -41,7 +45,9 @@ async function claimJobs(): Promise<NotificationJob[]> {
 
 /** Jobs especiais são montados na hora do envio (dados sempre atualizados). */
 async function resolveMessage(job: NotificationJob): Promise<OutboundMessage | null> {
-  const payload = job.payload as unknown as OutboundMessage & { startsAt?: string }
+  const parsed = outboundMessageSchema.safeParse(job.payload)
+  if (!parsed.success) throw new PermanentChannelError('Mensagem inválida na fila')
+  const payload = parsed.data
   if (job.kind === 'customer_reminder' || job.kind === 'customer_reminder_email') {
     const b = job.bookingId ? await loadFullBooking(job.bookingId) : null
     // Lembrete obsoleto: cancelado, remarcado, cliente excluída ou plano sem o recurso
@@ -157,8 +163,10 @@ async function fallbackToEmail(job: NotificationJob) {
     include: { user: true, tenant: true },
   })
   // Se o e-mail já está ligado, a profissional já recebeu por lá
-  if (!owner || owner.tenant.notifyEmail) return
-  const p = job.payload as unknown as OutboundMessage
+  if (!owner?.acceptedAt || owner.tenant.notifyEmail) return
+  const parsed = outboundMessageSchema.safeParse(job.payload)
+  if (!parsed.success) return
+  const p = parsed.data
   await enqueue({
     channel: 'email',
     kind: `${job.kind}_fallback`,

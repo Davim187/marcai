@@ -8,8 +8,7 @@ import { prisma } from '../../lib/prisma'
 import { requireSuperAdmin, setSessionCookies } from '../../plugins/auth'
 import { createSession } from '../auth/auth.service'
 import { publicUrlFor } from '../tenants/tenant.summary'
-
-const idParam = z.object({ id: z.string() })
+import { idParam } from '../../lib/route-schemas'
 
 /** Painel do dono do SaaS. Toda ação sensível vai para o log de auditoria. */
 export const adminRoutes: FastifyPluginAsyncZod = async (app) => {

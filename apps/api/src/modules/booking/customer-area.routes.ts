@@ -1,6 +1,11 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { accessLevel, customerCancelSchema, customerRescheduleSchema } from '@marcai/shared'
+import {
+  accessLevel,
+  customerCancelSchema,
+  HOUR_MS,
+  customerRescheduleSchema,
+} from '@marcai/shared'
 import { env } from '../../config/env'
 import { badRequest, forbidden, notFound } from '../../lib/errors'
 import { googleCalendarUrl } from '../../lib/ics'
@@ -27,7 +32,7 @@ async function load(token: string) {
 
 /** Política: cancelar/remarcar sozinha só até X horas antes e se ainda estiver ativo. */
 function policy(b: Awaited<ReturnType<typeof load>>) {
-  const deadline = new Date(b.startsAt.getTime() - b.tenant.cancelMinHours * 3_600_000)
+  const deadline = new Date(b.startsAt.getTime() - b.tenant.cancelMinHours * HOUR_MS)
   const active = b.status === 'pending' || b.status === 'confirmed'
   const canChange = active && Date.now() <= deadline.getTime()
   return { deadline, active, canChange, canConfirm: active && b.startsAt.getTime() > Date.now() }
@@ -179,7 +184,10 @@ export const customerAreaRoutes: FastifyPluginAsyncZod = async (app) => {
       const b = await load(request.params.token)
       assertCanChange(b, 'Remarcações')
       // Agenda fora do ar (assinatura vencida ou conta bloqueada): não aceita novos horários
-      if (b.tenant.blocked || accessLevel(b.tenant.subscription, new Date(), env.APP_MODE) === 'blocked')
+      if (
+        b.tenant.blocked ||
+        accessLevel(b.tenant.subscription, new Date(), env.APP_MODE) === 'blocked'
+      )
         throw forbidden(
           `A agenda de ${b.tenant.name} não está aceitando remarcações agora. Fale direto com o estabelecimento.`,
         )

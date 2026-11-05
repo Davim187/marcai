@@ -157,9 +157,12 @@ describe('segurança: acesso da profissional (papel restrito)', () => {
         where: { tenantId: tenant.id, role: 'professional' },
       })
     ).professionalId!
-    await prisma.professionalService.create({
+    // O convite já cria a agenda com serviços e expediente; aqui só abre o dia inteiro
+    await prisma.professionalService.createMany({
       data: { tenantId: tenant.id, professionalId: proId, serviceId: service.id },
+      skipDuplicates: true,
     })
+    await prisma.workingHours.deleteMany({ where: { professionalId: proId } })
     await prisma.workingHours.createMany({
       data: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
         tenantId: tenant.id,

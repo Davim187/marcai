@@ -1,3 +1,4 @@
+import { askConfirm } from '@/components/confirm-host'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { MoreVertical, Pencil, Plus, Trash2, UserPlus, UsersRound } from 'lucide-react'
@@ -36,6 +37,7 @@ interface Member {
   role: 'owner' | 'professional'
   user: { id: string; name: string; email: string }
   professional: { id: string; name: string } | null
+  acceptedAt: string | null
 }
 
 export default function TeamPage() {
@@ -145,11 +147,21 @@ export default function TeamPage() {
               <Badge variant={m.role === 'owner' ? 'default' : 'secondary'}>
                 {m.role === 'owner' ? 'Gestão' : 'Profissional'}
               </Badge>
+              {!m.acceptedAt && <Badge variant="warning">Convite pendente</Badge>}
               <Button
                 variant="ghost"
                 size="icon-sm"
                 aria-label={`Remover acesso de ${m.user.name}`}
-                onClick={() => removeMember.mutate(m.id)}
+                onClick={async () => {
+                  if (
+                    await askConfirm({
+                      title: `Remover o acesso de ${m.user.name}?`,
+                      description: 'A pessoa deixa de entrar no painel deste estabelecimento.',
+                      confirmLabel: 'Remover acesso',
+                    })
+                  )
+                    removeMember.mutate(m.id)
+                }}
               >
                 <Trash2 />
               </Button>

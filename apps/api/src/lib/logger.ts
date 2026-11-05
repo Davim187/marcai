@@ -12,11 +12,14 @@ export const loggerOptions = {
     '*.passwordHash',
   ],
   serializers: {
-    // Tokens na query string (ex.: webhook da Evolution) nunca vão para o log
+    // Tokens (query string ou caminho) nunca vão para o log
     req(req: { method?: string; url?: string; ip?: string }) {
       return {
         method: req.method,
-        url: req.url?.replace(/([?&](?:token|code|state)=)[^&]+/gi, '$1***'),
+        url: req.url
+          ?.replace(/([?&](?:token|code|state)=)[^&]+/gi, '$1***')
+          // Token da área da cliente no caminho (/api/public/bookings/<token>...)
+          .replace(/(\/bookings\/)[A-Za-z0-9_-]{16,}/g, '$1***'),
         ip: req.ip,
       }
     },

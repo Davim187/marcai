@@ -1,3 +1,4 @@
+import { askConfirm } from '@/components/confirm-host'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { FolderPlus, MoreVertical, Pencil, Plus, Scissors, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -163,7 +164,19 @@ export default function ServicesPage() {
                       >
                         <Pencil /> Renomear
                       </DropdownMenuItem>
-                      <DropdownMenuItem destructive onSelect={() => removeCat.mutate(category.id)}>
+                      <DropdownMenuItem
+                        destructive
+                        onSelect={async () => {
+                          if (
+                            await askConfirm({
+                              title: `Remover a categoria ${category.name}?`,
+                              description:
+                                'Os serviços dela continuam existindo, só ficam sem categoria.',
+                            })
+                          )
+                            removeCat.mutate(category.id)
+                        }}
+                      >
                         <Trash2 /> Remover categoria
                       </DropdownMenuItem>
                     </DropdownMenuContent>

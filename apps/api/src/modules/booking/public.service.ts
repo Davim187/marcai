@@ -12,7 +12,15 @@ export async function resolvePublicTenant(slug: string) {
     (slug === '_' || slug === env.SINGLE_TENANT_SLUG)
       ? { slug: env.SINGLE_TENANT_SLUG }
       : { slug }
-  const tenant = await prisma.tenant.findUnique({ where, include: { subscription: true } })
+  let tenant = await prisma.tenant.findUnique({ where, include: { subscription: true } })
+  if (!tenant && 'slug' in where) {
+    // Link antigo: leva para o estabelecimento que trocou de endereço
+    const old = await prisma.slugHistory.findUnique({
+      where: { slug: where.slug },
+      include: { tenant: { include: { subscription: true } } },
+    })
+    tenant = old?.tenant ?? null
+  }
   if (!tenant || tenant.deletedAt || !tenant.onboardingCompleted)
     throw notFound('Página não encontrada')
   const available =

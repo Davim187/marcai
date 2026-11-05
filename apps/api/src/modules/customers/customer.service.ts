@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client'
-import { normalizeBrazilianMobile, OPEN_BOOKING_STATUSES } from '@marcai/shared'
+import { emailSchema, normalizeBrazilianMobile, OPEN_BOOKING_STATUSES } from '@marcai/shared'
 import { badRequest, conflict } from '../../lib/errors'
 import { parseCsv } from '../../lib/csv'
 import type { TenantDb } from '../../lib/tenant-db'
@@ -189,6 +189,10 @@ export async function importCustomersCsv(db: TenantDb, csv: string) {
       errors.push(`Linha ${line}: nome ou WhatsApp inválido`)
       continue
     }
+    // E-mail inválido não derruba a linha: o cliente entra sem e-mail e a linha é avisada
+    const rawEmail = cell(row, col.email)?.toLowerCase()
+    const email = rawEmail && emailSchema.safeParse(rawEmail).success ? rawEmail : undefined
+    if (rawEmail && !email) errors.push(`Linha ${line}: e-mail "${rawEmail}" ignorado (inválido)`)
     const tags = cell(row, col.tags)
       ?.split(/[,|]/)
       .map((t) => t.trim())
@@ -197,7 +201,7 @@ export async function importCustomersCsv(db: TenantDb, csv: string) {
     const result = await upsertCustomerByPhone(
       db,
       phone,
-      { name, email: cell(row, col.email), notes: cell(row, col.notes), tags },
+      { name, email, notes: cell(row, col.notes), tags },
       'merge',
     )
     if (result.created) created++

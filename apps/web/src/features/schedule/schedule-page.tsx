@@ -1,3 +1,4 @@
+import { askConfirm } from '@/components/confirm-host'
 import { useQuery } from '@tanstack/react-query'
 import { CalendarOff, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -18,7 +19,7 @@ import { Field } from '@/components/ui/label'
 import { PageHeader } from '@/components/ui/page-header'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
-import { api } from '@/lib/api'
+import { api, FriendlyError } from '@/lib/api'
 import { capitalize, fmt, localToIso, todayIn } from '@/lib/dates'
 import { qk, useApiMutation, useProfessionals, createTimeOff } from '@/lib/queries'
 import { useTenant } from '@/lib/session'
@@ -192,7 +193,15 @@ export default function SchedulePage() {
                     variant="ghost"
                     size="icon-sm"
                     aria-label="Remover bloqueio"
-                    onClick={() => delTimeOff.mutate(t.id)}
+                    onClick={async () => {
+                      if (
+                        await askConfirm({
+                          title: 'Remover este bloqueio?',
+                          description: 'O horário volta a ficar livre para agendamentos na hora.',
+                        })
+                      )
+                        delTimeOff.mutate(t.id)
+                    }}
                   >
                     <Trash2 />
                   </Button>
@@ -227,7 +236,16 @@ export default function SchedulePage() {
                     variant="ghost"
                     size="icon-sm"
                     aria-label="Remover pausa"
-                    onClick={() => delBlock.mutate(b.id)}
+                    onClick={async () => {
+                      if (
+                        await askConfirm({
+                          title: 'Remover esta pausa?',
+                          description:
+                            'Esse horário volta a aparecer para as clientes toda semana.',
+                        })
+                      )
+                        delBlock.mutate(b.id)
+                    }}
                   >
                     <Trash2 />
                   </Button>
@@ -266,7 +284,10 @@ export default function SchedulePage() {
                         variant="ghost"
                         size="icon-sm"
                         aria-label="Remover data"
-                        onClick={() => delHoliday.mutate(h.id)}
+                        onClick={async () => {
+                          if (await askConfirm({ title: `Remover ${h.name}?` }))
+                            delHoliday.mutate(h.id)
+                        }}
                       >
                         <Trash2 />
                       </Button>
@@ -324,13 +345,21 @@ function TimeOffDialog({
     everyone: false,
   })
   const save = useApiMutation(
-    () =>
-      createTimeOff({
+    () => {
+      // Data apagada: avisa o campo certo em vez de um erro genérico
+      if (!v.startDate || (v.allDay && !v.endDate))
+        return Promise.reject(new FriendlyError('Escolha a data do bloqueio.'))
+      if (!v.allDay && (!v.start || !v.end || v.end <= v.start))
+        return Promise.reject(
+          new FriendlyError('Informe os horários: o fim precisa ser depois do início.'),
+        )
+      return createTimeOff({
         professionalId: v.everyone ? null : professionalId,
         reason: v.reason,
         startsAt: localToIso(v.startDate, v.allDay ? '00:00' : v.start, tz),
         endsAt: v.allDay ? localToIso(v.endDate, '23:59', tz) : localToIso(v.startDate, v.end, tz),
-      }),
+      })
+    },
     { success: 'Horário bloqueado', invalidate: [['schedule']], onSuccess: onClose },
   )
   return (

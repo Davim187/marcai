@@ -13,8 +13,7 @@ import {
   importCustomersCsv,
   upsertCustomerByPhone,
 } from './customer.service'
-
-const idParam = z.object({ id: z.string() })
+import { idParam } from '../../lib/route-schemas'
 
 const listQuery = z.object({
   q: z.string().max(80).optional(),

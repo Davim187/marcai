@@ -1,3 +1,4 @@
+import { InviteBanner } from '@/components/invite-banner'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Check, Copy, ExternalLink, Loader2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -226,6 +227,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="bg-background min-h-dvh">
+      <InviteBanner />
       <header className="mx-auto flex max-w-2xl items-center justify-between px-4 py-5">
         <Logo />
         <span className="text-muted-foreground text-sm">Passo {step + 1} de 4</span>

@@ -116,9 +116,9 @@ describe('assinatura e cobrança', () => {
     expect(res.checkoutUrl).toBeTruthy()
     let sub = await prisma.subscription.findUniqueOrThrow({ where: { tenantId: tenant.id } })
     expect(sub.providerSubscriptionId).toMatch(/^preapproval_fake_/)
-    // A fatura PIX em aberto foi cancelada: quem paga agora é o cartão
+    // Enquanto o cartão não é autorizado, a fatura PIX continua valendo
     expect(await prisma.invoice.count({ where: { tenantId: tenant.id, status: 'pending' } })).toBe(
-      0,
+      1,
     )
     expect((await agent.get('/api/billing')).json().cardCheckoutUrl).toBe(res.checkoutUrl)
 
@@ -136,6 +136,10 @@ describe('assinatura e cobrança', () => {
       providerSubscriptionId: sub.providerSubscriptionId,
     })
     expect((await agent.get('/api/billing')).json().cardCheckoutUrl).toBeNull()
+    // Cartão autorizado: agora sim a fatura avulsa deixa de valer
+    expect(await prisma.invoice.count({ where: { tenantId: tenant.id, status: 'pending' } })).toBe(
+      0,
+    )
     await send({
       eventId: 'ap:1:approved',
       type: 'payment_confirmed',

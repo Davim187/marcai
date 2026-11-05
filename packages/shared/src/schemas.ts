@@ -22,6 +22,21 @@ export const isoDate = z
   }, 'Data inválida')
 export const id = z.string().min(1).max(64)
 
+/**
+ * Imagens do estabelecimento (logo, capa, ícone, fotos): só arquivos enviados pelo próprio
+ * sistema. URL externa permitiria rastrear quem abre a página (pixel espião).
+ */
+export const uploadUrlSchema = z
+  .string()
+  .max(500)
+  .regex(
+    /^\/uploads\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\.(?:jpg|png|webp|gif|heic)$/,
+    'Envie a imagem pelo botão de upload',
+  )
+  .optional()
+  .nullable()
+  .or(z.literal('').transform(() => null))
+
 export const emailSchema = z.string().trim().toLowerCase().email(msg.email).max(160)
 export const passwordSchema = z
   .string()
@@ -93,7 +108,7 @@ export const onboardingSchema = z.object({
   businessType: z.enum(BUSINESS_TYPES.map((b) => b.id) as [string, ...string[]]),
   shifts: z.array(shiftSchema).max(50),
   primaryColor: colorSchema.optional(),
-  logoUrl: z.string().max(500).optional().nullable(),
+  logoUrl: uploadUrlSchema,
   timezone: z.string().max(60).optional(),
 })
 export type OnboardingInput = z.infer<typeof onboardingSchema>
@@ -107,9 +122,9 @@ export const tenantProfileSchema = z.object({
   instagram: z.string().trim().max(60).optional().nullable(),
   whatsapp: phoneSchema.optional().nullable().or(z.literal('')),
   primaryColor: colorSchema,
-  logoUrl: z.string().max(500).optional().nullable(),
-  coverUrl: z.string().max(500).optional().nullable(),
-  faviconUrl: z.string().max(500).optional().nullable(),
+  logoUrl: uploadUrlSchema,
+  coverUrl: uploadUrlSchema,
+  faviconUrl: uploadUrlSchema,
   timezone: z.string().max(60),
 })
 export type TenantProfileInput = z.infer<typeof tenantProfileSchema>
@@ -162,7 +177,7 @@ export const serviceSchema = z.object({
     .min(0, 'O intervalo não pode ser negativo')
     .max(240, 'Máximo de 240 minutos (4 horas)')
     .default(0),
-  photoUrl: z.string().max(500).optional().nullable(),
+  photoUrl: uploadUrlSchema,
   active: z.boolean().default(true),
   professionalIds: z.array(id).optional(),
 })
@@ -182,6 +197,8 @@ export const timeOffSchema = z
     reason: z.string().trim().max(120).optional().nullable(),
     startsAt: z.coerce.date(),
     endsAt: z.coerce.date(),
+    /** Bloquear mesmo havendo agendamentos no período (eles continuam marcados) */
+    confirmConflicts: z.boolean().optional(),
   })
   .refine((t) => t.endsAt > t.startsAt, {
     message: 'O fim precisa ser depois do início',
@@ -373,7 +390,7 @@ export type CustomerInput = z.infer<typeof customerSchema>
 export const professionalSchema = z.object({
   name: z.string().trim().min(2).max(80),
   bio: z.string().trim().max(300).optional().nullable(),
-  photoUrl: z.string().max(500).optional().nullable(),
+  photoUrl: uploadUrlSchema,
   active: z.boolean().default(true),
   serviceIds: z.array(id).default([]),
 })

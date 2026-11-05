@@ -8,7 +8,7 @@ import { enqueue } from './queue'
 /** Donas do estabelecimento (com e-mail). Único lugar com a regra "quem é dona". */
 export function findOwners(tenantId: string) {
   return prisma.tenantMember.findMany({
-    where: { tenantId, role: 'owner' },
+    where: { tenantId, role: 'owner', acceptedAt: { not: null } },
     include: { user: { select: { id: true, email: true } } },
   })
 }

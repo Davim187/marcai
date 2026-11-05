@@ -55,11 +55,11 @@ docker compose up -d && pnpm install && pnpm db:migrate && pnpm db:seed && pnpm 
 
 **Logins do seed**
 
-| Perfil                 | E-mail              | Senha       |
-| ---------------------- | ------------------- | ----------- |
-| Dona (demo)            | `demo@marcai.app`   | `demo1234`  |
-| Profissional da equipe | `camila@marcai.app` | `demo1234`  |
-| Super admin            | `admin@marcai.app`  | `admin1234` |
+| Perfil                 | E-mail              | Senha                                                                 |
+| ---------------------- | ------------------- | --------------------------------------------------------------------- |
+| Dona (demo)            | `demo@marcai.app`   | `demo1234`                                                            |
+| Profissional da equipe | `camila@marcai.app` | `demo1234`                                                            |
+| Super admin            | `admin@marcai.app`  | definida em `SEED_ADMIN_PASSWORD` ou gerada e mostrada no fim do seed |
 
 O seed cria o **Studio Vértice** (`/studiovertice`), um salão fictício de cabelo, barba e unhas, com 9 serviços, 2 profissionais (Rafael Costa e Camila Rocha), perguntas personalizadas no formulário, expediente de terça a sábado (08:00–12:00 e 13:30–19:00), 30 clientes e cerca de 270 agendamentos nas últimas 6 e nas próximas 3 semanas, com status variados, para os relatórios já aparecerem preenchidos.
 
@@ -82,20 +82,22 @@ Sem chaves configuradas, **tudo funciona em modo de simulação**: e-mails e men
 
 O arquivo [`apps/api/.env.example`](apps/api/.env.example) lista e comenta todas. As principais:
 
-| Variável                       | Para que serve                                                                            |
-| ------------------------------ | ----------------------------------------------------------------------------------------- |
-| `APP_MODE`                     | `saas` (padrão) ou `single_tenant`                                                        |
-| `APP_URL` / `API_URL`          | URLs públicas do front e da API (links em mensagens, CORS, callbacks)                     |
-| `DATABASE_URL`                 | PostgreSQL                                                                                |
-| `SESSION_SECRET`               | Segredo do hash dos tokens de sessão (`openssl rand -hex 32`)                             |
-| `COOKIE_SAMESITE`              | `lax` com front e API no mesmo domínio (recomendado); `none` se forem domínios diferentes |
-| `GOOGLE_CLIENT_ID/SECRET`      | Login com Google (opcional)                                                               |
-| `RESEND_API_KEY` / `SMTP_*`    | E-mails transacionais (Resend ou qualquer SMTP) e `EMAIL_FROM`                            |
-| `VAPID_PUBLIC_KEY/PRIVATE_KEY` | Web Push (`npx web-push generate-vapid-keys`)                                             |
-| `WHATSAPP_PROVIDER`            | `console`, `evolution` ou `meta`                                                          |
-| `BILLING_PROVIDER`             | `fake` ou `mercadopago`                                                                   |
-| `RUN_WORKER_IN_API`            | Roda o worker da fila dentro da API (prático no dev)                                      |
-| `WEB_DIST_DIR`                 | Faz a API servir o build do front, com as meta tags Open Graph injetadas                  |
+| Variável                       | Para que serve                                                                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `APP_MODE`                     | `saas` (padrão) ou `single_tenant`                                                                                              |
+| `APP_URL` / `API_URL`          | URLs públicas do front e da API (links em mensagens, CORS, callbacks)                                                           |
+| `DATABASE_URL`                 | PostgreSQL                                                                                                                      |
+| `SESSION_SECRET`               | Segredo do hash dos tokens de sessão (`openssl rand -hex 32`)                                                                   |
+| `TRUST_PROXY`                  | **Obrigatório em produção.** Nº de proxies na frente da API (1 no Railway/Render; 2 com o rewrite da Vercel/Netlify) ou `false` |
+| `SEED_ADMIN_PASSWORD`          | Senha do super admin criado pelo seed (sem ela, uma aleatória é gerada e mostrada no fim)                                       |
+| `COOKIE_SAMESITE`              | `lax` com front e API no mesmo domínio (recomendado); `none` se forem domínios diferentes                                       |
+| `GOOGLE_CLIENT_ID/SECRET`      | Login com Google (opcional)                                                                                                     |
+| `RESEND_API_KEY` / `SMTP_*`    | E-mails transacionais (Resend ou qualquer SMTP) e `EMAIL_FROM`                                                                  |
+| `VAPID_PUBLIC_KEY/PRIVATE_KEY` | Web Push (`npx web-push generate-vapid-keys`)                                                                                   |
+| `WHATSAPP_PROVIDER`            | `console`, `evolution` ou `meta`                                                                                                |
+| `BILLING_PROVIDER`             | `fake` ou `mercadopago`                                                                                                         |
+| `RUN_WORKER_IN_API`            | Roda o worker da fila dentro da API (prático no dev)                                                                            |
+| `WEB_DIST_DIR`                 | Faz a API servir o build do front, com as meta tags Open Graph injetadas                                                        |
 
 ## Configurando integrações
 
@@ -152,6 +154,16 @@ Gere as chaves com `npx web-push generate-vapid-keys` e configure `VAPID_PUBLIC_
 ### Login com Google
 
 Crie credenciais OAuth (_Aplicativo da Web_) no Google Cloud com o URI de redirecionamento `{API_URL}/api/auth/google/callback` e configure `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`. O botão aparece automaticamente.
+
+## Comportamentos importantes
+
+- **Confirmação manual:** com "Confirmar manualmente cada agendamento" ligado, a cliente recebe "pedido recebido" (mensagem `customer_pending`, editável). Quando a dona aprova no painel, sai a confirmação e o lembrete é agendado.
+- **Status do agendamento:** pendente → confirmado/cancelado; confirmado → concluído/falta/cancelado; concluído ↔ falta (para corrigir engano). Nada volta a "confirmado".
+- **Convites:** quem já tem conta precisa aceitar o convite (aparece um aviso no painel). Contas novas recebem o link para criar a senha.
+- **Modo suporte ("entrar como"):** fica registrado na auditoria com o admin, a dona recebe um e-mail e exportar dados, mexer na cobrança, na equipe ou na conta fica bloqueado.
+- **Fotos de referência das clientes:** guardadas fora da pasta pública (`UPLOAD_DIR-privado`), sem metadados de localização, visíveis só para a equipe do estabelecimento; as que nenhuma reserva usou são apagadas em 24h.
+- **Troca do endereço da página:** o link antigo continua funcionando (e fica reservado por 180 dias).
+- **Bloqueio de horário em cima de agendamentos:** o painel avisa antes; o bloqueio não cancela quem já marcou.
 
 ## Modo exclusivo (white-label)
 

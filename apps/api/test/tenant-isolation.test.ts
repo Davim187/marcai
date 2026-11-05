@@ -67,7 +67,8 @@ describe('lista de modelos isolados por tenant', () => {
     const { Prisma } = await import('@prisma/client')
     const { TENANT_SCOPED_MODELS } = await import('../src/lib/tenant-db')
     // Globais de propósito: sessão (antes do tenant ser escolhido), fila e auditoria (sistema)
-    const GLOBAL_ON_PURPOSE = new Set(['Session', 'NotificationJob', 'AuditLog'])
+    // SlugHistory: consultado pela página pública para resolver links antigos
+    const GLOBAL_ON_PURPOSE = new Set(['Session', 'NotificationJob', 'AuditLog', 'SlugHistory'])
     const withTenantId = Prisma.dmmf.datamodel.models
       .filter((m) => m.fields.some((f) => f.name === 'tenantId'))
       .map((m) => m.name)

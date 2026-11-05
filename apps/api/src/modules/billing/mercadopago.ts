@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto'
+import { DAY_MS } from '@marcai/shared'
 import { env } from '../../config/env'
 import { safeEqual } from '../../lib/crypto'
 import type {
@@ -59,7 +60,7 @@ interface MpAuthorizedPayment {
   date_created?: string | null
 }
 
-const REPLAY_WINDOW_MS = 3 * 24 * 60 * 60_000
+const REPLAY_WINDOW_MS = 3 * DAY_MS
 /** Tópicos que não usamos (merchant_order, IPN antigo): respondemos 200 para não haver reenvio. */
 const IGNORED_TOPICS = new Set(['merchant_order', 'chargebacks', 'point_integration_wh'])
 

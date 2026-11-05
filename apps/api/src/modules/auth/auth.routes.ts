@@ -116,9 +116,54 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
         },
       })
       if (!member) throw forbidden('Você não faz parte deste estabelecimento')
+      if (!member.acceptedAt)
+        throw forbidden('Aceite o convite antes de entrar nesse estabelecimento')
       await prisma.session.update({
         where: { id: request.auth!.sessionId },
         data: { tenantId: member.tenantId },
+      })
+      return { ok: true }
+    },
+  )
+
+  /** Convite para a equipe de outro estabelecimento: aceitar ou recusar. */
+  app.post(
+    '/invites/:tenantId/accept',
+    {
+      onRequest: requireAuth,
+      schema: { tags: ['auth'], params: z.object({ tenantId: z.string() }) },
+    },
+    async (request) => {
+      const res = await prisma.tenantMember.updateMany({
+        where: {
+          tenantId: request.params.tenantId,
+          userId: request.auth!.user.id,
+          acceptedAt: null,
+        },
+        data: { acceptedAt: new Date() },
+      })
+      if (!res.count) throw forbidden('Convite não encontrado')
+      await prisma.session.update({
+        where: { id: request.auth!.sessionId },
+        data: { tenantId: request.params.tenantId },
+      })
+      return { ok: true }
+    },
+  )
+
+  app.post(
+    '/invites/:tenantId/decline',
+    {
+      onRequest: requireAuth,
+      schema: { tags: ['auth'], params: z.object({ tenantId: z.string() }) },
+    },
+    async (request) => {
+      await prisma.tenantMember.deleteMany({
+        where: {
+          tenantId: request.params.tenantId,
+          userId: request.auth!.user.id,
+          acceptedAt: null,
+        },
       })
       return { ok: true }
     },

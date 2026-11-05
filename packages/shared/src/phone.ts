@@ -54,4 +54,3 @@ export function whatsappLink(phone: string, text?: string): string {
   const full = d.startsWith('55') ? d : `55${d}`
   return `https://wa.me/${full}${text ? `?text=${encodeURIComponent(text)}` : ''}`
 }
-

@@ -57,17 +57,17 @@ enum JobStatus {
 }
 
 model User {
-  id             String    @id @default(cuid())
-  email          String    @unique
-  name           String
-  phone          String?
-  passwordHash   String?
-  googleId       String?   @unique
-  avatarUrl      String?
-  isSuperAdmin   Boolean   @default(false)
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String
+  phone           String?
+  passwordHash    String?
+  googleId        String?   @unique
+  avatarUrl       String?
+  isSuperAdmin    Boolean   @default(false)
   emailVerifiedAt DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   memberships       TenantMember[]
   sessions          Session[]
@@ -148,22 +148,23 @@ model Tenant {
   updatedAt           DateTime  @updatedAt
   deletedAt           DateTime?
 
-  members          TenantMember[]
-  professionals    Professional[]
-  categories       ServiceCategory[]
-  services         Service[]
-  customers        Customer[]
-  bookings         Booking[]
-  formFields       FormField[]
-  workingHours     WorkingHours[]
-  timeOffs         TimeOff[]
-  recurringBlocks  RecurringBlock[]
-  holidays         Holiday[]
-  notifications    Notification[]
-  messageTemplates MessageTemplate[]
-  subscription     Subscription?
-  invoices         Invoice[]
+  members            TenantMember[]
+  professionals      Professional[]
+  categories         ServiceCategory[]
+  services           Service[]
+  customers          Customer[]
+  bookings           Booking[]
+  formFields         FormField[]
+  workingHours       WorkingHours[]
+  timeOffs           TimeOff[]
+  recurringBlocks    RecurringBlock[]
+  holidays           Holiday[]
+  notifications      Notification[]
+  messageTemplates   MessageTemplate[]
+  subscription       Subscription?
+  invoices           Invoice[]
   whatsappConnection WhatsAppConnection?
+  slugHistory        SlugHistory[]
 }
 
 model TenantMember {
@@ -173,6 +174,8 @@ model TenantMember {
   role           MemberRole @default(owner)
   professionalId String?    @unique
   createdAt      DateTime   @default(now())
+  /// Convite aceito. Nulo = convite pendente (conta que já existia precisa aceitar)
+  acceptedAt     DateTime?  @default(now())
 
   tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -365,10 +368,10 @@ model Booking {
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
-  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  professional Professional        @relation(fields: [professionalId], references: [id])
-  service      Service             @relation(fields: [serviceId], references: [id])
-  customer     Customer            @relation(fields: [customerId], references: [id])
+  tenant       Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  professional Professional         @relation(fields: [professionalId], references: [id])
+  service      Service              @relation(fields: [serviceId], references: [id])
+  customer     Customer             @relation(fields: [customerId], references: [id])
   answers      BookingFieldAnswer[]
 
   @@index([tenantId, startsAt])
@@ -377,19 +380,19 @@ model Booking {
 }
 
 model FormField {
-  id          String    @id @default(cuid())
-  tenantId    String
-  label       String
-  type        String
-  required    Boolean   @default(false)
-  helpText    String?
-  appliesToAll Boolean  @default(true)
-  active      Boolean   @default(true)
-  sortOrder   Int       @default(0)
-  createdAt   DateTime  @default(now())
-  deletedAt   DateTime?
+  id           String    @id @default(cuid())
+  tenantId     String
+  label        String
+  type         String
+  required     Boolean   @default(false)
+  helpText     String?
+  appliesToAll Boolean   @default(true)
+  active       Boolean   @default(true)
+  sortOrder    Int       @default(0)
+  createdAt    DateTime  @default(now())
+  deletedAt    DateTime?
 
-  tenant   Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant   Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   options  FormFieldOption[]
   services FormFieldService[]
   answers  BookingFieldAnswer[]
@@ -529,7 +532,7 @@ model Subscription {
   /// Link para autorizar o cartão no Mercado Pago (enquanto a assinatura estiver pendente)
   providerCheckoutUrl    String?
   /// Dia do mês da cobrança (1–31), fixo: 31/01 → 28/02 → 31/03
-  billingDay          Int?
+  billingDay             Int?
   /// PIX | BOLETO | CREDIT_CARD | UNDEFINED (deixa a pessoa escolher no checkout)
   billingType            String?
   canceledAt             DateTime?
@@ -597,4 +600,16 @@ model AuditLog {
 
   @@index([tenantId, createdAt])
   @@index([action, createdAt])
+}
+
+/// Links antigos: quando a dona troca o endereço, o antigo fica reservado (180 dias) e
+/// continua levando para a página certa, sem ninguém poder pegar.
+model SlugHistory {
+  slug      String   @id
+  tenantId  String
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }

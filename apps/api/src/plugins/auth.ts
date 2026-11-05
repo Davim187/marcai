@@ -8,6 +8,7 @@ import { forbidden, paymentRequired, unauthorized } from '../lib/errors'
 import { prisma } from '../lib/prisma'
 import { requestContext } from '../lib/request-context'
 import { forTenant, type TenantDb } from '../lib/tenant-db'
+import { logger } from '../lib/logger'
 
 export const SESSION_COOKIE = 'marcai_session'
 export const CSRF_COOKIE = 'marcai_csrf'
@@ -86,13 +87,17 @@ export const authPlugin = fp(async (app) => {
       tenantId: session.tenantId,
       impersonatorId: session.impersonatorId,
     }
-    requestContext.enterWith({ impersonatorId: session.impersonatorId })
     // Atualiza "visto por último" no máximo a cada 10 minutos
     if (Date.now() - session.lastSeenAt.getTime() > 600_000) {
       prisma.session
         .update({ where: { id: session.id }, data: { lastSeenAt: new Date() } })
-        .catch(() => undefined)
+        .catch((err) => logger.warn({ err }, 'Falha ao atualizar "visto por último" da sessão'))
     }
+  })
+  // Contexto da requisição (ex.: auditoria sabe quando é o suporte agindo). O resto do ciclo
+  // da requisição roda dentro do `run`, então o contexto chega até a rota.
+  app.addHook('onRequest', (request, _reply, done) => {
+    requestContext.run({ impersonatorId: request.auth?.impersonatorId ?? null }, done)
   })
 })
 
@@ -162,7 +167,7 @@ export async function requireTenant(request: FastifyRequest) {
   let role: MemberRole
   let tenant: (Tenant & { subscription: Subscription | null }) | null
   let professionalId: string | null = null
-  if (member) {
+  if (member?.acceptedAt) {
     role = member.role
     tenant = member.tenant
     professionalId = member.professionalId

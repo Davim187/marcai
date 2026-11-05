@@ -119,7 +119,25 @@ export const tenantRoutes: FastifyPluginAsyncZod = async (app) => {
       const { tenantId } = ctx(request)
       const slug = slugify(request.body.slug)
       if (!(await isSlugAvailable(slug, tenantId))) throw forbidden('Esse link não está disponível')
-      await prisma.tenant.update({ where: { id: tenantId }, data: { slug } })
+      const current = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } })
+      if (current.slug !== slug) {
+        await prisma.$transaction([
+          // O link antigo (bio do Instagram, cartões...) continua levando para cá
+          prisma.slugHistory.upsert({
+            where: { slug: current.slug },
+            create: { slug: current.slug, tenantId },
+            update: { tenantId, createdAt: new Date() },
+          }),
+          prisma.slugHistory.deleteMany({ where: { slug } }),
+          prisma.tenant.update({ where: { id: tenantId }, data: { slug } }),
+        ])
+        await audit({
+          action: 'tenant.slug_changed',
+          tenantId,
+          actorUserId: request.auth!.user.id,
+          metadata: { from: current.slug, to: slug },
+        })
+      }
       return { slug, publicUrl: publicUrlFor(slug) }
     },
   )

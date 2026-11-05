@@ -70,6 +70,19 @@ export default function PublicBookingPage() {
     setSearchParams(next === 'service' ? {} : { passo: next }, { replace: opts.replace })
   const [result, setResult] = useState<BookingResult | null>(null)
 
+  // Link antigo (o estabelecimento trocou de endereço): mostra o endereço novo na barra
+  useEffect(() => {
+    if (t && slug && slug !== '_' && t.slug !== slug && !t.whiteLabel)
+      navigate(`/${t.slug}${window.location.search}`, { replace: true })
+  }, [t, slug, navigate])
+
+  // Recarregou no meio: a etapa da URL não vale mais (escolhas se perderam) → volta a URL também
+  const urlStep = searchParams.get('passo')
+  useEffect(() => {
+    if (urlStep && urlStep !== step) setStep(step, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlStep, step])
+
   useEffect(() => {
     if (!t) return
     document.title = `${t.name} — Agende seu horário`

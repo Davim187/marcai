@@ -12,7 +12,7 @@ import {
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
-import { formatBRL } from '@marcai/shared'
+import { formatBRL, SUBSCRIPTION_STATUS_LABELS, type SubscriptionStatus } from '@marcai/shared'
 import { Logo } from '@/components/logo'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -52,18 +52,21 @@ interface TenantRow {
   owner: { name: string; email: string } | null
   subscription: {
     plan: string
-    status: string
+    status: SubscriptionStatus
     trialEndsAt: string | null
     currentPeriodEnd: string | null
   } | null
   counts: { bookings: number; customers: number }
 }
 
-const STATUS: Record<string, { label: string; v: 'default' | 'success' | 'warning' | 'muted' }> = {
-  trial: { label: 'Teste', v: 'default' },
-  active: { label: 'Ativa', v: 'success' },
-  past_due: { label: 'Vencida', v: 'warning' },
-  canceled: { label: 'Cancelada', v: 'muted' },
+const STATUS: Record<
+  SubscriptionStatus,
+  { label: string; variant: 'default' | 'success' | 'warning' | 'muted' }
+> = {
+  trial: { label: SUBSCRIPTION_STATUS_LABELS.trial, variant: 'default' },
+  active: { label: SUBSCRIPTION_STATUS_LABELS.active, variant: 'success' },
+  past_due: { label: SUBSCRIPTION_STATUS_LABELS.past_due, variant: 'warning' },
+  canceled: { label: SUBSCRIPTION_STATUS_LABELS.canceled, variant: 'muted' },
 }
 
 export default function AdminPage() {
@@ -124,7 +127,7 @@ export default function AdminPage() {
             ['MRR', ov && formatBRL(ov.mrrCents)],
             ['Estabelecimentos', ov?.tenants],
             ['Ativos (Essencial · Pro)', ov && `${ov.byPlan.essencial} · ${ov.byPlan.pro}`],
-            ['Em teste · vencidos', ov && `${ov.byStatus.trial} · ${ov.byStatus.past_due}`],
+            ['Em teste · atrasados', ov && `${ov.byStatus.trial} · ${ov.byStatus.past_due}`],
             ['Churn (30 dias)', ov && `${Math.round(ov.churnRate * 100)}%`],
           ].map(([k, v]) => (
             <Card key={String(k)} className="p-4">
@@ -235,7 +238,7 @@ export default function AdminPage() {
                         {t.blocked ? (
                           <Badge variant="destructive">Bloqueado</Badge>
                         ) : t.subscription ? (
-                          <Badge variant={STATUS[t.subscription.status]?.v}>
+                          <Badge variant={STATUS[t.subscription.status]?.variant}>
                             {STATUS[t.subscription.status]?.label}
                           </Badge>
                         ) : (

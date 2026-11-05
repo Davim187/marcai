@@ -13,8 +13,7 @@ import { badRequest, forbidden, notFound } from '../../lib/errors'
 import { ctx, requireTenant, type TenantContext } from '../../plugins/auth'
 import { daySlots } from './availability.service'
 import { createBooking, rescheduleBooking, setBookingStatus } from './booking.service'
-
-const idParam = z.object({ id: z.string() })
+import { idParam } from '../../lib/route-schemas'
 
 export const bookingInclude = {
   professional: { select: { id: true, name: true } },
@@ -124,7 +123,9 @@ export const bookingPanelRoutes: FastifyPluginAsyncZod = async (app) => {
             endsAt: { gt: from },
             // Profissional só vê as próprias folgas e os fechamentos do estabelecimento
             ...(c.role !== 'owner'
-              ? { OR: [{ professionalId: c.professionalId ?? NO_AGENDA }, { professionalId: null }] }
+              ? {
+                  OR: [{ professionalId: c.professionalId ?? NO_AGENDA }, { professionalId: null }],
+                }
               : professionalId
                 ? { OR: [{ professionalId }, { professionalId: null }] }
                 : {}),

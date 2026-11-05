@@ -1,6 +1,8 @@
 import { env } from '../../../../config/env'
 import { PermanentChannelError } from '../types'
 import type { WhatsAppConnectResult, WhatsAppProvider, WhatsAppStatus } from './provider'
+import { bestEffort } from '../../../../lib/best-effort'
+import { logger } from '../../../../lib/logger'
 
 /** Evolution API (self-hosted): cada estabelecimento é uma instância conectada por QR Code. */
 /** A instância não existe mais na Evolution: é preciso ler o QR Code de novo. */
@@ -62,7 +64,9 @@ export class EvolutionApiProvider implements WhatsAppProvider {
         base64: false,
         events: ['CONNECTION_UPDATE'],
       },
-    }).catch(() => undefined)
+    }).catch((err) =>
+      logger.warn({ err, instanceName }, 'Falha ao registrar o webhook da Evolution'),
+    )
   }
 
   async connect(tenantId: string): Promise<WhatsAppConnectResult> {
@@ -111,7 +115,16 @@ export class EvolutionApiProvider implements WhatsAppProvider {
   }
 
   async disconnect(tenantId: string) {
-    await this.call('DELETE', `/instance/logout/${this.instance(tenantId)}`).catch(() => undefined)
-    await this.call('DELETE', `/instance/delete/${this.instance(tenantId)}`).catch(() => undefined)
+    // Instância já desconectada/apagada não é erro para quem está desconectando
+    await bestEffort(
+      this.call('DELETE', `/instance/logout/${this.instance(tenantId)}`),
+      'sair da Evolution',
+      { tenantId },
+    )
+    await bestEffort(
+      this.call('DELETE', `/instance/delete/${this.instance(tenantId)}`),
+      'apagar instância da Evolution',
+      { tenantId },
+    )
   }
 }

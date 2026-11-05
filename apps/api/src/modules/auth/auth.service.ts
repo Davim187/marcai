@@ -25,7 +25,7 @@ export async function createSession(
   let tenantId = opts.tenantId
   if (tenantId === undefined) {
     const membership = await prisma.tenantMember.findFirst({
-      where: { userId, tenant: { deletedAt: null } },
+      where: { userId, acceptedAt: { not: null }, tenant: { deletedAt: null } },
       orderBy: { createdAt: 'asc' },
     })
     tenantId = membership?.tenantId ?? null
@@ -137,14 +137,24 @@ export async function resetPassword(token: string, password: string) {
   if (!record || record.usedAt || record.expiresAt < new Date()) {
     throw badRequest('Link inválido ou expirado. Peça um novo.', 'TOKEN_INVALIDO')
   }
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { id: record.userId },
-      data: { passwordHash: await hashPassword(password) },
-    }),
-    prisma.passwordResetToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
-    prisma.session.deleteMany({ where: { userId: record.userId } }),
-  ])
+  const passwordHash = await hashPassword(password)
+  await prisma.$transaction(async (tx) => {
+    // Marca o link como usado de forma condicional: dois envios simultâneos não trocam a
+    // senha duas vezes (o segundo recebe "link inválido")
+    const claimed = await tx.passwordResetToken.updateMany({
+      where: { id: record.id, usedAt: null },
+      data: { usedAt: new Date() },
+    })
+    if (!claimed.count)
+      throw badRequest('Link inválido ou expirado. Peça um novo.', 'TOKEN_INVALIDO')
+    await tx.user.update({ where: { id: record.userId }, data: { passwordHash } })
+    await tx.session.deleteMany({ where: { userId: record.userId } })
+    // Outros links de redefinição pendentes deixam de valer
+    await tx.passwordResetToken.updateMany({
+      where: { userId: record.userId, usedAt: null },
+      data: { usedAt: new Date() },
+    })
+  })
 }
 
 /** Monta o payload de `/auth/me`. */
@@ -162,14 +172,19 @@ export async function buildMe(userId: string, sessionTenantId: string | null) {
       googleId: true,
     },
   })
-  const memberships = await prisma.tenantMember.findMany({
+  const all = await prisma.tenantMember.findMany({
     where: { userId, tenant: { deletedAt: null } },
     include: { tenant: { select: { id: true, name: true, slug: true, logoUrl: true } } },
   })
+  const memberships = all.filter((m) => m.acceptedAt)
   const { passwordHash, ...safe } = user
   return {
     user: { ...safe, hasPassword: Boolean(passwordHash), hasGoogle: Boolean(user.googleId) },
     memberships: memberships.map((m) => ({ tenantId: m.tenantId, role: m.role, tenant: m.tenant })),
+    /** Convites de outros estabelecimentos aguardando aceite */
+    invites: all
+      .filter((m) => !m.acceptedAt)
+      .map((m) => ({ tenantId: m.tenantId, role: m.role, tenant: m.tenant })),
     activeTenantId: sessionTenantId,
   }
 }

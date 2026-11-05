@@ -93,17 +93,20 @@ export default function PoliciesPage() {
                 value={v.minAdvanceMinutes}
                 onChange={(e) => set('minAdvanceMinutes', Number(e.target.value))}
               >
-                {[
-                  [0, 'Sem mínimo'],
-                  [30, '30 minutos'],
-                  [60, '1 hora'],
-                  [120, '2 horas'],
-                  [180, '3 horas'],
-                  [360, '6 horas'],
-                  [720, '12 horas'],
-                  [1440, '1 dia'],
-                  [2880, '2 dias'],
-                ].map(([m, l]) => (
+                {withCurrentLabeled(
+                  [
+                    [0, 'Sem mínimo'],
+                    [30, '30 minutos'],
+                    [60, '1 hora'],
+                    [120, '2 horas'],
+                    [180, '3 horas'],
+                    [360, '6 horas'],
+                    [720, '12 horas'],
+                    [1440, '1 dia'],
+                    [2880, '2 dias'],
+                  ],
+                  v.minAdvanceMinutes,
+                ).map(([m, l]) => (
                   <option key={m} value={m}>
                     {l}
                   </option>
@@ -116,7 +119,7 @@ export default function PoliciesPage() {
                 value={v.maxAdvanceDays}
                 onChange={(e) => set('maxAdvanceDays', Number(e.target.value))}
               >
-                {[7, 14, 21, 30, 45, 60, 90, 180].map((d) => (
+                {withCurrent([7, 14, 21, 30, 45, 60, 90, 180], v.maxAdvanceDays).map((d) => (
                   <option key={d} value={d}>
                     {d} dias
                   </option>
@@ -133,7 +136,7 @@ export default function PoliciesPage() {
                 value={v.slotIntervalMinutes}
                 onChange={(e) => set('slotIntervalMinutes', Number(e.target.value))}
               >
-                {[10, 15, 20, 30, 45, 60].map((m) => (
+                {withCurrent([10, 15, 20, 30, 45, 60], v.slotIntervalMinutes).map((m) => (
                   <option key={m} value={m}>
                     A cada {m} minutos
                   </option>
@@ -212,9 +215,9 @@ export default function PoliciesPage() {
                 value={v.reminderHours}
                 onChange={(e) => set('reminderHours', Number(e.target.value))}
               >
-                {[2, 3, 6, 12, 24, 48].map((h) => (
+                {withCurrent([2, 3, 6, 12, 24, 48], v.reminderHours).map((h) => (
                   <option key={h} value={h}>
-                    {h} horas antes
+                    {h} {h === 1 ? 'hora' : 'horas'} antes
                   </option>
                 ))}
               </NativeSelect>
@@ -242,4 +245,15 @@ export default function PoliciesPage() {
       </div>
     </div>
   )
+}
+
+/** Opções do select incluindo o valor salvo (mesmo que fora da lista padrão). */
+function withCurrent(options: number[], current: number) {
+  return options.includes(current) ? options : [...options, current].sort((a, b) => a - b)
+}
+
+function withCurrentLabeled(options: Array<[number, string]>, current: number) {
+  return options.some(([m]) => m === current)
+    ? options
+    : [...options, [current, `${current} minutos`] as [number, string]].sort((a, b) => a[0] - b[0])
 }

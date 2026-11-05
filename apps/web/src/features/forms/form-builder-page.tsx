@@ -1,3 +1,4 @@
+import { askConfirm } from '@/components/confirm-host'
 import { ClipboardList, MoreVertical, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { FORM_FIELD_TYPE_LABELS, FORM_FIELD_TYPES, type FormFieldType } from '@marcai/shared'
@@ -134,7 +135,18 @@ export default function FormBuilderPage() {
                     <DropdownMenuItem onSelect={() => setEditing(f)}>
                       <Pencil /> Editar
                     </DropdownMenuItem>
-                    <DropdownMenuItem destructive onSelect={() => remove.mutate(f.id)}>
+                    <DropdownMenuItem
+                      destructive
+                      onSelect={async () => {
+                        if (
+                          await askConfirm({
+                            title: `Remover a pergunta "${f.label}"?`,
+                            description: 'As respostas antigas continuam nos agendamentos.',
+                          })
+                        )
+                          remove.mutate(f.id)
+                      }}
+                    >
                       <Trash2 /> Remover
                     </DropdownMenuItem>
                   </DropdownMenuContent>

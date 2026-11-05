@@ -47,7 +47,8 @@ export class WebPushChannel implements NotificationChannel {
           const status = (err as { statusCode?: number }).statusCode
           // Inscrição expirada/removida: apaga para não tentar de novo
           if (status === 404 || status === 410)
-            await prisma.pushSubscription.delete({ where: { id: s.id } }).catch(() => undefined)
+            // Inscrição expirada: pode já ter sido apagada por outro envio em paralelo
+            await prisma.pushSubscription.deleteMany({ where: { id: s.id } })
           else errors.push(String((err as Error).message))
         }
       }),

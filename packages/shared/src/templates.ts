@@ -218,4 +218,3 @@ export const SAMPLE_TEMPLATE_VARS: Record<string, string> = {
   total: 'R$ 480,00',
   agenda: '08:00 · Ana Souza · Escova\n10:00 · Pedro Lima · Corte + barba',
 }
-

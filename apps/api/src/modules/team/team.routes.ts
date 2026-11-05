@@ -6,10 +6,11 @@ import { hashToken, randomToken } from '../../lib/crypto'
 import { AppError, badRequest, conflict, notFound } from '../../lib/errors'
 import { emailLayout, sendEmail } from '../../lib/mailer'
 import { prisma } from '../../lib/prisma'
+import type { Prisma } from '@prisma/client'
+import type { TenantDb } from '../../lib/tenant-db'
 import { ctx, requireOwner, requireTenant } from '../../plugins/auth'
 import { hashPassword } from '../auth/auth.service'
-
-const idParam = z.object({ id: z.string() })
+import { idParam } from '../../lib/route-schemas'
 
 export const teamRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
@@ -36,38 +37,9 @@ export const teamRoutes: FastifyPluginAsyncZod = async (app) => {
     '/professionals',
     { onRequest: requireOwner, schema: { tags: ['equipe'], body: professionalSchema } },
     async (request, reply) => {
-      const { db, tenantId } = ctx(request)
+      const { db } = ctx(request)
       const { serviceIds, ...data } = request.body
-      const count = await db.professional.count({ where: { deletedAt: null } })
-      const services = await db.service.findMany({
-        where: { id: { in: serviceIds }, deletedAt: null },
-        select: { id: true },
-      })
-      const prof = await db.professional.create({
-        data: {
-          ...data,
-          tenantId,
-          sortOrder: count,
-          services: { create: services.map((s) => ({ tenantId, serviceId: s.id })) },
-        },
-      })
-      // Copia o expediente da primeira profissional como ponto de partida.
-      const first = await db.professional.findFirst({
-        where: { deletedAt: null, id: { not: prof.id } },
-        orderBy: { createdAt: 'asc' },
-      })
-      if (first) {
-        const hours = await db.workingHours.findMany({ where: { professionalId: first.id } })
-        await db.workingHours.createMany({
-          data: hours.map((h) => ({
-            tenantId,
-            professionalId: prof.id,
-            weekday: h.weekday,
-            start: h.start,
-            end: h.end,
-          })),
-        })
-      }
+      const prof = await createProfessionalWithDefaults(db, data, serviceIds)
       return reply.status(201).send(prof)
     },
   )
@@ -90,6 +62,20 @@ export const teamRoutes: FastifyPluginAsyncZod = async (app) => {
           where: { deletedAt: null, active: true, id: { not: prof.id } },
         })
         if (!actives) throw badRequest('É preciso ter pelo menos um profissional ativo')
+        // Mesma regra de remover: agendamentos futuros ficariam com alguém que sumiu da agenda
+        if (prof.active) {
+          const future = await db.booking.count({
+            where: {
+              professionalId: prof.id,
+              status: { in: [...OPEN_BOOKING_STATUSES] },
+              startsAt: { gte: new Date() },
+            },
+          })
+          if (future)
+            throw conflict(
+              `${prof.name} tem ${future} ${future === 1 ? 'agendamento futuro' : 'agendamentos futuros'}. Remarque ou cancele antes de desativar.`,
+            )
+        }
       }
       await db.professional.update({ where: { id: prof.id }, data })
       const services = await db.service.findMany({
@@ -203,11 +189,27 @@ export const teamRoutes: FastifyPluginAsyncZod = async (app) => {
       if (exists) throw conflict('Essa pessoa já faz parte da equipe')
       let professionalId: string | null = null
       if (createProfessional) {
-        const prof = await db.professional.create({ data: { tenantId: db.$tenantId(), name } })
+        // Mesma agenda inicial do cadastro pela equipe: expediente e todos os serviços ativos
+        const allServices = await db.service.findMany({
+          where: { deletedAt: null, active: true },
+          select: { id: true },
+        })
+        const prof = await createProfessionalWithDefaults(
+          db,
+          { name },
+          allServices.map((s) => s.id),
+        )
         professionalId = prof.id
       }
       await db.tenantMember.create({
-        data: { tenantId: db.$tenantId(), userId: user.id, role, professionalId },
+        data: {
+          tenantId: db.$tenantId(),
+          userId: user.id,
+          role,
+          professionalId,
+          // Conta que já existia precisa aceitar o convite (ninguém entra numa equipe sem saber)
+          acceptedAt: isNew ? new Date() : null,
+        },
       })
 
       let cta = { label: 'Entrar no painel', url: `${env.APP_URL}/entrar` }
@@ -224,7 +226,9 @@ export const teamRoutes: FastifyPluginAsyncZod = async (app) => {
       }
       const { html, text } = emailLayout({
         title: `Convite para a equipe de ${tenant.name}`,
-        body: `${request.auth!.user.name} adicionou você à equipe de ${tenant.name}. Pelo painel você vê sua agenda e seus agendamentos.`,
+        body: isNew
+          ? `${request.auth!.user.name} convidou você para a equipe de ${tenant.name}. Pelo painel você vê sua agenda e seus agendamentos.`
+          : `${request.auth!.user.name} convidou você para a equipe de ${tenant.name}. Entre no painel com a sua conta para aceitar ou recusar o convite.`,
         cta,
         brandName: tenant.name,
         color: tenant.primaryColor,
@@ -234,8 +238,8 @@ export const teamRoutes: FastifyPluginAsyncZod = async (app) => {
         subject: `Convite para a equipe de ${tenant.name}`,
         html,
         text,
-        fromName: tenant.name,
-      }).catch(() => undefined)
+        fromName: `${tenant.name} via ${env.APP_NAME}`,
+      }).catch((err) => request.log.warn({ err }, 'Falha ao enviar e-mail de convite'))
       return reply.status(201).send({ ok: true, tenantId })
     },
   )
@@ -263,4 +267,43 @@ export const teamRoutes: FastifyPluginAsyncZod = async (app) => {
       return { ok: true }
     },
   )
+}
+
+/** Cria a profissional com os serviços e o expediente da primeira profissional como base. */
+async function createProfessionalWithDefaults(
+  db: TenantDb,
+  data: Omit<Prisma.ProfessionalUncheckedCreateInput, 'tenantId'>,
+  serviceIds: string[],
+) {
+  const tenantId = db.$tenantId()
+  const count = await db.professional.count({ where: { deletedAt: null } })
+  const services = await db.service.findMany({
+    where: { id: { in: serviceIds }, deletedAt: null },
+    select: { id: true },
+  })
+  const prof = await db.professional.create({
+    data: {
+      ...data,
+      tenantId,
+      sortOrder: count,
+      services: { create: services.map((s) => ({ tenantId, serviceId: s.id })) },
+    },
+  })
+  const first = await db.professional.findFirst({
+    where: { deletedAt: null, id: { not: prof.id } },
+    orderBy: { createdAt: 'asc' },
+  })
+  if (first) {
+    const hours = await db.workingHours.findMany({ where: { professionalId: first.id } })
+    await db.workingHours.createMany({
+      data: hours.map((h) => ({
+        tenantId,
+        professionalId: prof.id,
+        weekday: h.weekday,
+        start: h.start,
+        end: h.end,
+      })),
+    })
+  }
+  return prof
 }

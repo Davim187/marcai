@@ -23,30 +23,38 @@ import {
   requireTenant,
   type TenantContext,
 } from '../../plugins/auth'
+import { scopeWhere } from '../booking/panel.routes'
 import { pushEnabled } from './channels/push'
 import { channels } from './channels/registry'
 import { sseHub } from './channels/sse-hub'
 import { setConnectionStatus, whatsappProvider } from './channels/whatsapp'
 
-/** Profissional (não dona) vê só os avisos dos próprios agendamentos. */
+/**
+ * Regra única de visibilidade dos avisos: profissional (sem acesso total) vê os avisos gerais
+ * e os dos próprios agendamentos — a mesma regra da agenda (`scopeWhere`).
+ */
 async function notificationScope(c: TenantContext): Promise<Prisma.NotificationWhereInput> {
-  if (c.role === 'owner' || !c.professionalId) return {}
-  return {
-    OR: [
-      { bookingId: null },
-      {
-        bookingId: {
-          in: (
-            await c.db.booking.findMany({
-              where: { professionalId: c.professionalId },
-              select: { id: true },
-            })
-          ).map((b) => b.id),
-        },
-      },
-    ],
-  }
+  const bookingScope = scopeWhere(c)
+  if (!Object.keys(bookingScope).length) return {}
+  const own = await c.db.booking.findMany({ where: bookingScope, select: { id: true } })
+  return { OR: [{ bookingId: null }, { bookingId: { in: own.map((b) => b.id) } }] }
 }
+
+/** A mesma regra, para um aviso só (tempo real). */
+async function canSeeNotification(c: TenantContext, bookingId: string | null | undefined) {
+  const bookingScope = scopeWhere(c)
+  if (!bookingId || !Object.keys(bookingScope).length) return true
+  return !!(await c.db.booking.findFirst({
+    where: { id: bookingId, ...bookingScope },
+    select: { id: true },
+  }))
+}
+
+/** O navegador tenta reconectar depois disso se a conexão cair. */
+const SSE_RETRY_MS = 5_000
+/** Comentário periódico: impede proxies de fecharem a conexão parada. */
+const SSE_HEARTBEAT_MS = 25_000
+type SsePayload = { notification?: { bookingId?: string | null } }
 
 export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
@@ -115,24 +123,16 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
         connection: 'keep-alive',
         'x-accel-buffering': 'no',
       })
-      res.write(`retry: 5000\n\n`)
+      res.write(`retry: ${SSE_RETRY_MS}\n\n`)
       const write = (payload: unknown) =>
         res.write(`event: notification\ndata: ${JSON.stringify(payload)}\n\n`)
       // Mesmo escopo da listagem: profissional só recebe avisos dos próprios agendamentos
-      const send = (payload: unknown) => {
-        if (c.role === 'owner') return write(payload)
-        const bookingId = (payload as { notification?: { bookingId?: string | null } }).notification
-          ?.bookingId
-        if (!bookingId) return write(payload)
-        c.db.booking
-          .findFirst({
-            where: { id: bookingId, professionalId: c.professionalId ?? '__sem_agenda__' },
-            select: { id: true },
-          })
-          .then((own) => own && write(payload))
-          .catch(() => undefined)
+      const send = (payload: SsePayload) => {
+        canSeeNotification(c, payload.notification?.bookingId)
+          .then((ok) => ok && write(payload))
+          .catch((err) => request.log.warn({ err }, 'Falha ao filtrar aviso em tempo real'))
       }
-      const heartbeat = setInterval(() => res.write(`: ping\n\n`), 25_000)
+      const heartbeat = setInterval(() => res.write(`: ping\n\n`), SSE_HEARTBEAT_MS)
       sseHub.on(`tenant:${tenantId}`, send)
       res.on('close', () => {
         clearInterval(heartbeat)

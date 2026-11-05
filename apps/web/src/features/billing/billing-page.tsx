@@ -12,7 +12,18 @@ import {
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { toast } from 'sonner'
-import { DAY_MS, formatBRL, GRACE_DAYS, type PlanDefinition, type PlanId } from '@marcai/shared'
+import {
+  DAY_MS,
+  formatBRL,
+  GRACE_DAYS,
+  INVOICE_STATUS_LABELS,
+  type InvoiceStatus,
+  isOpenInvoice,
+  type PlanDefinition,
+  type PlanId,
+  SUBSCRIPTION_STATUS_LABELS,
+  type SubscriptionStatus,
+} from '@marcai/shared'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -37,7 +48,7 @@ import { cn } from '@/lib/utils'
 interface Overview {
   subscription: {
     plan: PlanId
-    status: string
+    status: SubscriptionStatus
     trialEndsAt: string | null
     currentPeriodEnd: string | null
     billingType: string | null
@@ -47,7 +58,7 @@ interface Overview {
   invoices: Array<{
     id: string
     amountCents: number
-    status: string
+    status: InvoiceStatus
     dueDate: string
     paidAt: string | null
     invoiceUrl: string | null
@@ -62,23 +73,20 @@ interface Overview {
 }
 
 const STATUS: Record<
-  string,
+  SubscriptionStatus,
   { label: string; variant: 'success' | 'warning' | 'destructive' | 'muted' | 'default' }
 > = {
-  trial: { label: 'Teste grátis', variant: 'default' },
-  active: { label: 'Ativa', variant: 'success' },
-  past_due: { label: 'Pagamento pendente', variant: 'warning' },
-  canceled: { label: 'Cancelada', variant: 'muted' },
+  trial: { label: SUBSCRIPTION_STATUS_LABELS.trial, variant: 'default' },
+  active: { label: SUBSCRIPTION_STATUS_LABELS.active, variant: 'success' },
+  past_due: { label: SUBSCRIPTION_STATUS_LABELS.past_due, variant: 'warning' },
+  canceled: { label: SUBSCRIPTION_STATUS_LABELS.canceled, variant: 'muted' },
 }
-const INVOICE: Record<
-  string,
-  { label: string; variant: 'success' | 'warning' | 'destructive' | 'muted' }
-> = {
-  pending: { label: 'Em aberto', variant: 'warning' },
-  paid: { label: 'Paga', variant: 'success' },
-  overdue: { label: 'Vencida', variant: 'destructive' },
-  refunded: { label: 'Estornada', variant: 'muted' },
-  canceled: { label: 'Cancelada', variant: 'muted' },
+const INVOICE_VARIANT: Record<InvoiceStatus, 'success' | 'warning' | 'destructive' | 'muted'> = {
+  pending: 'warning',
+  paid: 'success',
+  overdue: 'destructive',
+  refunded: 'muted',
+  canceled: 'muted',
 }
 const METHODS = [
   { id: 'PIX', label: 'PIX', icon: QrCode },
@@ -154,7 +162,10 @@ export default function BillingPage() {
       api<{ checkoutUrl: string | null }>('/billing/subscribe', { body: vars }),
     {
       ...after,
-      success: 'Assinatura atualizada!',
+      success: (res: { checkoutUrl: string | null }) =>
+        res.checkoutUrl
+          ? 'Agora é só autorizar o cartão no Mercado Pago.'
+          : 'Assinatura atualizada!',
       onSuccess: (res, vars) => {
         setChoosing(null)
         setMethodOpen(false)
@@ -190,10 +201,10 @@ export default function BillingPage() {
   if (error) return <QueryError error={error} onRetry={() => refetch()} />
   if (isLoading || !data) return <Skeleton className="h-96" />
   const sub = data.subscription
-  const st = STATUS[sub?.status ?? 'trial']!
+  const statusInfo = STATUS[sub?.status ?? 'trial']
   // Já escolheu plano e forma de pagamento (mesmo durante o teste)
-  const hasPaid = !!sub?.billingType && sub.status !== 'canceled'
-  const pending = data.invoices.find((i) => i.status === 'pending' || i.status === 'overdue')
+  const hasChosenPlan = !!sub?.billingType && sub.status !== 'canceled'
+  const pending = data.invoices.find((i) => isOpenInvoice(i.status))
   const isCard = sub?.billingType === 'CREDIT_CARD'
   const date = (d: string) => fmt(d, 'UTC', 'dd/MM/yyyy')
   const methodLabel = METHODS.find((m) => m.id === sub?.billingType)?.label
@@ -230,11 +241,11 @@ export default function BillingPage() {
               <p className="text-lg font-bold">
                 Plano {sub?.plan === 'essencial' ? 'Essencial' : 'Pro'}
               </p>
-              <Badge variant={st.variant}>{st.label}</Badge>
+              <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
             </div>
             <p className="text-muted-foreground mt-1 text-sm">{statusText}</p>
           </div>
-          {pending && (
+          {pending && !(isCard && data.cardCheckoutUrl) && (
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => pay.mutate(pending.id)} loading={pay.isPending}>
                 <ExternalLink />{' '}
@@ -280,7 +291,7 @@ export default function BillingPage() {
             </div>
           )}
         </CardContent>
-        {hasPaid && (
+        {hasChosenPlan && (
           <div className="flex flex-wrap gap-2 border-t px-5 py-3">
             <Button
               variant="outline"
@@ -301,12 +312,26 @@ export default function BillingPage() {
       {isCard && data.cardCheckoutUrl && (
         <p className="border-warning/40 bg-warning/10 rounded-xl border p-4 text-sm">
           Falta autorizar o cartão no Mercado Pago. Sem isso, a cobrança automática não acontece.
+          {pending && (
+            <>
+              {' '}
+              Mudou de ideia?{' '}
+              <button
+                type="button"
+                className="text-primary font-semibold underline"
+                onClick={() => sub && subscribe.mutate({ plan: sub.plan, billingType: 'PIX' })}
+              >
+                Voltar para PIX
+              </button>{' '}
+              (sua fatura continua aberta).
+            </>
+          )}
         </p>
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
         {data.plans.map((p) => {
-          const current = sub?.plan === p.id && hasPaid
+          const current = sub?.plan === p.id && hasChosenPlan
           return (
             <Card
               key={p.id}
@@ -351,7 +376,7 @@ export default function BillingPage() {
                 >
                   {current
                     ? 'Seu plano atual'
-                    : hasPaid
+                    : hasChosenPlan
                       ? p.id === 'pro'
                         ? 'Fazer upgrade'
                         : 'Mudar para o Essencial'
@@ -392,14 +417,14 @@ export default function BillingPage() {
                     </p>
                   </div>
                   <span className="font-semibold tabular-nums">{formatBRL(i.amountCents)}</span>
-                  {i.processingSince && (i.status === 'pending' || i.status === 'overdue') ? (
+                  {i.processingSince && isOpenInvoice(i.status) ? (
                     <Badge variant="default">Pagamento em análise</Badge>
                   ) : (
-                    <Badge variant={INVOICE[i.status]?.variant ?? 'muted'}>
-                      {INVOICE[i.status]?.label ?? i.status}
+                    <Badge variant={INVOICE_VARIANT[i.status]}>
+                      {INVOICE_STATUS_LABELS[i.status]}
                     </Badge>
                   )}
-                  {(i.status === 'pending' || i.status === 'overdue') && (
+                  {isOpenInvoice(i.status) && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -416,7 +441,7 @@ export default function BillingPage() {
         </CardContent>
       </Card>
 
-      {hasPaid && (
+      {hasChosenPlan && (
         <div className="text-center">
           <Button
             variant="link"

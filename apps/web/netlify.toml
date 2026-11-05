@@ -25,3 +25,14 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Cabeçalhos de segurança (os mesmos que a API envia quando serve o front)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    content-security-policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    x-frame-options = "DENY"
+    x-content-type-options = "nosniff"
+    referrer-policy = "strict-origin-when-cross-origin"
+    permissions-policy = "camera=(), microphone=(), geolocation=()"
+    strict-transport-security = "max-age=31536000; includeSubDomains"

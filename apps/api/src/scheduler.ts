@@ -16,7 +16,11 @@ const TASKS: Array<{ name: string; everyMs: number; run: (log: Log) => Promise<u
   { name: 'fila de notificações', everyMs: 0, run: (log) => processDueJobs(log) },
   { name: 'resumo diário das 07:00', everyMs: MINUTE_MS, run: () => scheduleDailySummaries() },
   { name: 'rotina de cobrança', everyMs: MINUTE_MS, run: () => runBillingTick() },
-  { name: 'limpeza de fotos não usadas', everyMs: HOUR_MS, run: () => cleanupOrphanPrivateUploads() },
+  {
+    name: 'limpeza de fotos não usadas',
+    everyMs: HOUR_MS,
+    run: () => cleanupOrphanPrivateUploads(),
+  },
 ]
 
 /** Inicia o loop. Retorna uma função para parar. */
