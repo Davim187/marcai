@@ -8,7 +8,7 @@ import {
   ACTIVE_BOOKING_STATUSES,
 } from '@marcai/shared'
 import { ctx, requireTenant } from '../../plugins/auth'
-import { bookingInclude, scopeWhere } from '../booking/panel.routes'
+import { bookingInclude, customerScope, scopeWhere } from '../booking/panel.routes'
 import { publicUrlFor } from '../tenants/tenant.summary'
 
 export const dashboardRoutes: FastifyPluginAsyncZod = async (app) => {
@@ -48,43 +48,82 @@ export const dashboardRoutes: FastifyPluginAsyncZod = async (app) => {
         return { cents: r._sum.priceCents ?? 0, count: r._count._all }
       }
       const last30 = new Date(now.getTime() - 30 * 86_400_000)
-      const [todayBookings, next, day, week, month, noShows, done, pending, unread] =
-        await Promise.all([
-          c.db.booking.findMany({
-            where: {
-              ...scope,
-              startsAt: { gte: dayStart, lt: dayEnd },
-              status: { not: 'canceled' },
-            },
-            include: bookingInclude,
-            orderBy: { startsAt: 'asc' },
-          }),
-          c.db.booking.findFirst({
-            where: {
-              ...scope,
-              startsAt: { gte: new Date(now.getTime() - 15 * 60_000) },
-              status: { in: [...OPEN_BOOKING_STATUSES] },
-            },
-            include: bookingInclude,
-            orderBy: { startsAt: 'asc' },
-          }),
-          revenue(dayStart, dayEnd),
-          revenue(weekStart, weekEnd),
-          revenue(monthStart, monthEnd),
-          c.db.booking.count({
-            where: { ...scope, status: 'no_show', startsAt: { gte: last30, lt: now } },
-          }),
-          c.db.booking.count({
-            where: { ...scope, status: 'completed', startsAt: { gte: last30, lt: now } },
-          }),
-          c.db.booking.count({ where: { ...scope, status: 'pending', startsAt: { gte: now } } }),
-          c.db.notification.count({ where: { readAt: null } }),
-        ])
+      const TREND_DAYS = 14
+      const trendStartDate = addDaysToDate(today, -(TREND_DAYS - 1))
+      const trendStart = localToUtc(trendStartDate, 0, tz)
+      const [
+        todayBookings,
+        next,
+        day,
+        week,
+        month,
+        noShows,
+        done,
+        pending,
+        unread,
+        trendBookings,
+        newCustomers,
+      ] = await Promise.all([
+        c.db.booking.findMany({
+          where: {
+            ...scope,
+            startsAt: { gte: dayStart, lt: dayEnd },
+            status: { not: 'canceled' },
+          },
+          include: bookingInclude,
+          orderBy: { startsAt: 'asc' },
+        }),
+        c.db.booking.findFirst({
+          where: {
+            ...scope,
+            startsAt: { gte: new Date(now.getTime() - 15 * 60_000) },
+            status: { in: [...OPEN_BOOKING_STATUSES] },
+          },
+          include: bookingInclude,
+          orderBy: { startsAt: 'asc' },
+        }),
+        revenue(dayStart, dayEnd),
+        revenue(weekStart, weekEnd),
+        revenue(monthStart, monthEnd),
+        c.db.booking.count({
+          where: { ...scope, status: 'no_show', startsAt: { gte: last30, lt: now } },
+        }),
+        c.db.booking.count({
+          where: { ...scope, status: 'completed', startsAt: { gte: last30, lt: now } },
+        }),
+        c.db.booking.count({ where: { ...scope, status: 'pending', startsAt: { gte: now } } }),
+        c.db.notification.count({ where: { readAt: null } }),
+        c.db.booking.findMany({
+          where: {
+            ...scope,
+            status: { in: [...ACTIVE_BOOKING_STATUSES] },
+            startsAt: { gte: trendStart, lt: dayEnd },
+          },
+          select: { startsAt: true, priceCents: true },
+        }),
+        c.db.customer.count({
+          where: { ...customerScope(c), deletedAt: null, createdAt: { gte: monthStart } },
+        }),
+      ])
+      // Série diária (data local do salão) para os gráficos do painel
+      const byDate = new Map<string, { cents: number; count: number }>()
+      for (let i = 0; i < TREND_DAYS; i++)
+        byDate.set(addDaysToDate(trendStartDate, i), { cents: 0, count: 0 })
+      for (const b of trendBookings) {
+        const d = byDate.get(toLocalDate(b.startsAt, tz))
+        if (d) {
+          d.cents += b.priceCents
+          d.count += 1
+        }
+      }
       return {
         today: todayBookings,
         next,
         revenue: { day, week, month },
         noShowRate: done + noShows ? noShows / (done + noShows) : 0,
+        attendance: { completed: done, noShows },
+        trend: [...byDate].map(([date, v]) => ({ date, ...v })),
+        newCustomers,
         pendingCount: pending,
         unreadNotifications: unread,
         publicUrl: publicUrlFor(c.tenant.slug),

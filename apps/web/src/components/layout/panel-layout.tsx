@@ -15,7 +15,6 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu'
 import { api } from '@/lib/api'
-import { applyBrandColor } from '@/lib/brand'
 import { useTenant } from '@/lib/session'
 import { useApplyTheme, useTheme } from '@/lib/theme'
 import { cn, copyToClipboard } from '@/lib/utils'
@@ -33,7 +32,7 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
         if (!items.length) return null
         return (
           <div key={group.label}>
-            <p className="text-muted-foreground/75 mb-1.5 px-3 text-xs font-medium">
+            <p className="text-muted-foreground mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider">
               {group.label}
             </p>
             <ul className="space-y-0.5">
@@ -45,9 +44,9 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
                     onClick={onNavigate}
                     className={({ isActive }) =>
                       cn(
-                        'text-muted-foreground hover:bg-muted hover:text-foreground relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                        'text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-3 rounded-full px-3 py-2 text-sm font-medium transition-colors',
                         isActive &&
-                          'bg-primary-soft text-primary hover:bg-primary-soft hover:text-primary before:bg-primary font-semibold before:absolute before:inset-y-2 before:-left-3 before:w-[3px] before:rounded-r-full',
+                          'bg-inverse text-inverse-foreground hover:bg-inverse hover:text-inverse-foreground',
                       )
                     }
                   >
@@ -63,7 +62,7 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
       {user.isSuperAdmin && (
         <NavLink
           to={ADMIN_ITEM.to}
-          className="text-muted-foreground hover:bg-muted flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium"
+          className="text-muted-foreground hover:bg-muted flex items-center gap-3 rounded-full px-3 py-2 text-sm font-medium"
         >
           <ADMIN_ITEM.icon className="h-[18px] w-[18px]" /> {ADMIN_ITEM.label}
         </NavLink>
@@ -82,11 +81,6 @@ export default function PanelLayout() {
   const location = useLocation()
 
   useEffect(() => {
-    applyBrandColor(tenant.primaryColor, theme === 'dark')
-    return () => applyBrandColor(null)
-  }, [tenant.primaryColor, theme])
-
-  useEffect(() => {
     window.scrollTo({ top: 0 })
   }, [location.pathname])
 
@@ -98,7 +92,7 @@ export default function PanelLayout() {
 
   async function copyLink() {
     if (await copyToClipboard(tenant.publicUrl))
-      toast.success('Link copiado. Cole na bio do Instagram')
+      toast.success('Link copiado! Cole na bio do Instagram')
   }
 
   return (
@@ -111,18 +105,12 @@ export default function PanelLayout() {
           </button>
         </div>
       )}
-      <a
-        href="#conteudo"
-        className="bg-primary text-primary-foreground sr-only z-50 rounded-md px-3 py-2 focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
-      >
-        Pular para o conteúdo
-      </a>
       {/* Sidebar desktop */}
-      <aside className="bg-card fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r lg:flex">
+      <aside className="bg-card shadow-soft fixed bottom-4 left-4 top-4 z-30 hidden w-60 flex-col overflow-hidden rounded-[1.75rem] border lg:flex">
         <div className="flex h-16 items-center px-5">
           <BrandLogo />
         </div>
-        <div className="bg-muted/60 mx-3 mb-5 rounded-xl px-3 py-2.5">
+        <div className="bg-muted mx-3 mb-4 rounded-2xl p-3">
           <p className="truncate text-sm font-semibold">{tenant.name}</p>
           <button
             onClick={copyLink}
@@ -132,18 +120,18 @@ export default function PanelLayout() {
             <span className="truncate">{tenant.publicUrl.replace(/^https?:\/\//, '')}</span>
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-3 pb-6">
+        <div className="scrollbar-none flex-1 overflow-y-auto px-3 pb-6">
           <SideNav />
         </div>
       </aside>
 
-      <div className="lg:pl-64">
-        <header className="bg-background/85 sticky top-0 z-20 flex h-14 items-center gap-2 border-b px-4 backdrop-blur-md sm:h-16 sm:px-6">
+      <div className="lg:pl-[17rem]">
+        <header className="bg-background/85 sticky top-0 z-20 flex h-14 items-center gap-2 px-4 backdrop-blur-md sm:h-16 sm:px-6 lg:top-4 lg:mx-4 lg:h-14 lg:rounded-full lg:px-3">
           <div className="flex min-w-0 flex-1 items-center gap-2 lg:hidden">
             <span className="truncate text-base font-bold">{tenant.name}</span>
           </div>
           <div className="hidden flex-1 lg:block" />
-          <Button variant="ghost" size="icon" asChild className="hidden sm:inline-flex">
+          <Button variant="round" size="icon" asChild className="hidden sm:inline-flex">
             <a
               href={tenant.publicUrl}
               target="_blank"
@@ -154,7 +142,7 @@ export default function PanelLayout() {
             </a>
           </Button>
           <Button
-            variant="ghost"
+            variant="round"
             size="icon"
             onClick={toggle}
             aria-label={theme === 'dark' ? 'Usar modo claro' : 'Usar modo escuro'}
@@ -201,17 +189,17 @@ export default function PanelLayout() {
         <InviteBanner />
         <SubscriptionBanner />
 
-        <main id="conteudo" className="mx-auto max-w-6xl px-4 pb-28 pt-5 sm:px-6 sm:pt-8 lg:pb-14">
+        <main className="mx-auto max-w-6xl px-4 pb-28 pt-5 sm:px-6 sm:pt-8 lg:pb-10">
           <Outlet />
         </main>
       </div>
 
       {/* Bottom navigation (celular) */}
       <nav
-        className="bg-card/95 pb-safe fixed inset-x-0 bottom-0 z-30 border-t backdrop-blur-md lg:hidden"
+        className="pb-safe pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3 lg:hidden"
         aria-label="Navegação"
       >
-        <ul className="grid grid-cols-5">
+        <ul className="bg-card/95 shadow-lift pointer-events-auto grid grid-cols-5 rounded-full border p-1.5 backdrop-blur-md">
           {BOTTOM_NAV.map((item) => (
             <li key={item.to}>
               <NavLink
@@ -219,12 +207,12 @@ export default function PanelLayout() {
                 end={item.to === '/painel'}
                 className={({ isActive }) =>
                   cn(
-                    'text-muted-foreground flex flex-col items-center gap-0.5 pt-2 text-[11px] font-medium transition-colors',
-                    isActive && 'text-primary',
+                    'text-muted-foreground flex flex-col items-center gap-0.5 rounded-full py-1.5 text-[11px] font-medium transition-colors',
+                    isActive && 'bg-inverse text-inverse-foreground',
                   )
                 }
               >
-                <item.icon className="h-[22px] w-[22px]" aria-hidden />
+                <item.icon className="h-5 w-5" aria-hidden />
                 {item.label}
               </NavLink>
             </li>
@@ -234,12 +222,12 @@ export default function PanelLayout() {
               to="/painel/mais"
               className={({ isActive }) =>
                 cn(
-                  'text-muted-foreground flex flex-col items-center gap-0.5 pt-2 text-[11px] font-medium transition-colors',
-                  isActive && 'text-primary',
+                  'text-muted-foreground flex flex-col items-center gap-0.5 rounded-full py-1.5 text-[11px] font-medium transition-colors',
+                  isActive && 'bg-inverse text-inverse-foreground',
                 )
               }
             >
-              <MoreHorizontal className="h-[22px] w-[22px]" aria-hidden />
+              <MoreHorizontal className="h-5 w-5" aria-hidden />
               Mais
             </NavLink>
           </li>

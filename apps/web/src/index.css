@@ -3,73 +3,73 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    /* Neutros: uma única família de cinza azulado (hue 210) */
-    --background: 210 20% 98%;
-    --foreground: 210 30% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 210 30% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 210 30% 10%;
-    /* Destaque único: azul-petróleo (as lojas trocam pela cor delas) */
-    --primary: 198 59% 30%;
-    --primary-foreground: 0 0% 100%;
-    --primary-soft: 198 40% 95%;
-    --secondary: 210 16% 95%;
-    --secondary-foreground: 210 30% 14%;
-    --muted: 210 16% 95%;
-    --muted-foreground: 210 10% 38%;
-    --accent: 210 18% 94%;
-    --accent-foreground: 210 30% 14%;
-    --destructive: 0 62% 44%;
-    --destructive-foreground: 0 0% 100%;
-    --success: 152 50% 30%;
-    --success-foreground: 0 0% 100%;
-    --warning: 33 80% 38%;
-    --warning-foreground: 0 0% 100%;
-    --border: 210 16% 89%;
-    --input: 210 14% 84%;
-    --ring: 198 59% 30%;
-    --radius: 0.75rem;
-    /* Gráficos: paleta validada (CVD/contraste) para fundo claro */
-    --chart-1: #1f5f7a;
-    --chart-2: #c2793a;
-    --chart-grid: #e3e8ee;
-  }
+  /* Paleta: neutros quentes (pedra) + sálvia. Contraste AA conferido nos dois modos. */
   :root {
     color-scheme: light;
+    --background: 45 17% 91%;
+    --foreground: 140 5% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 140 5% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 140 5% 11%;
+    --primary: 151 32% 36%;
+    --primary-foreground: 0 0% 100%;
+    --primary-soft: 144 22% 91%;
+    --secondary: 48 16% 94%;
+    --secondary-foreground: 140 5% 16%;
+    --muted: 48 16% 94%;
+    --muted-foreground: 100 3% 38%;
+    --accent: 132 17% 94%;
+    --accent-foreground: 151 32% 27%;
+    --destructive: 0 65% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 151 40% 32%;
+    --success-foreground: 0 0% 100%;
+    --warning: 33 85% 38%;
+    --warning-foreground: 0 0% 100%;
+    --border: 45 12% 87%;
+    --input: 47 10% 82%;
+    --ring: 151 32% 36%;
+    /* Destaque invertido (item ativo do menu, botões redondos escuros) */
+    --inverse: 140 5% 11%;
+    --inverse-foreground: 0 0% 100%;
+    --radius: 0.875rem;
+    /* Gráficos: sálvia + terracota (validados: CVD, contraste 3:1 no cartão) */
+    --chart-1: #3f7b5e;
+    --chart-2: #c2782c;
+    --chart-grid: #e7e5df;
   }
   .dark {
     color-scheme: dark;
-    /* Grafite azulado, nunca preto puro */
-    --background: 210 18% 8%;
-    --foreground: 210 16% 94%;
-    --card: 210 16% 11%;
-    --card-foreground: 210 16% 94%;
-    --popover: 210 16% 11%;
-    --popover-foreground: 210 16% 94%;
-    --primary: 194 50% 62%;
-    --primary-foreground: 210 30% 8%;
-    --primary-soft: 198 30% 17%;
-    --secondary: 210 12% 16%;
-    --secondary-foreground: 210 16% 94%;
-    --muted: 210 12% 16%;
-    --muted-foreground: 210 9% 64%;
-    --accent: 210 12% 18%;
-    --accent-foreground: 210 16% 94%;
-    --destructive: 0 60% 56%;
-    --destructive-foreground: 0 0% 100%;
-    --success: 152 42% 46%;
+    --background: 160 9% 6%;
+    --foreground: 140 7% 92%;
+    --card: 140 6% 10%;
+    --card-foreground: 140 7% 92%;
+    --popover: 150 7% 12%;
+    --popover-foreground: 140 7% 92%;
+    --primary: 148 26% 54%;
+    --primary-foreground: 140 9% 7%;
+    --primary-soft: 150 18% 15%;
+    --secondary: 150 6% 14%;
+    --secondary-foreground: 140 7% 92%;
+    --muted: 150 6% 14%;
+    --muted-foreground: 137 4% 63%;
+    --accent: 158 11% 14%;
+    --accent-foreground: 140 7% 92%;
+    --destructive: 0 65% 58%;
+    --destructive-foreground: 0 0% 8%;
+    --success: 148 30% 52%;
     --success-foreground: 0 0% 8%;
     --warning: 35 80% 56%;
     --warning-foreground: 0 0% 8%;
-    --border: 210 10% 20%;
-    --input: 210 10% 25%;
-    --ring: 194 50% 62%;
-    /* Gráficos: paleta validada para o fundo escuro */
-    --chart-1: #5fb3cf;
-    --chart-2: #e09a5c;
-    --chart-grid: #252c34;
+    --border: 144 6% 16%;
+    --input: 150 6% 21%;
+    --ring: 148 26% 54%;
+    --inverse: 140 7% 92%;
+    --inverse-foreground: 140 9% 7%;
+    --chart-1: #5f9e7e;
+    --chart-2: #c47f34;
+    --chart-grid: #262b28;
   }
   * {
     @apply border-border;
@@ -77,16 +77,9 @@
   html {
     -webkit-tap-highlight-color: transparent;
   }
-  html {
-    scroll-behavior: smooth;
-  }
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    /* Horários e valores alinhados em colunas */
-    font-variant-numeric: tabular-nums;
-  }
-  p {
-    text-wrap: pretty;
+    font-feature-settings: 'cv11', 'ss01';
   }
   :focus-visible {
     @apply ring-ring ring-offset-background outline-none ring-2 ring-offset-2;
@@ -95,44 +88,10 @@
   h2,
   h3 {
     @apply tracking-tight;
-    text-wrap: balance;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    html {
-      scroll-behavior: auto;
-    }
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms !important;
-      transition-duration: 0.01ms !important;
-    }
   }
 }
 
 @layer components {
-  /* Capa sem foto: luz radial + textura de pontos, na cor da loja (sem placa chapada) */
-  .brand-cover {
-    background-color: hsl(var(--primary));
-    background-image:
-      radial-gradient(120% 90% at 15% 0%, hsl(0 0% 100% / 0.22), transparent 55%),
-      radial-gradient(90% 80% at 100% 100%, hsl(0 0% 0% / 0.28), transparent 60%),
-      radial-gradient(hsl(0 0% 100% / 0.14) 1px, transparent 1px);
-    background-size:
-      auto,
-      auto,
-      14px 14px;
-  }
-  /* Fundo claro com profundidade sutil, para áreas de destaque */
-  .soft-surface {
-    background-color: hsl(var(--primary-soft));
-    background-image:
-      radial-gradient(80% 60% at 0% 0%, hsl(var(--primary) / 0.1), transparent 60%),
-      radial-gradient(hsl(var(--primary) / 0.08) 1px, transparent 1px);
-    background-size:
-      auto,
-      16px 16px;
-  }
   .select-chevron {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23888' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-position: right 0.75rem center;
