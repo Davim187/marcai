@@ -81,6 +81,7 @@ export class EvolutionApiProvider implements WhatsAppProvider {
           qrcode: true,
           integration: 'WHATSAPP-BAILEYS',
           webhook: {
+            enabled: true,
             url: webhookUrl,
             byEvents: false,
             base64: false,
@@ -88,6 +89,7 @@ export class EvolutionApiProvider implements WhatsAppProvider {
           },
         },
       )
+      await this.ensureWebhook(instanceName)
       if (created.qrcode?.base64) return { status: 'connecting', qrCode: created.qrcode.base64 }
     } catch (err) {
       if (!/already|exists|in use/i.test(String((err as Error).message))) throw err
