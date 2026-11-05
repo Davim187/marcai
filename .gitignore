@@ -9,6 +9,7 @@ test-results
 .DS_Store
 apps/api/uploads/*
 !apps/api/uploads/.gitkeep
+apps/api/uploads-privado/
 dev-dist
 *.tsbuildinfo
 
