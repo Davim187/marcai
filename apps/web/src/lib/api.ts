@@ -86,6 +86,8 @@ function safeJson(text: string) {
 }
 
 export const apiUrl = (path: string) => `${BASE}/api${path}`
+/** Endereço de uma imagem salva: arquivos privados passam pela API (com a sessão). */
+export const imageSrc = (url: string) => (url.startsWith('/api/') ? apiUrl(url.slice(4)) : url)
 
 /** Mensagem amigável em português. Nunca repassa erro técnico cru (ex.: "Invalid time value"). */
 export function errorMessage(err: unknown) {

@@ -18,6 +18,7 @@ import { channels } from './channels/registry'
 import { PermanentChannelError, type ChannelName, type OutboundMessage } from './channels/types'
 import { canNotify } from './gating'
 import { getTemplate, loadFullBooking, renderForCustomer } from './messages'
+import { findOwners } from './owners'
 import { enqueue } from './queue'
 
 const BATCH = 20
@@ -44,7 +45,7 @@ async function resolveMessage(job: NotificationJob): Promise<OutboundMessage | n
   if (job.kind === 'customer_reminder' || job.kind === 'customer_reminder_email') {
     const b = job.bookingId ? await loadFullBooking(job.bookingId) : null
     // Lembrete obsoleto: cancelado, remarcado, cliente excluída ou plano sem o recurso
-    if (!b || !isOpenBooking(b.status) || b.customer.deletedAt) return null
+    if (!b || b.status !== 'confirmed' || b.customer.deletedAt) return null
     if (payload.startsAt && b.startsAt.toISOString() !== payload.startsAt) return null
     if (job.kind === 'customer_reminder' && !canNotify(b.tenant, 'whatsapp_customer')) return null
     return { ...payload, body: await renderForCustomer(b, 'customer_reminder') }
@@ -224,10 +225,7 @@ export async function scheduleDailySummaries(now = new Date()) {
       })
     }
     // A agenda inteira do dia é só para a gestão (donas), não para as profissionais
-    const owners = await prisma.tenantMember.findMany({
-      where: { tenantId: t.id, role: 'owner' },
-      include: { user: { select: { email: true } } },
-    })
+    const owners = await findOwners(t.id)
     for (const o of owners) {
       await enqueue({
         channel: 'push',

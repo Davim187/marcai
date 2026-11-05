@@ -2,6 +2,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { blockTenantSchema, extendTrialSchema, PLANS } from '@marcai/shared'
 import { audit } from '../../lib/audit'
+import { notifyOwners } from '../notifications/owners'
 import { notFound } from '../../lib/errors'
 import { prisma } from '../../lib/prisma'
 import { requireSuperAdmin, setSessionCookies } from '../../plugins/auth'
@@ -179,6 +180,15 @@ export const adminRoutes: FastifyPluginAsyncZod = async (app) => {
         actorUserId: userId,
         impersonatorId: request.auth!.user.id,
         ip: request.ip,
+      })
+      // A dona sempre fica sabendo do acesso de suporte (LGPD/transparência)
+      await notifyOwners({
+        tenantId: tenant.id,
+        kind: 'support_access',
+        title: 'Acesso de suporte à sua conta',
+        body: `A equipe de suporte acessou o painel de ${tenant.name} em ${new Date().toLocaleString('pt-BR', { timeZone: tenant.timezone })} para ajudar você. Se não pediu ajuda, responda este e-mail.`,
+        path: '/painel',
+        inApp: false,
       })
       setSessionCookies(reply, token, csrfToken)
       return { ok: true }

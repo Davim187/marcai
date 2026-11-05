@@ -5,6 +5,7 @@ export const MESSAGE_TEMPLATE_KEYS = [
   'professional_booking_rescheduled',
   'professional_daily_summary',
   'customer_confirmation',
+  'customer_pending',
   'customer_reminder',
   'customer_canceled',
   'customer_rescheduled',
@@ -67,6 +68,14 @@ export const TEMPLATE_META: Record<MessageTemplateKey, TemplateMeta> = {
     audience: 'cliente',
     description: 'Enviada para a cliente logo depois de agendar.',
     variables: [...BOOKING_VARS, 'endereco', 'politica'],
+  },
+  customer_pending: {
+    key: 'customer_pending',
+    title: 'Pedido recebido (confirmação manual)',
+    audience: 'cliente',
+    description:
+      'Enviado quando você confirma cada pedido manualmente: avisa que o horário ainda vai ser confirmado.',
+    variables: [...BOOKING_VARS, 'endereco'],
   },
   customer_reminder: {
     key: 'customer_reminder',
@@ -140,6 +149,14 @@ Total previsto: {total}
 Para ver, cancelar ou remarcar: {link}
 
 {negocio}`,
+  customer_pending: `Olá, {cliente}! Recebemos seu pedido de horário 📝
+
+✨ {servico}
+📅 {data}
+🕐 {hora}
+
+Ele ainda NÃO está confirmado: {negocio} vai confirmar em breve e você recebe uma mensagem.
+Para ver ou cancelar o pedido: {link}`,
   customer_reminder: `Oi, {cliente}! Passando para lembrar do seu horário ⏰
 
 ✨ {servico}
@@ -201,3 +218,4 @@ export const SAMPLE_TEMPLATE_VARS: Record<string, string> = {
   total: 'R$ 480,00',
   agenda: '08:00 · Ana Souza · Escova\n10:00 · Pedro Lima · Corte + barba',
 }
+

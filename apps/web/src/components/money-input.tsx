@@ -1,3 +1,4 @@
+import { parseBRLToCents } from '@marcai/shared'
 import { Input } from './ui/input'
 
 /** Input de valor em reais. Trabalha em centavos. */
@@ -25,9 +26,18 @@ export function MoneyInput({
         className="pl-9"
         value={display}
         onChange={(e) => {
+          // Digitação estilo "caixa registradora": cada dígito entra pela direita
           const digits = e.target.value.replace(/\D/g, '').slice(0, 9)
           onChange(Number(digits || '0'))
         }}
+        onPaste={(e) => {
+          // Colar "50", "150,5" ou "R$ 1.500" entende o valor em reais (não em centavos)
+          const cents = parseBRLToCents(e.clipboardData.getData('text'))
+          if (cents === null) return
+          e.preventDefault()
+          onChange(Math.min(cents, 999_999_999))
+        }}
+        onFocus={(e) => e.currentTarget.select()}
         {...rest}
       />
     </div>

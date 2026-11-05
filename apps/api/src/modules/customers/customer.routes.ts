@@ -5,8 +5,8 @@ import { customerSchema, formatPhone, normalizeBrazilianMobile } from '@marcai/s
 import { audit } from '../../lib/audit'
 import { toCsv } from '../../lib/csv'
 import { conflict, notFound } from '../../lib/errors'
-import { ctx, requireOwner, requireTenant, type TenantContext } from '../../plugins/auth'
-import { bookingInclude, scopeWhere } from '../booking/panel.routes'
+import { ctx, requireOwner, requireTenant } from '../../plugins/auth'
+import { bookingInclude, customerScope, scopeWhere } from '../booking/panel.routes'
 import {
   anonymizeCustomer,
   customerStats,
@@ -15,15 +15,6 @@ import {
 } from './customer.service'
 
 const idParam = z.object({ id: z.string() })
-
-/**
- * Profissional (sem acesso total) só enxerga clientes que já agendaram com ela.
- * Exportar, importar, editar e excluir é só para a gestão.
- */
-function customerScope(c: TenantContext): Prisma.CustomerWhereInput {
-  const bookingScope = scopeWhere(c)
-  return Object.keys(bookingScope).length ? { bookings: { some: bookingScope } } : {}
-}
 
 const listQuery = z.object({
   q: z.string().max(80).optional(),

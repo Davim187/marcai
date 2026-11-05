@@ -2,7 +2,7 @@ import { DAY_MS, PLANS } from '@marcai/shared'
 import { env } from '../../config/env'
 import { logger } from '../../lib/logger'
 import { prisma } from '../../lib/prisma'
-import { nextDueDate, notifyOwners } from './billing.service'
+import { nextDueDate, notifyBillingOwners } from './billing.service'
 
 /**
  * Rotina periódica da cobrança (roda pelo agendador do worker):
@@ -60,7 +60,7 @@ export async function generateUpcomingInvoices(now = new Date()) {
       logger.error({ err, subscriptionId: sub.id }, 'Falha ao gerar fatura')
       continue
     }
-    await notifyOwners(
+    await notifyBillingOwners(
       sub.tenantId,
       'Sua fatura está disponível',
       `A fatura da sua assinatura vence em ${dueDate.toISOString().slice(0, 10).split('-').reverse().join('/')}. Pague por PIX ou boleto pelo painel para manter sua agenda no ar.`,

@@ -2,6 +2,7 @@ import { env } from '../../../../config/env'
 import { prisma } from '../../../../lib/prisma'
 import { PermanentChannelError, type NotificationChannel, type OutboundMessage } from '../types'
 import { ConsoleWhatsAppProvider } from './console'
+import { channelEvents } from '../channel-events'
 import { EvolutionApiProvider, InstanceGoneError } from './evolution'
 import { MetaCloudApiProvider } from './meta'
 import type { WhatsAppProvider } from './provider'
@@ -71,39 +72,7 @@ export async function setConnectionStatus(
     data: { status, ...(status === 'connected' ? { connectedAt: new Date() } : {}) },
   })
   if (phone) await prisma.whatsAppConnection.updateMany({ where: { tenantId }, data: { phone } })
-  if (dropped.count) await onWhatsAppDisconnected(tenantId).catch(() => undefined)
-}
-
-async function onWhatsAppDisconnected(tenantId: string) {
-  const { channels } = await import('../registry')
-  const { enqueue } = await import('../../queue')
-  const title = 'Seu WhatsApp desconectou'
-  const body =
-    'As mensagens de WhatsApp pararam de sair. No painel, abra Notificações e leia o QR Code de novo.'
-  await channels.inapp.send({
-    tenantId,
-    title,
-    body,
-    url: '/painel/notificacoes',
-    type: 'whatsapp_disconnected',
-  })
-  const owners = await prisma.tenantMember.findMany({
-    where: { tenantId, role: 'owner' },
-    include: { user: { select: { email: true } } },
-  })
-  for (const o of owners) {
-    await enqueue({
-      channel: 'email',
-      kind: 'whatsapp_disconnected',
-      message: {
-        tenantId,
-        to: o.user.email,
-        title,
-        body,
-        url: `${env.APP_URL}/painel/notificacoes`,
-      },
-    })
-  }
+  if (dropped.count) channelEvents.emit('whatsapp.disconnected', tenantId)
 }
 
 export type { WhatsAppProvider }

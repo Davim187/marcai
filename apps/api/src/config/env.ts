@@ -88,6 +88,11 @@ function productionProblems(e: z.infer<typeof schema>): string[] {
       'Com o Mercado Pago, defina MP_ACCESS_TOKEN e MP_WEBHOOK_SECRET (assinatura secreta do webhook)',
     )
   }
+  if (process.env.TRUST_PROXY === undefined || process.env.TRUST_PROXY === '') {
+    problems.push(
+      'Defina TRUST_PROXY: o número de proxies na frente da API (ex.: 1 no Railway/Render, 2 com o rewrite da Vercel/Netlify) ou "false" se não houver nenhum. Sem isso, todos os acessos parecem vir do mesmo IP e o limite de tentativas bloqueia a plataforma inteira.',
+    )
+  }
   if (!e.RESEND_API_KEY && !e.SMTP_HOST) {
     problems.push(
       'Configure o envio de e-mail (RESEND_API_KEY ou SMTP_HOST): sem isso, avisos e recuperação de senha não chegam',

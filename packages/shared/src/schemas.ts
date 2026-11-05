@@ -79,7 +79,12 @@ export const updateProfileSchema = z.object({
 // ---------- Onboarding ----------
 export const shiftSchema = z
   .object({ weekday: z.number().int().min(0).max(6), start: hhmm, end: hhmm })
-  .refine((s) => s.start !== s.end, 'Início e fim não podem ser iguais')
+  // "00:00"/"24:00" no fim = até a meia-noite. Fim antes do início (18:00–08:00) abriria a
+  // agenda de madrugada sem ninguém perceber: é recusado.
+  .refine((s) => s.end === '00:00' || s.end === '24:00' || s.end > s.start, {
+    message: 'O fim do turno precisa ser depois do início (ex.: 08:00 às 18:00)',
+    path: ['end'],
+  })
 export type ShiftInput = z.infer<typeof shiftSchema>
 
 export const onboardingSchema = z.object({
@@ -295,6 +300,17 @@ export const OPEN_BOOKING_STATUSES = [
 ] as const satisfies readonly BookingStatus[]
 export const isOpenBooking = (status: string) =>
   (OPEN_BOOKING_STATUSES as readonly string[]).includes(status)
+/**
+ * Mudanças de status permitidas no painel. Concluído e falta podem ser trocados entre si
+ * (corrigir um engano), mas nenhum dos dois volta a ser "confirmado".
+ */
+export const BOOKING_STATUS_TRANSITIONS: Record<BookingStatus, readonly BookingStatus[]> = {
+  pending: ['confirmed', 'canceled'],
+  confirmed: ['completed', 'no_show', 'canceled'],
+  completed: ['no_show'],
+  no_show: ['completed'],
+  canceled: [],
+}
 /** Mensagens de sucesso ao mudar o status no painel. */
 export const BOOKING_STATUS_TOASTS: Record<BookingStatus, string> = {
   pending: 'Agendamento marcado como pendente',
@@ -369,6 +385,23 @@ export const inviteMemberSchema = z.object({
 })
 
 // ---------- Notificações ----------
+/** Hosts dos serviços de Web Push (Chrome/Android, Firefox, Edge/Windows, Safari/Apple). */
+const PUSH_HOSTS = [
+  /^fcm\.googleapis\.com$/,
+  /^android\.googleapis\.com$/,
+  /^updates\.push\.services\.mozilla\.com$/,
+  /^[a-z0-9-]+\.push\.services\.mozilla\.com$/,
+  /^[a-z0-9-]+\.notify\.windows\.com$/,
+  /^web\.push\.apple\.com$/,
+]
+export function isTrustedPushEndpoint(value: string) {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && !url.port && PUSH_HOSTS.some((h) => h.test(url.hostname))
+  } catch {
+    return false
+  }
+}
 export const messageTemplateSchema = z.object({
   key: z.enum(MESSAGE_TEMPLATE_KEYS),
   body: z.string().trim().min(5).max(2000),
@@ -385,7 +418,12 @@ export const notificationSettingsSchema = z.object({
 export type NotificationSettingsInput = z.infer<typeof notificationSettingsSchema>
 
 export const pushSubscriptionSchema = z.object({
-  endpoint: z.string().url().max(1000),
+  // Só serviços de push dos navegadores (evita o servidor fazer requisições para endereços internos)
+  endpoint: z
+    .string()
+    .url()
+    .max(1000)
+    .refine(isTrustedPushEndpoint, 'Endereço de notificação inválido'),
   keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }),
 })
 

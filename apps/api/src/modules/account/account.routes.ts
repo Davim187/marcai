@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { normalizeBrazilianMobile, updateProfileSchema } from '@marcai/shared'
 import { audit } from '../../lib/audit'
+import { deleteTenantPrivateFiles } from '../uploads/private-cleanup'
 import { badRequest } from '../../lib/errors'
 import { prisma } from '../../lib/prisma'
 import { clearSessionCookies, requireAuth } from '../../plugins/auth'
@@ -101,6 +102,7 @@ export const accountRoutes: FastifyPluginAsyncZod = async (app) => {
               )
             })
         await prisma.tenant.delete({ where: { id: m.tenantId } })
+        await deleteTenantPrivateFiles(m.tenantId)
         await audit({ action: 'tenant.deleted', tenantId: m.tenantId, actorUserId: userId })
       }
       await prisma.user.delete({ where: { id: userId } })

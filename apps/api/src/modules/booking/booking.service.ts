@@ -1,5 +1,7 @@
 import type { Prisma, Tenant } from '@prisma/client'
 import {
+  BOOKING_STATUS_LABELS,
+  BOOKING_STATUS_TRANSITIONS,
   type BookingStatus,
   HOUR_MS,
   isOpenBooking,
@@ -20,10 +22,16 @@ import {
   slotUnavailable,
   tooMany,
 } from '../../lib/errors'
+import { privateFilePath } from '../../lib/storage'
 import { forTenant, type TenantDb } from '../../lib/tenant-db'
 import { isOverlapError } from '../../plugins/error-handler'
 import { upsertCustomerByPhone } from '../customers/customer.service'
-import { onBookingCanceled, onBookingCreated, onBookingRescheduled } from '../notifications/events'
+import {
+  onBookingApproved,
+  onBookingCanceled,
+  onBookingCreated,
+  onBookingRescheduled,
+} from '../notifications/events'
 import { checkSlot, slotProblem } from './availability.service'
 
 const MAX_BOOKINGS_PER_PHONE_PER_HOUR = 5
@@ -101,7 +109,8 @@ export async function validateAnswers(db: TenantDb, serviceId: string, answers: 
       errors[field.id] = 'Resposta inválida'
     else if (
       field.type === 'photo' &&
-      (typeof value !== 'string' || !value.startsWith('/uploads/'))
+      // Só fotos enviadas para ESTE estabelecimento
+      (typeof value !== 'string' || privateFilePath(value)?.folder !== `${db.$tenantId()}-ref`)
     )
       errors[field.id] = 'Foto inválida'
     else
@@ -198,6 +207,7 @@ export async function createBooking(opts: CreateBookingOptions) {
         professionalId: professional.id,
         serviceId: service.id,
         customerId,
+        customerName: opts.customer.name?.trim() || null,
         startsAt: opts.startsAt,
         endsAt,
         blockedUntil,
@@ -217,6 +227,20 @@ export async function createBooking(opts: CreateBookingOptions) {
   } catch (err) {
     if (isOverlapError(err)) throw overlapError(by)
     throw err
+  }
+
+  // Rede de segurança contra reservas em paralelo: o limite por telefone é conferido de novo
+  // depois de gravar (a primeira checagem não enxerga requisições simultâneas)
+  if (online && !opts.customer.id) {
+    const recent = await db.booking.count({
+      where: { customerId, createdAt: { gte: new Date(Date.now() - HOUR_MS) } },
+    })
+    if (recent > MAX_BOOKINGS_PER_PHONE_PER_HOUR) {
+      await db.booking.deleteMany({ where: { id: booking.id } })
+      throw tooMany(
+        'Muitos agendamentos com esse número. Tente mais tarde ou fale com o estabelecimento.',
+      )
+    }
   }
 
   await onBookingCreated(booking.id, { notifyCustomer: opts.notifyCustomer ?? true })
@@ -254,10 +278,20 @@ export async function rescheduleBooking(opts: {
   if (!isOpenBooking(booking.status)) {
     throw badRequest('Só dá para remarcar agendamentos pendentes ou confirmados')
   }
-  assertNotPast(opts.startsAt)
-
   // O profissional precisa ser DESTE estabelecimento (nunca de outro tenant)
   const professionalId = opts.professionalId ?? booking.professionalId
+  // Mesmo horário e mesma profissional (clique repetido, rede reenviando): nada muda, nada é avisado
+  if (
+    booking.startsAt.getTime() === opts.startsAt.getTime() &&
+    professionalId === booking.professionalId
+  ) {
+    return db.booking.findFirstOrThrow({
+      where: { id: booking.id },
+      include: { professional: true, customer: true },
+    })
+  }
+  assertNotPast(opts.startsAt)
+
   if (professionalId !== booking.professionalId) {
     await findProfessional(db, professionalId, false)
     const offers = await db.professionalService.findFirst({
@@ -291,7 +325,12 @@ export async function rescheduleBooking(opts: {
   )
   try {
     const res = await db.booking.updateMany({
-      where: { id: booking.id, status: { in: [...OPEN_BOOKING_STATUSES] } },
+      // Condicional ao horário lido: duas remarcações simultâneas não geram dois avisos
+      where: {
+        id: booking.id,
+        status: { in: [...OPEN_BOOKING_STATUSES] },
+        startsAt: booking.startsAt,
+      },
       data: {
         startsAt: opts.startsAt,
         endsAt,
@@ -302,7 +341,16 @@ export async function rescheduleBooking(opts: {
         customerConfirmedAt: null,
       },
     })
-    if (!res.count) throw badRequest('Esse agendamento acabou de mudar. Atualize a página.')
+    if (!res.count) {
+      const now = await db.booking.findFirst({ where: { id: booking.id } })
+      // A outra requisição já levou para o mesmo horário: resultado igual, sem aviso duplicado
+      if (now && now.startsAt.getTime() === opts.startsAt.getTime())
+        return db.booking.findFirstOrThrow({
+          where: { id: booking.id },
+          include: { professional: true, customer: true },
+        })
+      throw badRequest('Esse agendamento acabou de mudar. Atualize a página.')
+    }
   } catch (err) {
     if (isOverlapError(err)) throw overlapError(opts.by)
     throw err
@@ -362,25 +410,43 @@ export async function setBookingStatus(opts: {
   const db = forTenant(opts.tenantId)
   const booking = await db.booking.findFirst({ where: { id: opts.bookingId } })
   if (!booking) throw notFound('Agendamento não encontrado')
+  if (booking.status === opts.status) return withRelations(db, booking.id) // clique repetido
   if (booking.status === 'canceled') {
     throw badRequest('Esse agendamento foi cancelado. Crie um novo se precisar.')
+  }
+  if (!BOOKING_STATUS_TRANSITIONS[booking.status].includes(opts.status)) {
+    throw badRequest(
+      `Não dá para mudar de "${BOOKING_STATUS_LABELS[booking.status]}" para "${BOOKING_STATUS_LABELS[opts.status]}".`,
+      'MUDANCA_DE_STATUS_INVALIDA',
+    )
   }
   if ((opts.status === 'completed' || opts.status === 'no_show') && booking.startsAt > new Date()) {
     throw badRequest('Só dá para concluir ou marcar falta depois do horário começar')
   }
-  if (opts.status === 'pending')
-    throw badRequest('Não é possível voltar um agendamento para pendente')
   const now = new Date()
-  return db.booking.update({
-    where: { id: booking.id },
+  const changed = await db.booking.updateMany({
+    where: { id: booking.id, status: booking.status },
     data: {
       status: opts.status,
       ...(opts.status === 'confirmed' ? { confirmedAt: now } : {}),
       ...(opts.status === 'completed' ? { completedAt: now } : {}),
     },
-    include: {
-      professional: { select: { id: true, name: true } },
-      customer: { select: { id: true, name: true, phone: true } },
-    },
   })
+  const updated = await withRelations(db, booking.id)
+  if (!changed.count) return updated // outra requisição mudou antes
+  // Aprovação de um pedido (confirmação manual): avisa a cliente e agenda o lembrete.
+  // Condicional: dois cliques simultâneos só aprovam (e avisam) uma vez.
+  if (booking.status === 'pending' && opts.status === 'confirmed') {
+    await onBookingApproved(booking.id)
+  }
+  return updated
+}
+
+const statusInclude = {
+  professional: { select: { id: true, name: true } },
+  customer: { select: { id: true, name: true, phone: true } },
+} as const
+
+function withRelations(db: ReturnType<typeof forTenant>, id: string) {
+  return db.booking.findFirstOrThrow({ where: { id }, include: statusInclude })
 }

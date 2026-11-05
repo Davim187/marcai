@@ -340,6 +340,8 @@ model Booking {
   professionalId      String
   serviceId           String
   customerId          String
+  /// Nome digitado na reserva (a área da cliente mostra este, nunca o do cadastro)
+  customerName        String?
   startsAt            DateTime
   endsAt              DateTime
   /// endsAt + intervalo de limpeza. É o fim do intervalo protegido pela exclusion constraint.

@@ -4,6 +4,7 @@ import { badRequest, conflict } from '../../lib/errors'
 import { parseCsv } from '../../lib/csv'
 import type { TenantDb } from '../../lib/tenant-db'
 import { prisma } from '../../lib/prisma'
+import { deletePrivateFiles } from '../uploads/private-cleanup'
 
 export interface CustomerStats {
   totalSpentCents: number
@@ -98,7 +99,8 @@ export async function upsertCustomerByPhone(
   if (existing) {
     if (policy === 'unique') throw conflict('Já existe um cliente com esse WhatsApp')
     const data: Prisma.CustomerUpdateInput = {}
-    if (fields.consent && !existing.consentAt) data.consentAt = new Date()
+    // Uma reserva anônima com o telefone de alguém não registra consentimento em nome dela
+    if (fields.consent && !existing.consentAt && policy !== 'reuse') data.consentAt = new Date()
     if (policy === 'merge') {
       if (fields.name) data.name = fields.name
       if (fields.email) data.email = fields.email
@@ -113,18 +115,28 @@ export async function upsertCustomerByPhone(
     return { customer, created: false }
   }
   if (!fields.name?.trim()) throw badRequest('Informe o nome do cliente')
-  const customer = await db.customer.create({
-    data: {
-      tenantId: db.$tenantId(),
-      phone,
-      name: fields.name.trim(),
-      email: fields.email || null,
-      notes: fields.notes || null,
-      tags: fields.tags ?? [],
-      birthday: fields.birthday || null,
-      consentAt: fields.consent ? new Date() : null,
-    },
-  })
+  let customer
+  try {
+    customer = await db.customer.create({
+      data: {
+        tenantId: db.$tenantId(),
+        phone,
+        name: fields.name.trim(),
+        email: fields.email || null,
+        notes: fields.notes || null,
+        tags: fields.tags ?? [],
+        birthday: fields.birthday || null,
+        consentAt: fields.consent ? new Date() : null,
+      },
+    })
+  } catch (err) {
+    // Duas reservas simultâneas de uma cliente nova: a outra criou o cadastro primeiro
+    if ((err as { code?: string }).code === 'P2002' && policy !== 'unique')
+      return upsertCustomerByPhone(db, phone, fields, policy)
+    if ((err as { code?: string }).code === 'P2002')
+      throw conflict('Já existe um cliente com esse WhatsApp')
+    throw err
+  }
   return { customer, created: true }
 }
 
@@ -224,6 +236,12 @@ export async function anonymizeCustomer(db: TenantDb, customerId: string) {
       data: { payload: {} },
     })
   }
+  // Fotos de referência da cliente também são apagadas do disco
+  const photos = await db.bookingFieldAnswer.findMany({
+    where: { booking: { customerId }, type: 'photo' },
+    select: { value: true },
+  })
+  await deletePrivateFiles(photos.map((p) => p.value))
   await db.bookingFieldAnswer.deleteMany({ where: { booking: { customerId } } })
   await db.booking.updateMany({ where: { customerId }, data: { notes: null } })
   await db.customer.update({

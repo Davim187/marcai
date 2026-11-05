@@ -148,6 +148,8 @@ async function notifyCustomer(
 async function scheduleReminder(b: FullBooking & { tenant: TenantWithSub }) {
   await cancelJobs(b.id, REMINDER_KINDS)
   const t = b.tenant
+  // Pedido ainda não aprovado não recebe lembrete
+  if (b.status !== 'confirmed') return
   // Se falta menos de 1h, não faz sentido lembrar
   if (b.startsAt.getTime() - Date.now() < 3_600_000) return
   const target = new Date(b.startsAt.getTime() - t.reminderHours * 3_600_000)
@@ -220,6 +222,12 @@ export function onBookingCreated(bookingId: string, opts: { notifyCustomer?: boo
         template: 'professional_new_booking',
       })
     }
+    if (b.status === 'pending') {
+      // Confirmação manual: a cliente sabe que é só um pedido; lembrete só depois de aprovado
+      if (opts.notifyCustomer !== false)
+        await notifyCustomer(b, 'customer_pending', `Pedido recebido — ${b.tenant.name}`)
+      return
+    }
     if (opts.notifyCustomer !== false)
       await notifyCustomer(b, 'customer_confirmation', `Agendamento em ${b.tenant.name}`)
     await scheduleReminder(b)
@@ -270,6 +278,16 @@ export function onBookingRescheduled(
     } else {
       await notifyCustomer(b, 'customer_rescheduled', `Horário remarcado — ${b.tenant.name}`, extra)
     }
+    await scheduleReminder(b)
+  })
+}
+
+/** A dona aprovou um pedido (confirmação manual): agora sim a cliente recebe a confirmação. */
+export function onBookingApproved(bookingId: string) {
+  return safely('booking.approved', async () => {
+    const b = await load(bookingId)
+    if (!b) return
+    await notifyCustomer(b, 'customer_confirmation', `Horário confirmado — ${b.tenant.name}`)
     await scheduleReminder(b)
   })
 }

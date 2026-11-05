@@ -21,7 +21,7 @@ import {
 import { Textarea } from '@/components/ui/input'
 import { Field } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
-import { api } from '@/lib/api'
+import { api, imageSrc } from '@/lib/api'
 import { capitalize, fmt } from '@/lib/dates'
 import { useApiMutation, invalidateBookingViews } from '@/lib/queries'
 import { useTenant } from '@/lib/session'
@@ -143,7 +143,7 @@ export function BookingDetailDialog({
                         <span className="text-muted-foreground">📝 {a.label}:</span>{' '}
                         {a.type === 'photo' ? (
                           <a
-                            href={String(a.value)}
+                            href={imageSrc(String(a.value))}
                             target="_blank"
                             rel="noreferrer"
                             className="text-primary font-medium underline"

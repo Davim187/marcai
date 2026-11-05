@@ -171,11 +171,16 @@ export function DetailsForm({
       </Field>
       {/* Honeypot anti-robô: invisível para pessoas */}
       <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
-        <label htmlFor="website">Site</label>
+        <label htmlFor="hp-nao-preencher">Deixe em branco</label>
         <input
-          id="website"
+          id="hp-nao-preencher"
+          name="hp-nao-preencher"
+          type="text"
           tabIndex={-1}
+          // Nome sem sentido para o preenchimento automático do navegador não completar
           autoComplete="off"
+          data-1p-ignore
+          data-lpignore="true"
           value={website}
           onChange={(e) => setWebsite(e.target.value)}
         />

@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from './prisma'
+import { requestContext } from './request-context'
 
 export async function audit(entry: {
   action: string
@@ -11,5 +12,7 @@ export async function audit(entry: {
   metadata?: Prisma.InputJsonValue
   ip?: string
 }) {
-  await prisma.auditLog.create({ data: { ...entry } })
+  // Em modo suporte ("entrar como"), toda ação fica registrada com o admin responsável
+  const impersonatorId = entry.impersonatorId ?? requestContext.getStore()?.impersonatorId ?? null
+  await prisma.auditLog.create({ data: { ...entry, impersonatorId } })
 }

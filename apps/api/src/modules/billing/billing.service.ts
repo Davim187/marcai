@@ -5,8 +5,7 @@ import { audit } from '../../lib/audit'
 import { badRequest, notFound } from '../../lib/errors'
 import { logger } from '../../lib/logger'
 import { prisma } from '../../lib/prisma'
-import { channels } from '../notifications/channels/registry'
-import { enqueue } from '../notifications/queue'
+import { notifyOwners } from '../notifications/owners'
 import { FakeBillingProvider } from './fake'
 import { MercadoPagoBillingProvider } from './mercadopago'
 import type { BillingEvent, BillingProvider, BillingType } from './provider'
@@ -385,7 +384,12 @@ export async function handleBillingEvent(evt: BillingEvent, providerName: string
   if (outcome.tenantId && outcome.audit)
     await audit({ tenantId: outcome.tenantId, ...outcome.audit })
   if (outcome.tenantId && outcome.notify)
-    await notifyOwners(outcome.tenantId, outcome.notify.title, outcome.notify.body, evt.eventId)
+    await notifyBillingOwners(
+      outcome.tenantId,
+      outcome.notify.title,
+      outcome.notify.body,
+      evt.eventId,
+    )
   return outcome.result
 }
 
@@ -641,37 +645,9 @@ async function confirmInvoicePayment(
   }
 }
 
-/** Avisa as donas no painel e por e-mail (pela fila: com repetição em caso de falha). */
-export async function notifyOwners(tenantId: string, title: string, body: string, dedupe?: string) {
-  try {
-    await channels.inapp.send({
-      tenantId,
-      title,
-      body,
-      url: '/painel/assinatura',
-      type: 'billing',
-    })
-    const owners = await prisma.tenantMember.findMany({
-      where: { tenantId, role: 'owner' },
-      include: { user: { select: { email: true } } },
-    })
-    for (const owner of owners) {
-      await enqueue({
-        channel: 'email',
-        kind: 'billing',
-        dedupeKey: dedupe ? `billing:${dedupe}:${owner.userId}` : undefined,
-        message: {
-          tenantId,
-          to: owner.user.email,
-          title,
-          body,
-          url: `${env.APP_URL}/painel/assinatura`,
-        },
-      })
-    }
-  } catch (err) {
-    logger.error({ err, tenantId }, 'Falha ao avisar sobre a cobrança')
-  }
+/** Avisos de cobrança para as donas (painel + e-mail). */
+export function notifyBillingOwners(tenantId: string, title: string, body: string, dedupe?: string) {
+  return notifyOwners({ tenantId, kind: 'billing', title, body, path: '/painel/assinatura', dedupe })
 }
 
 /** Visão geral para a tela de Assinatura. */

@@ -1,6 +1,6 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { customerCancelSchema, customerRescheduleSchema } from '@marcai/shared'
+import { accessLevel, customerCancelSchema, customerRescheduleSchema } from '@marcai/shared'
 import { env } from '../../config/env'
 import { badRequest, forbidden, notFound } from '../../lib/errors'
 import { googleCalendarUrl } from '../../lib/ics'
@@ -14,7 +14,12 @@ const tokenParam = z.object({ token: z.string().min(10).max(64) })
 async function load(token: string) {
   const b = await prisma.booking.findUnique({
     where: { cancelToken: token },
-    include: { tenant: true, professional: true, customer: true, service: true },
+    include: {
+      tenant: { include: { subscription: true } },
+      professional: true,
+      customer: true,
+      service: true,
+    },
   })
   if (!b || b.tenant.deletedAt) throw notFound('Agendamento não encontrado. Confira o link.')
   return b
@@ -76,7 +81,7 @@ export const customerAreaRoutes: FastifyPluginAsyncZod = async (app) => {
         priceFrom: b.priceFrom,
         professionalId: b.professionalId,
         professionalName: b.professional.name,
-        customerName: b.customer.name.split(' ')[0],
+        customerName: (b.customerName ?? b.customer.name).split(' ')[0],
         customerConfirmedAt: b.customerConfirmedAt,
         cancelReason: b.cancelReason,
         canChange: p.canChange,
@@ -118,8 +123,9 @@ export const customerAreaRoutes: FastifyPluginAsyncZod = async (app) => {
       const b = await load(request.params.token)
       if (!policy(b).canConfirm) throw badRequest('Esse agendamento não pode mais ser confirmado.')
       if (!b.customerConfirmedAt) {
-        await prisma.booking.update({
-          where: { id: b.id },
+        // Condicional: dois toques simultâneos só confirmam (e avisam) uma vez
+        const res = await prisma.booking.updateMany({
+          where: { id: b.id, customerConfirmedAt: null },
           data: {
             customerConfirmedAt: new Date(),
             ...(b.status === 'pending' && !b.tenant.requireConfirmation
@@ -127,7 +133,7 @@ export const customerAreaRoutes: FastifyPluginAsyncZod = async (app) => {
               : {}),
           },
         })
-        await onBookingConfirmedByCustomer(b.id)
+        if (res.count) await onBookingConfirmedByCustomer(b.id)
       }
       return { ok: true }
     },
@@ -172,6 +178,11 @@ export const customerAreaRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const b = await load(request.params.token)
       assertCanChange(b, 'Remarcações')
+      // Agenda fora do ar (assinatura vencida ou conta bloqueada): não aceita novos horários
+      if (b.tenant.blocked || accessLevel(b.tenant.subscription, new Date(), env.APP_MODE) === 'blocked')
+        throw forbidden(
+          `A agenda de ${b.tenant.name} não está aceitando remarcações agora. Fale direto com o estabelecimento.`,
+        )
       const updated = await rescheduleBooking({
         tenant: b.tenant,
         bookingId: b.id,

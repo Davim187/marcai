@@ -1,9 +1,10 @@
 import type { FastifyBaseLogger } from 'fastify'
-import { MINUTE_MS } from '@marcai/shared'
+import { HOUR_MS, MINUTE_MS } from '@marcai/shared'
 import { env } from './config/env'
 import { logger as baseLogger } from './lib/logger'
 import { runBillingTick } from './modules/billing/billing.tick'
 import { processDueJobs, scheduleDailySummaries } from './modules/notifications/worker'
+import { cleanupOrphanPrivateUploads } from './modules/uploads/private-cleanup'
 
 type Log = FastifyBaseLogger | typeof baseLogger
 
@@ -15,6 +16,7 @@ const TASKS: Array<{ name: string; everyMs: number; run: (log: Log) => Promise<u
   { name: 'fila de notificações', everyMs: 0, run: (log) => processDueJobs(log) },
   { name: 'resumo diário das 07:00', everyMs: MINUTE_MS, run: () => scheduleDailySummaries() },
   { name: 'rotina de cobrança', everyMs: MINUTE_MS, run: () => runBillingTick() },
+  { name: 'limpeza de fotos não usadas', everyMs: HOUR_MS, run: () => cleanupOrphanPrivateUploads() },
 ]
 
 /** Inicia o loop. Retorna uma função para parar. */

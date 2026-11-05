@@ -1,3 +1,4 @@
+import { isTrustedPushEndpoint } from '@marcai/shared'
 import webpush from 'web-push'
 import { env } from '../../../config/env'
 import { logger } from '../../../lib/logger'
@@ -22,9 +23,11 @@ export class WebPushChannel implements NotificationChannel {
       webpush.setVapidDetails(env.VAPID_SUBJECT, env.VAPID_PUBLIC_KEY!, env.VAPID_PRIVATE_KEY!)
       configured = true
     }
-    const subs = await prisma.pushSubscription.findMany({
-      where: { tenantId: msg.tenantId, ...(msg.to ? { userId: msg.to } : {}) },
-    })
+    const subs = (
+      await prisma.pushSubscription.findMany({
+        where: { tenantId: msg.tenantId, ...(msg.to ? { userId: msg.to } : {}) },
+      })
+    ).filter((s) => isTrustedPushEndpoint(s.endpoint))
     const payload = JSON.stringify({
       title: msg.title,
       body: msg.body,

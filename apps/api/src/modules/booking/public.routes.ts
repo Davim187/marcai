@@ -183,12 +183,14 @@ export const publicRoutes: FastifyPluginAsyncZod = async (app) => {
       if (!available)
         throw badRequest('A agenda está temporariamente indisponível.', 'AGENDA_INDISPONIVEL')
       const b = request.body
-      // Honeypot: robôs preenchem o campo escondido. Fingimos sucesso e não gravamos nada.
+      // Honeypot: robôs preenchem o campo escondido. Nada é gravado, e a resposta é um erro
+      // claro (se uma pessoa cair aqui por engano, ela sabe que NÃO reservou).
       if (b.website) {
         request.log.warn({ ip: request.ip }, 'Honeypot acionado na reserva pública')
-        return reply
-          .status(201)
-          .send({ id: 'ok', status: 'confirmed', startsAt: b.startsAt, manageUrl: env.APP_URL })
+        throw badRequest(
+          'Não conseguimos concluir o agendamento. Recarregue a página e tente de novo.',
+          'VERIFICACAO_FALHOU',
+        )
       }
       const booking = await createBooking({
         tenant,
@@ -245,7 +247,10 @@ export const publicRoutes: FastifyPluginAsyncZod = async (app) => {
       if (!available) throw badRequest('A agenda está temporariamente indisponível.')
       assertPublicUploadQuota(tenant.id)
       const { buffer, ext } = await readImageUpload(request)
-      const url = await storage.save(`${tenant.id}-ref`, buffer, ext)
+      // Foto da cliente: pasta privada, sem metadados (GPS), visível só para a equipe
+      const url = await storage.savePrivate(`${tenant.id}-ref`, buffer, ext).catch(() => {
+        throw badRequest('Não conseguimos ler essa imagem. Tente outra foto.', 'ARQUIVO_INVALIDO')
+      })
       return reply.status(201).send({ url })
     },
   )

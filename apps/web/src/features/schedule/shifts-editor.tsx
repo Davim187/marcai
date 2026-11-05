@@ -77,6 +77,11 @@ export function ShiftsEditor({
                       )
                     }
                   />
+                  {s.end !== '00:00' && s.end <= s.start && (
+                    <span className="text-destructive text-xs" role="alert">
+                      O fim precisa ser depois do início
+                    </span>
+                  )}
                   {shifts.length > 1 && (
                     <Button
                       type="button"

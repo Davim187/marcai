@@ -6,6 +6,7 @@ import { env, isProd } from '../config/env'
 import { hashToken, safeEqual } from '../lib/crypto'
 import { forbidden, paymentRequired, unauthorized } from '../lib/errors'
 import { prisma } from '../lib/prisma'
+import { requestContext } from '../lib/request-context'
 import { forTenant, type TenantDb } from '../lib/tenant-db'
 
 export const SESSION_COOKIE = 'marcai_session'
@@ -85,6 +86,7 @@ export const authPlugin = fp(async (app) => {
       tenantId: session.tenantId,
       impersonatorId: session.impersonatorId,
     }
+    requestContext.enterWith({ impersonatorId: session.impersonatorId })
     // Atualiza "visto por último" no máximo a cada 10 minutos
     if (Date.now() - session.lastSeenAt.getTime() > 600_000) {
       prisma.session
@@ -106,6 +108,7 @@ function checkCsrf(request: FastifyRequest) {
 export async function requireAuth(request: FastifyRequest) {
   if (!request.auth) throw unauthorized()
   checkCsrf(request)
+  assertAllowedInSupportMode(request)
 }
 
 export async function requireSuperAdmin(request: FastifyRequest) {
@@ -122,6 +125,28 @@ const READ_ONLY_ALLOWED = [
   /^\/api\/auth/,
   /^\/api\/notifications\/(read|read-all)/,
 ]
+
+/**
+ * Modo suporte ("entrar como"): o admin pode ver e ajudar, mas não pode levar dados nem mudar
+ * quem tem acesso ou a cobrança.
+ */
+const SUPPORT_MODE_BLOCKED: Array<{ method?: string; path: RegExp }> = [
+  { path: /^\/api\/customers\/(export\.csv|[^/]+\/export)/ },
+  { path: /^\/api\/reports\/.*\.csv/ },
+  { method: 'write', path: /^\/api\/team/ },
+  { method: 'write', path: /^\/api\/billing/ },
+  { method: 'write', path: /^\/api\/account/ },
+]
+function assertAllowedInSupportMode(request: FastifyRequest) {
+  if (!request.auth?.impersonatorId) return
+  const url = request.url.split('?')[0]!
+  const isWrite = !SAFE_METHODS.has(request.method)
+  const blocked = SUPPORT_MODE_BLOCKED.some(
+    (r) => r.path.test(url) && (r.method !== 'write' || isWrite),
+  )
+  if (blocked)
+    throw forbidden('Ação indisponível no modo suporte: só a própria dona pode fazer isso.')
+}
 
 /** Guard: usuária logada e com estabelecimento ativo na sessão. Popula `request.tenantCtx`. */
 export async function requireTenant(request: FastifyRequest) {

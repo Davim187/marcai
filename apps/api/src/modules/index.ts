@@ -17,7 +17,7 @@ import { scheduleRoutes } from './schedule/schedule.routes'
 import { serviceRoutes } from './services/service.routes'
 import { teamRoutes } from './team/team.routes'
 import { tenantRoutes } from './tenants/tenant.routes'
-import { registerUploadStatic, uploadRoutes } from './uploads/upload.routes'
+import { privateUploadRoutes, registerUploadStatic, uploadRoutes } from './uploads/upload.routes'
 
 export async function registerModules(app: FastifyInstance) {
   app.get('/api/health', { schema: { hide: true } }, async () => ({
@@ -33,6 +33,7 @@ export async function registerModules(app: FastifyInstance) {
   await app.register(scheduleRoutes, { prefix: '/api/schedule' })
   await app.register(formRoutes, { prefix: '/api/forms' })
   await app.register(uploadRoutes, { prefix: '/api/uploads' })
+  await app.register(privateUploadRoutes, { prefix: '/api/uploads' })
   await app.register(publicRoutes, { prefix: '/api/public' })
   await app.register(customerAreaRoutes, { prefix: '/api/public/bookings' })
   await app.register(bookingPanelRoutes, { prefix: '/api/bookings' })

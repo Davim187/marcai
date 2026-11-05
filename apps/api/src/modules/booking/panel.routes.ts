@@ -29,6 +29,15 @@ export function scopeWhere(c: TenantContext): Prisma.BookingWhereInput {
   return { professionalId: c.professionalId ?? NO_AGENDA }
 }
 
+/**
+ * Profissional (sem acesso total) só enxerga clientes que já agendaram com ela.
+ * Usado na lista de clientes e na busca do agendamento manual.
+ */
+export function customerScope(c: TenantContext): Prisma.CustomerWhereInput {
+  const bookingScope = scopeWhere(c)
+  return Object.keys(bookingScope).length ? { bookings: { some: bookingScope } } : {}
+}
+
 async function findBooking(c: TenantContext, id: string) {
   const b = await c.db.booking.findFirst({ where: { id, ...scopeWhere(c) } })
   if (!b) throw notFound('Agendamento não encontrado')
@@ -113,7 +122,12 @@ export const bookingPanelRoutes: FastifyPluginAsyncZod = async (app) => {
           where: {
             startsAt: { lt: to },
             endsAt: { gt: from },
-            ...(professionalId ? { OR: [{ professionalId }, { professionalId: null }] } : {}),
+            // Profissional só vê as próprias folgas e os fechamentos do estabelecimento
+            ...(c.role !== 'owner'
+              ? { OR: [{ professionalId: c.professionalId ?? NO_AGENDA }, { professionalId: null }] }
+              : professionalId
+                ? { OR: [{ professionalId }, { professionalId: null }] }
+                : {}),
           },
         }),
       ])
@@ -267,6 +281,7 @@ export const bookingPanelRoutes: FastifyPluginAsyncZod = async (app) => {
       return c.db.customer.findMany({
         where: {
           deletedAt: null,
+          ...customerScope(c),
           OR: [
             { name: { contains: request.query.q, mode: 'insensitive' } },
             ...(digits.length >= 3 ? [{ phone: { contains: digits } }] : []),
