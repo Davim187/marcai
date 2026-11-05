@@ -29,13 +29,18 @@ const BATCH = 20
 const LOCK_TIMEOUT_MS = 5 * 60_000
 
 /** Pega jobs vencidos com FOR UPDATE SKIP LOCKED: vários workers podem rodar em paralelo. */
+// As colunas são timestamp SEM fuso, gravadas em UTC pelo Prisma. Comparar com now() ou com um Date
+// (enviado como timestamptz) converte pelo fuso da sessão do Postgres e, num banco fora de UTC,
+// atrasa a fila em horas. Por isso tudo em "now() AT TIME ZONE 'UTC'".
 async function claimJobs(): Promise<NotificationJob[]> {
   return prisma.$queryRaw<NotificationJob[]>`
-    UPDATE "NotificationJob" SET status = 'processing', "lockedAt" = now(), attempts = attempts + 1
+    UPDATE "NotificationJob"
+    SET status = 'processing', "lockedAt" = (now() AT TIME ZONE 'UTC'), attempts = attempts + 1
     WHERE id IN (
       SELECT id FROM "NotificationJob"
-      WHERE (status = 'pending' AND "runAt" <= now())
-         OR (status = 'processing' AND "lockedAt" < ${new Date(Date.now() - LOCK_TIMEOUT_MS)})
+      WHERE (status = 'pending' AND "runAt" <= (now() AT TIME ZONE 'UTC'))
+         OR (status = 'processing'
+             AND "lockedAt" < (now() AT TIME ZONE 'UTC') - ${LOCK_TIMEOUT_MS} * interval '1 millisecond')
       ORDER BY "runAt" ASC
       LIMIT ${BATCH}
       FOR UPDATE SKIP LOCKED
