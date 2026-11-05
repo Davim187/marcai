@@ -1,4 +1,5 @@
 import { askConfirm } from '@/components/confirm-host'
+import { Meta } from '@/components/meta'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { FolderPlus, MoreVertical, Pencil, Plus, Scissors, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -144,9 +145,7 @@ export default function ServicesPage() {
           {grouped.map(({ category, items }) => (
             <section key={category.id || 'none'}>
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-muted-foreground text-sm font-semibold uppercase tracking-wider">
-                  {category.name}
-                </h2>
+                <h2 className="text-muted-foreground text-sm font-medium">{category.name}</h2>
                 {category.id && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -195,26 +194,26 @@ export default function ServicesPage() {
                     renderItem={(s, handle) => (
                       <div className="bg-card flex items-center gap-3 p-3 sm:p-4">
                         {handle}
-                        {s.photoUrl ? (
+                        {/* Só mostra imagem quando há foto: um ícone igual em todo serviço não diz nada */}
+                        {s.photoUrl && (
                           <img
                             src={s.photoUrl}
                             alt=""
                             className="h-12 w-12 rounded-lg object-cover"
                           />
-                        ) : (
-                          <div className="bg-primary-soft text-primary flex h-12 w-12 items-center justify-center rounded-lg">
-                            <Scissors className="h-5 w-5" />
-                          </div>
                         )}
                         <button className="min-w-0 flex-1 text-left" onClick={() => setEditing(s)}>
                           <p className="flex items-center gap-2 truncate font-semibold">
                             {s.name}
                             {!s.active && <Badge variant="muted">Inativo</Badge>}
                           </p>
-                          <p className="text-muted-foreground text-sm">
-                            {duration(s.durationMinutes)} · {formatPrice(s.priceCents, s.priceFrom)}
-                            {s.bufferMinutes > 0 && ` · +${s.bufferMinutes} min de intervalo`}
-                          </p>
+                          <Meta
+                            items={[
+                              duration(s.durationMinutes),
+                              formatPrice(s.priceCents, s.priceFrom),
+                              s.bufferMinutes > 0 && `+${s.bufferMinutes} min de intervalo`,
+                            ]}
+                          />
                         </button>
                         <Switch
                           checked={s.active}

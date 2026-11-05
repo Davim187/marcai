@@ -23,7 +23,7 @@ export function CustomFieldInput({
   const id = `field-${field.id}`
   const chip = (active: boolean) =>
     cn(
-      'rounded-full border px-4 py-2 text-sm font-medium transition',
+      'rounded-md border px-4 py-2 text-sm font-medium transition',
       active
         ? 'border-primary bg-primary text-primary-foreground'
         : 'bg-card hover:border-primary/50',

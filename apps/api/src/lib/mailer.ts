@@ -93,7 +93,7 @@ export function emailLayout(opts: {
   brandName?: string
   color?: string
 }): { html: string; text: string } {
-  const color = opts.color ?? '#4F46E5'
+  const color = opts.color ?? '#1F5F7A'
   const brand = opts.brandName ?? env.APP_NAME
   const paragraphs = opts.body
     .split('\n')

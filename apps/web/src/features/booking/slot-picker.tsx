@@ -87,7 +87,7 @@ export function SlotPicker({
 
   return (
     <div className="space-y-6">
-      <div className="bg-card shadow-soft rounded-2xl border p-4">
+      <div className="bg-card rounded-[1.5rem] border p-4 sm:p-5">
         <MonthCalendar
           month={month}
           onMonthChange={(mm) => {
@@ -126,9 +126,7 @@ export function SlotPicker({
             <div className="space-y-4">
               {groups.map((g) => (
                 <div key={g.label}>
-                  <p className="text-muted-foreground mb-2 text-xs font-semibold uppercase tracking-wider">
-                    {g.label}
-                  </p>
+                  <p className="text-muted-foreground mb-2 text-[0.8rem] font-medium">{g.label}</p>
                   <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
                     {g.items.map((s) => (
                       <button
@@ -137,7 +135,7 @@ export function SlotPicker({
                         onClick={() => onSelect(s)}
                         aria-pressed={selected?.startsAt === s.startsAt}
                         className={cn(
-                          'bg-card hover:border-primary hover:text-primary h-11 rounded-xl border text-sm font-semibold tabular-nums transition',
+                          'bg-card hover:border-primary hover:text-primary h-11 rounded-lg border text-sm font-medium transition-[color,background-color,border-color,transform] active:scale-[0.97]',
                           selected?.startsAt === s.startsAt &&
                             'border-primary bg-primary text-primary-foreground hover:text-primary-foreground',
                         )}

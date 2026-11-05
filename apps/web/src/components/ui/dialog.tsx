@@ -27,7 +27,7 @@ export const DialogContent = React.forwardRef<
     >
       <div className="bg-muted mx-auto -mt-2 mb-1 h-1.5 w-10 rounded-full sm:hidden" aria-hidden />
       {children}
-      <DialogPrimitive.Close className="text-muted-foreground hover:bg-muted hover:text-foreground absolute right-4 top-4 rounded-full p-1.5 transition">
+      <DialogPrimitive.Close className="text-muted-foreground hover:bg-muted hover:text-foreground absolute right-4 top-4 rounded-md p-1.5 transition">
         <X className="h-4 w-4" />
         <span className="sr-only">Fechar</span>
       </DialogPrimitive.Close>

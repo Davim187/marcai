@@ -19,7 +19,7 @@ export default function MorePage() {
           <Button
             size="sm"
             onClick={async () =>
-              (await copyToClipboard(tenant.publicUrl)) && toast.success('Link copiado!')
+              (await copyToClipboard(tenant.publicUrl)) && toast.success('Link copiado.')
             }
           >
             <Copy /> Copiar
@@ -35,9 +35,7 @@ export default function MorePage() {
         const items = filterNav(g.items, tenant.role, appMode)
         return (
           <div key={g.label}>
-            <h2 className="text-muted-foreground mb-2 px-1 text-xs font-semibold uppercase tracking-wider">
-              {g.label}
-            </h2>
+            <h2 className="text-muted-foreground mb-2 px-1 text-[0.8rem] font-medium">{g.label}</h2>
             <Card className="divide-y overflow-hidden">
               {items.map((i) => (
                 <NavLink

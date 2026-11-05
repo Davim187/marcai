@@ -32,7 +32,7 @@ export default function ResetPasswordPage() {
           setLoading(true)
           try {
             await api('/auth/reset-password', { body: { token, password } })
-            toast.success('Senha alterada! Entre com a nova senha.')
+            toast.success('Senha alterada. Entre com a nova senha.')
             navigate('/entrar')
           } catch (err) {
             toast.error(errorMessage(err))

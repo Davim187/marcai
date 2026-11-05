@@ -1,4 +1,5 @@
 import { askConfirm } from '@/components/confirm-host'
+import { Meta } from '@/components/meta'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { MoreVertical, Pencil, Plus, Trash2, UserPlus, UsersRound } from 'lucide-react'
@@ -104,9 +105,12 @@ export default function TeamPage() {
                   {p.name}
                   {!p.active && <Badge variant="muted">Inativa</Badge>}
                 </p>
-                <p className="text-muted-foreground truncate text-sm">
-                  {p.serviceIds?.length ?? 0} serviço(s){p.member && ` · acesso: ${p.member.email}`}
-                </p>
+                <Meta
+                  items={[
+                    `${p.serviceIds?.length ?? 0} serviço(s)`,
+                    p.member && `acesso: ${p.member.email}`,
+                  ]}
+                />
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

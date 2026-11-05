@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
     >
       {sent ? (
         <div className="bg-success/10 text-success rounded-xl p-4 text-sm" role="status">
-          Pronto! Se o e-mail estiver cadastrado, o link chega em instantes. Confira também a caixa
+          Pronto. Se o e-mail estiver cadastrado, o link chega em instantes. Confira também a caixa
           de spam.
         </div>
       ) : (

@@ -24,7 +24,7 @@ export const Textarea = React.forwardRef<
   <textarea
     ref={ref}
     className={cn(
-      'border-input bg-card placeholder:text-muted-foreground/70 focus-visible:border-primary aria-[invalid=true]:border-destructive flex min-h-[88px] w-full rounded-lg border px-3 py-2 text-base shadow-sm disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm',
+      'border-input bg-card placeholder:text-muted-foreground/70 focus-visible:border-primary aria-[invalid=true]:border-destructive flex min-h-[88px] w-full rounded-lg border px-3 py-2 text-base shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm',
       className,
     )}
     {...props}
@@ -39,7 +39,7 @@ export const NativeSelect = React.forwardRef<
   <select
     ref={ref}
     className={cn(
-      'border-input bg-card select-chevron focus-visible:border-primary flex h-11 w-full appearance-none rounded-lg border px-3 pr-9 text-base shadow-sm disabled:opacity-50 sm:text-sm',
+      'border-input bg-card select-chevron focus-visible:border-primary flex h-11 w-full appearance-none rounded-lg border px-3 pr-9 text-base shadow-sm transition-colors disabled:opacity-50 sm:text-sm',
       className,
     )}
     {...props}

@@ -229,7 +229,7 @@ export default function SchedulePage() {
                   <div className="flex-1">
                     <p className="font-medium">{b.reason || 'Pausa'}</p>
                     <p className="text-muted-foreground">
-                      {WEEKDAYS[b.weekday]} · {b.start} às {b.end}
+                      {WEEKDAYS[b.weekday]}, das {b.start} às {b.end}
                     </p>
                   </div>
                   <Button

@@ -1,6 +1,6 @@
 import { InviteBanner } from '@/components/invite-banner'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, Check, Copy, ExternalLink, Loader2, X } from 'lucide-react'
+import { ArrowLeft, Check, Copy, ExternalLink, Loader2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
@@ -170,7 +170,7 @@ export default function OnboardingPage() {
 
   if (done) {
     return (
-      <div className="from-primary-soft to-background flex min-h-dvh items-center justify-center bg-gradient-to-b px-4 py-10">
+      <div className="bg-background flex min-h-dvh items-center justify-center px-4 py-10">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -184,7 +184,7 @@ export default function OnboardingPage() {
           >
             <Check className="h-8 w-8" strokeWidth={3} />
           </motion.div>
-          <h1 className="text-2xl font-bold">Sua agenda está no ar! 🎉</h1>
+          <h1 className="text-2xl font-semibold tracking-[-0.02em]">Sua agenda está no ar</h1>
           <p className="text-muted-foreground mt-2 text-sm">
             Coloque esse link na bio do Instagram e mande para suas clientes.
           </p>
@@ -195,7 +195,7 @@ export default function OnboardingPage() {
             <Button
               size="sm"
               onClick={async () =>
-                (await copyToClipboard(done.publicUrl)) && toast.success('Link copiado!')
+                (await copyToClipboard(done.publicUrl)) && toast.success('Link copiado.')
               }
             >
               <Copy /> Copiar
@@ -212,7 +212,7 @@ export default function OnboardingPage() {
                 navigate('/painel', { replace: true })
               }}
             >
-              Ir para o meu painel <ArrowRight />
+              Ir para o meu painel
             </Button>
             <Button variant="ghost" asChild>
               <a href={done.publicUrl} target="_blank" rel="noreferrer">
@@ -266,7 +266,9 @@ export default function OnboardingPage() {
             {step === 0 && (
               <div className="space-y-5">
                 <div>
-                  <h1 className="text-2xl font-bold">Como se chama o seu negócio?</h1>
+                  <h1 className="text-2xl font-semibold tracking-[-0.02em]">
+                    Como se chama o seu negócio?
+                  </h1>
                   <p className="text-muted-foreground mt-1 text-sm">
                     É o nome que suas clientes vão ver na página de agendamento.
                   </p>
@@ -355,7 +357,7 @@ export default function OnboardingPage() {
             {step === 1 && (
               <div className="space-y-5">
                 <div>
-                  <h1 className="text-2xl font-bold">Qual é a sua área?</h1>
+                  <h1 className="text-2xl font-semibold tracking-[-0.02em]">Qual é a sua área?</h1>
                   <p className="text-muted-foreground mt-1 text-sm">
                     Já deixamos serviços e perguntas sugeridos. Você ajusta tudo depois.
                   </p>
@@ -389,7 +391,7 @@ export default function OnboardingPage() {
             {step === 2 && (
               <div className="space-y-5">
                 <div>
-                  <h1 className="text-2xl font-bold">Quando você atende?</h1>
+                  <h1 className="text-2xl font-semibold tracking-[-0.02em]">Quando você atende?</h1>
                   <p className="text-muted-foreground mt-1 text-sm">
                     Dá para ter mais de um turno por dia, com pausa para o almoço.
                   </p>
@@ -401,7 +403,9 @@ export default function OnboardingPage() {
             {step === 3 && (
               <div className="space-y-6">
                 <div>
-                  <h1 className="text-2xl font-bold">Deixe com a sua cara</h1>
+                  <h1 className="text-2xl font-semibold tracking-[-0.02em]">
+                    Deixe com a sua cara
+                  </h1>
                   <p className="text-muted-foreground mt-1 text-sm">
                     Logo e cor principal. Se preferir, pule e faça depois.
                   </p>
@@ -434,7 +438,7 @@ export default function OnboardingPage() {
                         aria-pressed={color === c}
                       />
                     ))}
-                    <label className="flex h-10 items-center gap-2 rounded-full border px-3 text-sm">
+                    <label className="flex h-10 items-center gap-2 rounded-md border px-3 text-sm">
                       <input
                         type="color"
                         value={color}
@@ -482,7 +486,7 @@ export default function OnboardingPage() {
             )}
             {step < 3 ? (
               <Button size="lg" onClick={() => setStep((s) => s + 1)} disabled={!canNext}>
-                Continuar <ArrowRight />
+                Continuar
               </Button>
             ) : (
               <Button size="lg" onClick={finish} loading={submitting}>

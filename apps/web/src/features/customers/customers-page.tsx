@@ -6,6 +6,7 @@ import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { formatBRL, formatPhone } from '@marcai/shared'
 import { Avatar } from '@/components/ui/avatar'
+import { Meta } from '@/components/meta'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -167,18 +168,23 @@ export default function CustomersPage() {
                       </Badge>
                     ))}
                   </p>
-                  <p className="text-muted-foreground truncate text-sm">
-                    {formatPhone(c.phone)}
-                    {c.stats?.lastVisit &&
-                      ` · última visita ${fmt(c.stats.lastVisit, tenant.timezone, 'dd/MM/yy')}`}
-                  </p>
+                  <Meta
+                    items={[
+                      formatPhone(c.phone),
+                      c.stats?.lastVisit &&
+                        `última visita ${fmt(c.stats.lastVisit, tenant.timezone, 'dd/MM/yy')}`,
+                    ]}
+                  />
                 </div>
                 <div className="hidden text-right text-sm sm:block">
                   <p className="font-semibold">{formatBRL(c.stats?.totalSpentCents ?? 0)}</p>
-                  <p className="text-muted-foreground">
-                    {c.stats?.visits ?? 0} visita(s)
-                    {c.stats?.noShows ? ` · ${c.stats.noShows} falta(s)` : ''}
-                  </p>
+                  <Meta
+                    className="justify-end"
+                    items={[
+                      `${c.stats?.visits ?? 0} visita(s)`,
+                      !!c.stats?.noShows && `${c.stats.noShows} falta(s)`,
+                    ]}
+                  />
                 </div>
               </Link>
             ))}

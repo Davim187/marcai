@@ -112,7 +112,7 @@ export default function AppearancePage() {
                       style={{ background: c }}
                     />
                   ))}
-                  <label className="flex h-9 items-center gap-2 rounded-full border px-3 text-sm">
+                  <label className="flex h-9 items-center gap-2 rounded-md border px-3 text-sm">
                     <input
                       type="color"
                       value={v.primaryColor}
@@ -226,14 +226,12 @@ export default function AppearancePage() {
         </div>
         {/* Pré-visualização ao vivo */}
         <div className="lg:sticky lg:top-24 lg:self-start">
-          <p className="text-muted-foreground mb-2 text-xs font-semibold uppercase tracking-wider">
-            Pré-visualização
-          </p>
+          <p className="text-muted-foreground mb-2 text-[0.8rem] font-medium">Pré-visualização</p>
           <div
             className="border-foreground/90 bg-background shadow-lift mx-auto w-full max-w-[340px] overflow-hidden rounded-[2rem] border-[6px]"
             style={brandStyle(v.primaryColor)}
           >
-            <div className="from-primary/80 to-primary h-24 bg-gradient-to-br">
+            <div className="brand-cover h-24">
               {v.coverUrl && <img src={v.coverUrl} alt="" className="h-full w-full object-cover" />}
             </div>
             <div className="relative z-10 -mt-9 flex flex-col items-center px-4 text-center">
@@ -250,20 +248,20 @@ export default function AppearancePage() {
               )}
               <p className="mt-2 font-bold">{v.name}</p>
               {v.bio && <p className="text-muted-foreground mt-1 line-clamp-3 text-xs">{v.bio}</p>}
-              <div className="mt-3 flex flex-wrap justify-center gap-1.5 text-[10px]">
+              <div className="mt-3 flex flex-wrap justify-center gap-1.5 text-[11px]">
                 {v.city && (
-                  <span className="flex items-center gap-1 rounded-full border px-2 py-1">
+                  <span className="flex items-center gap-1 rounded-md border px-2 py-1">
                     <MapPin className="text-primary h-3 w-3" />
                     {v.city}
                   </span>
                 )}
                 {v.instagram && (
-                  <span className="flex items-center gap-1 rounded-full border px-2 py-1">
+                  <span className="flex items-center gap-1 rounded-md border px-2 py-1">
                     <Instagram className="text-primary h-3 w-3" />@{v.instagram.replace(/^@/, '')}
                   </span>
                 )}
                 {v.whatsapp && (
-                  <span className="flex items-center gap-1 rounded-full border px-2 py-1">
+                  <span className="flex items-center gap-1 rounded-md border px-2 py-1">
                     <MessageCircle className="text-primary h-3 w-3" />
                     WhatsApp
                   </span>

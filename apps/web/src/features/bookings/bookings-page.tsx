@@ -10,6 +10,7 @@ import {
   whatsappLink,
 } from '@marcai/shared'
 import { Button } from '@/components/ui/button'
+import { Meta } from '@/components/meta'
 import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input, NativeSelect } from '@/components/ui/input'
@@ -77,7 +78,6 @@ export default function BookingsPage() {
     queryFn: () => api<Paginated<BookingDTO>>(`/bookings${query}`),
   })
 
-  let lastDay = ''
   return (
     <div>
       <PageHeader
@@ -106,7 +106,7 @@ export default function BookingsPage() {
               role="tab"
               aria-selected={period === p.id}
               onClick={() => set('periodo', p.id)}
-              className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium ${period === p.id ? 'border-primary bg-primary text-primary-foreground' : 'bg-card hover:bg-muted'}`}
+              className={`whitespace-nowrap rounded-md border px-3 py-1.5 text-sm font-medium ${period === p.id ? 'border-primary bg-primary text-primary-foreground' : 'bg-card hover:bg-muted'}`}
             >
               {p.label}
             </button>
@@ -167,49 +167,55 @@ export default function BookingsPage() {
       ) : (
         <>
           <p className="text-muted-foreground mb-2 text-sm">{data.total} agendamento(s)</p>
-          <div className="space-y-2">
-            {data.items.map((b) => {
-              const day = fmt(b.startsAt, tz, 'yyyy-MM-dd')
-              const header = day !== lastDay
-              lastDay = day
-              return (
-                <div key={b.id}>
-                  {header && (
-                    <h2 className="text-muted-foreground mb-2 mt-5 text-xs font-semibold uppercase tracking-wider first:mt-0">
-                      {capitalize(fmt(b.startsAt, tz, "EEEE, dd 'de' MMMM"))}
-                    </h2>
-                  )}
-                  <Card className="hover:border-primary/40 flex items-center gap-3 p-3 transition">
-                    <button
-                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                      onClick={() => setOpenId(b.id)}
+          <div className="space-y-6">
+            {groupByDay(data.items, tz).map(([day, items]) => (
+              <section
+                key={day}
+                aria-label={capitalize(fmt(items[0]!.startsAt, tz, "EEEE, dd 'de' MMMM"))}
+              >
+                <h2 className="mb-2 text-sm font-semibold">
+                  {capitalize(fmt(items[0]!.startsAt, tz, "EEEE, dd 'de' MMMM"))}
+                </h2>
+                <Card className="divide-y overflow-hidden">
+                  {items.map((b) => (
+                    <div
+                      key={b.id}
+                      className="hover:bg-muted/40 flex items-center gap-3 px-4 py-3 transition-colors"
                     >
-                      <span className="w-12 shrink-0 text-center text-sm font-bold tabular-nums">
-                        {fmt(b.startsAt, tz, 'HH:mm')}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-semibold">{b.customer.name}</p>
-                        <p className="text-muted-foreground truncate text-sm">
-                          {b.serviceName} · {formatBRL(b.priceCents)}
-                          {tenant.professionalsCount > 1 && ` · ${b.professional.name}`}
-                        </p>
-                      </div>
-                      <StatusBadge status={b.status} />
-                    </button>
-                    <Button variant="ghost" size="icon-sm" asChild>
-                      <a
-                        href={whatsappLink(b.customer.phone)}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label={`WhatsApp de ${b.customer.name} ${formatPhone(b.customer.phone)}`}
+                      <button
+                        className="flex min-w-0 flex-1 items-center gap-4 text-left"
+                        onClick={() => setOpenId(b.id)}
                       >
-                        <MessageCircle />
-                      </a>
-                    </Button>
-                  </Card>
-                </div>
-              )
-            })}
+                        <span className="w-12 shrink-0 text-sm font-semibold">
+                          {fmt(b.startsAt, tz, 'HH:mm')}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium">{b.customer.name}</p>
+                          <Meta
+                            items={[
+                              b.serviceName,
+                              formatBRL(b.priceCents),
+                              tenant.professionalsCount > 1 && b.professional.name,
+                            ]}
+                          />
+                        </div>
+                        <StatusBadge status={b.status} />
+                      </button>
+                      <Button variant="ghost" size="icon-sm" asChild>
+                        <a
+                          href={whatsappLink(b.customer.phone)}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={`WhatsApp de ${b.customer.name} ${formatPhone(b.customer.phone)}`}
+                        >
+                          <MessageCircle />
+                        </a>
+                      </Button>
+                    </div>
+                  ))}
+                </Card>
+              </section>
+            ))}
           </div>
           {data.total > data.pageSize && (
             <div className="mt-6 flex items-center justify-center gap-3">
@@ -239,4 +245,16 @@ export default function BookingsPage() {
       <BookingDetailDialog bookingId={openId} onClose={() => setOpenId(null)} />
     </div>
   )
+}
+
+/** Agrupa a lista (já ordenada) por dia no fuso da loja. */
+function groupByDay<T extends { startsAt: string }>(items: T[], tz: string): [string, T[]][] {
+  const groups: [string, T[]][] = []
+  for (const item of items) {
+    const day = fmt(item.startsAt, tz, 'yyyy-MM-dd')
+    const last = groups[groups.length - 1]
+    if (last && last[0] === day) last[1].push(item)
+    else groups.push([day, [item]])
+  }
+  return groups
 }

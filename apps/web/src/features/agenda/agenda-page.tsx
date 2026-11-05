@@ -140,7 +140,7 @@ export default function AgendaPage() {
           <Button variant="ghost" size="icon-sm" onClick={() => shift(1)} aria-label="Próximo">
             <ChevronRight />
           </Button>
-          <h1 className="ml-1 text-lg font-bold sm:text-xl" aria-live="polite">
+          <h1 className="ml-1 text-lg font-semibold sm:text-xl" aria-live="polite">
             {title}
           </h1>
         </div>
@@ -320,17 +320,14 @@ function TimeGrid({
         <div className="bg-card sticky top-0 z-10 flex border-b">
           <div className="w-14 shrink-0" />
           {days.map((d) => (
-            <div
-              key={d}
-              className={cn('flex-1 border-l py-2 text-center', d === today && 'text-primary')}
-            >
-              <p className="text-muted-foreground text-xs font-medium uppercase">
+            <div key={d} className="flex-1 border-l py-2 text-center">
+              <p className="text-muted-foreground text-xs font-medium capitalize">
                 {WEEKDAYS_SHORT[weekdayOf(d)]}
               </p>
               <p
                 className={cn(
-                  'mx-auto mt-0.5 flex h-8 w-8 items-center justify-center rounded-full text-base font-bold',
-                  d === today && 'bg-primary text-primary-foreground',
+                  'mx-auto mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg text-base font-semibold',
+                  d === today && 'bg-foreground text-background',
                 )}
               >
                 {Number(d.slice(8))}
@@ -433,7 +430,7 @@ function DayColumn({
             className="text-muted-foreground pointer-events-none absolute inset-x-0 overflow-hidden bg-[repeating-linear-gradient(45deg,hsl(var(--muted))_0_6px,transparent_6px_12px)] px-1.5 py-1 text-[11px] font-medium"
             style={{ top, height: Math.max(12, (e - Math.max(s, startMin)) * PX) }}
           >
-            🔒 {t.reason || 'Bloqueado'}
+            {t.reason || 'Bloqueado'}
           </div>
         )
       })}
@@ -543,7 +540,7 @@ function MonthGrid({
   }
   return (
     <div className="bg-card shadow-soft overflow-hidden rounded-2xl border">
-      <div className="text-muted-foreground grid grid-cols-7 border-b text-center text-xs font-semibold uppercase">
+      <div className="text-muted-foreground grid grid-cols-7 border-b text-center text-xs font-medium capitalize">
         {[1, 2, 3, 4, 5, 6, 0].map((d) => (
           <div key={d} className="py-2">
             {WEEKDAYS_SHORT[d]}
@@ -576,7 +573,7 @@ function MonthGrid({
                   <div
                     key={b.id}
                     className={cn(
-                      'hidden truncate rounded px-1 py-0.5 text-[10px] font-medium sm:block',
+                      'hidden truncate rounded px-1 py-0.5 text-[11px] font-medium sm:block',
                       STATUS_STYLES[b.status].block,
                     )}
                   >
@@ -584,12 +581,12 @@ function MonthGrid({
                   </div>
                 ))}
                 {list.length > 0 && (
-                  <p className="text-primary text-[10px] font-semibold sm:hidden">
+                  <p className="text-primary text-[11px] font-semibold sm:hidden">
                     {list.length} ag.
                   </p>
                 )}
                 {list.length > 3 && (
-                  <p className="text-muted-foreground hidden text-[10px] font-semibold sm:block">
+                  <p className="text-muted-foreground hidden text-[11px] font-semibold sm:block">
                     +{list.length - 3} mais
                   </p>
                 )}

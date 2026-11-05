@@ -212,7 +212,7 @@ export default function DashboardPage() {
               <p className="text-muted-foreground text-sm">
                 Confirme ou recuse para a cliente saber se o horário está garantido.
               </p>
-              <Button asChild size="sm" className="mt-2 rounded-full">
+              <Button asChild size="sm" className="mt-2">
                 <Link to="/painel/agendamentos?status=pending">Revisar pedidos</Link>
               </Button>
             </>
@@ -368,7 +368,7 @@ function NextBooking({ booking: b, tz }: { booking: BookingDTO; tz: string }) {
       <Button
         variant="secondary"
         size="sm"
-        className="mt-auto w-full rounded-full"
+        className="mt-auto w-full"
         onClick={() => navigate(`/painel/agenda/${b.id}`)}
       >
         Ver detalhes
@@ -403,7 +403,7 @@ function ShareCard({ onQr }: { onQr: () => void }) {
           sozinha.
         </p>
         <div className="mt-4 flex gap-2">
-          <Button onClick={copy} size="sm" className="rounded-full">
+          <Button onClick={copy} size="sm">
             <Copy /> Copiar link
           </Button>
           <Button variant="round" size="icon-sm" onClick={share} aria-label="Compartilhar">
@@ -425,7 +425,7 @@ function ShareCard({ onQr }: { onQr: () => void }) {
         <span className="bg-primary/60 absolute left-1/2 top-8 h-24 w-40 -translate-x-1/2 rotate-[-4deg] rounded-xl transition-transform group-hover:rotate-[-5deg]" />
         <span className="bg-inverse text-inverse-foreground absolute left-1/2 top-12 flex h-24 w-40 -translate-x-1/2 flex-col justify-between rounded-xl p-3 text-left shadow-lg transition-transform group-hover:-translate-y-1">
           <span className="truncate text-xs font-bold">{tenant.name}</span>
-          <span className="truncate text-[10px] opacity-75">{shortUrl}</span>
+          <span className="truncate text-[11px] opacity-75">{shortUrl}</span>
         </span>
       </button>
     </Card>

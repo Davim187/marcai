@@ -1,3 +1,4 @@
+import { BellRing, CalendarCheck2, Link2, LockKeyhole } from 'lucide-react'
 import { Link } from 'react-router'
 import { BrandLogo } from '@/components/brand-logo'
 import { usePublicConfig } from '@/lib/config'
@@ -22,7 +23,7 @@ export function AuthLayout({
           <BrandLogo />
         </Link>
         <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center pb-16">
-          <h1 className="text-2xl font-bold">{title}</h1>
+          <h1 className="text-[1.75rem] font-extrabold tracking-[-0.03em]">{title}</h1>
           {subtitle && <p className="text-muted-foreground mt-1.5 text-sm">{subtitle}</p>}
           <div className="mt-8">{children}</div>
           {footer && <div className="text-muted-foreground mt-6 text-center text-sm">{footer}</div>}
@@ -32,18 +33,27 @@ export function AuthLayout({
         className={
           whiteLabel
             ? 'hidden'
-            : 'relative hidden flex-1 overflow-hidden bg-gradient-to-br from-[#EEF2FF] via-[#E0E7FF] to-[#C7D2FE] lg:block'
+            : 'bg-sidebar text-sidebar-foreground relative hidden flex-1 overflow-hidden lg:block'
         }
       >
         <div className="absolute inset-0 flex flex-col justify-center px-16">
-          <p className="max-w-md text-4xl font-extrabold leading-tight text-[#0F172A]">
+          <p className="max-w-[15ch] text-[3.2rem] font-extrabold leading-[1] tracking-[-0.035em] [font-stretch:118%]">
             Sua agenda cheia, sem precisar responder mensagem.
           </p>
-          <ul className="mt-8 space-y-3 text-[#334155]">
-            <li>🔗 Link de agendamento para a bio do Instagram</li>
-            <li>🔒 Nunca mais dois clientes no mesmo horário</li>
-            <li>📲 Aviso na hora, no painel e no WhatsApp</li>
-            <li>⏰ Lembrete automático: menos faltas</li>
+          <ul className="text-sidebar-muted mt-12 space-y-5 text-[15px]">
+            {[
+              { icon: Link2, text: 'Link de agendamento para a bio do Instagram' },
+              { icon: LockKeyhole, text: 'Nunca mais dois clientes no mesmo horário' },
+              { icon: BellRing, text: 'Aviso na hora, no painel e no WhatsApp' },
+              { icon: CalendarCheck2, text: 'Lembrete automático: menos faltas' },
+            ].map(({ icon: Icon, text }) => (
+              <li key={text} className="flex items-center gap-3">
+                <span className="text-sidebar-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-[1.5px] border-current">
+                  <Icon className="h-4 w-4" aria-hidden />
+                </span>
+                {text}
+              </li>
+            ))}
           </ul>
         </div>
       </div>
