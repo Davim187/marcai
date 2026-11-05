@@ -92,13 +92,13 @@ function PhoneMockup() {
   return (
     <div className="relative mx-auto w-[280px] sm:w-[300px]">
       <div
-        className="from-primary/30 absolute -inset-8 -z-10 rounded-full bg-gradient-to-tr via-indigo-200/40 to-transparent blur-3xl"
+        className="from-primary/30 absolute -inset-8 -z-10 rounded-full bg-gradient-to-tr via-[#CFE3D8]/40 to-transparent blur-3xl"
         aria-hidden
       />
       <div className="overflow-hidden rounded-[2.6rem] border-[10px] border-[#0F172A] bg-[#F8FAFC] shadow-2xl">
         <div className="h-20 bg-gradient-to-br from-[#6366F1] to-[#3730A3]" />
         <div className="-mt-8 flex flex-col items-center px-4 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-[#F8FAFC] bg-[#EEF2FF] text-xl font-bold text-[#4F46E5]">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-[#F8FAFC] bg-[#E3EDE7] text-xl font-bold text-[#3F7B5E]">
             M
           </div>
           <p className="mt-2 text-sm font-bold text-[#0F172A]">Studio Vértice</p>
@@ -112,7 +112,7 @@ function PhoneMockup() {
             <div key={n} className="rounded-xl border border-[#E2E8F0] bg-white p-2.5 text-left">
               <p className="text-xs font-semibold text-[#0F172A]">{n}</p>
               <p className="mt-0.5 flex gap-2 text-[10px]">
-                <span className="font-bold text-[#4F46E5]">{p}</span>
+                <span className="font-bold text-[#3F7B5E]">{p}</span>
                 <span className="flex items-center gap-0.5 text-[#64748B]">
                   <Clock className="h-2.5 w-2.5" />
                   {d}
@@ -128,14 +128,14 @@ function PhoneMockup() {
               (t, i) => (
                 <span
                   key={t}
-                  className={`rounded-lg border py-1.5 text-center text-[10px] font-semibold ${i === 4 ? 'border-[#4F46E5] bg-[#4F46E5] text-white' : 'border-[#E2E8F0] bg-white text-[#0F172A]'}`}
+                  className={`rounded-lg border py-1.5 text-center text-[10px] font-semibold ${i === 4 ? 'border-[#3F7B5E] bg-[#3F7B5E] text-white' : 'border-[#E2E8F0] bg-white text-[#0F172A]'}`}
                 >
                   {t}
                 </span>
               ),
             )}
           </div>
-          <div className="mt-2 rounded-lg bg-[#4F46E5] py-2 text-center text-xs font-semibold text-white">
+          <div className="mt-2 rounded-lg bg-[#3F7B5E] py-2 text-center text-xs font-semibold text-white">
             Confirmar agendamento
           </div>
         </div>
@@ -367,7 +367,7 @@ export default function LandingPage() {
 
         <section className="pb-20">
           <div className="container">
-            <div className="rounded-[2rem] bg-gradient-to-br from-[#4F46E5] to-[#312E81] px-6 py-14 text-center text-white sm:px-12">
+            <div className="rounded-[2rem] bg-gradient-to-br from-[#3F7B5E] to-[#24473A] px-6 py-14 text-center text-white sm:px-12">
               <CalendarCheck2 className="mx-auto h-10 w-10 opacity-90" />
               <h2 className="mt-4 text-3xl font-extrabold sm:text-4xl">
                 Sua próxima cliente pode agendar hoje.
