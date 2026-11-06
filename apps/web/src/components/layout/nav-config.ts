@@ -63,7 +63,7 @@ export const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
   },
 ]
 
-export const ADMIN_ITEM: NavItem = { to: '/admin', label: 'Super admin', icon: ShieldCheck }
+export const ADMIN_ITEM: NavItem = { to: '/admin', label: 'Administração', icon: ShieldCheck }
 
 export const BOTTOM_NAV: NavItem[] = [
   { to: '/painel', label: 'Início', icon: Home },

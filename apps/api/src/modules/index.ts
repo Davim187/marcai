@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { accountRoutes } from './account/account.routes'
 import { adminRoutes } from './admin/admin.routes'
+import { adminManageRoutes } from './admin/admin-manage.routes'
 import { authRoutes } from './auth/auth.routes'
 import { reportRoutes } from './reports/report.routes'
 import { seoRoutes } from './seo/spa'
@@ -45,5 +46,6 @@ export async function registerModules(app: FastifyInstance) {
   await app.register(billingWebhookRoutes, { prefix: '/api/webhooks' })
   await app.register(reportRoutes, { prefix: '/api/reports' })
   await app.register(adminRoutes, { prefix: '/api/admin' })
+  await app.register(adminManageRoutes, { prefix: '/api/admin' })
   await app.register(accountRoutes, { prefix: '/api/account' })
 }

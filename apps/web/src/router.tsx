@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router'
 import { lazy, Suspense } from 'react'
 import { useSession } from './lib/session'
+import type { Session } from './lib/types'
 import { FullPageLoader } from './components/layout/full-page-loader'
 import { RouteError } from './components/layout/route-error'
 
@@ -22,20 +23,26 @@ function Root() {
   return lazyRoute(() => import('./features/landing/landing-page'))
 }
 
+/** Sem negócio: o administrador do sistema vai para o /admin; os demais, para o cadastro. */
+function homeWithoutTenant(data: Extract<Session, { authenticated: true }>) {
+  return data.user.isSuperAdmin && !data.impersonating ? '/admin' : '/onboarding'
+}
+
 function RequireAuth({ needTenant = true }: { needTenant?: boolean }) {
   const { data, isLoading } = useSession()
   const location = useLocation()
   if (isLoading || !data) return <FullPageLoader />
   if (!data.authenticated)
     return <Navigate to={`/entrar?voltar=${encodeURIComponent(location.pathname)}`} replace />
-  if (needTenant && !data.tenant) return <Navigate to="/onboarding" replace />
+  if (needTenant && !data.tenant) return <Navigate to={homeWithoutTenant(data)} replace />
   return <Outlet />
 }
 
 function GuestOnly() {
   const { data, isLoading } = useSession()
   if (isLoading || !data) return <FullPageLoader />
-  if (data.authenticated) return <Navigate to={data.tenant ? '/painel' : '/onboarding'} replace />
+  if (data.authenticated)
+    return <Navigate to={data.tenant ? '/painel' : homeWithoutTenant(data)} replace />
   return <Outlet />
 }
 
@@ -181,7 +188,48 @@ export const router = createBrowserRouter([
       {
         element: <RequireSuperAdmin />,
         children: [
-          { path: '/admin', element: lazyRoute(() => import('./features/admin/admin-page')) },
+          {
+            path: '/admin',
+            element: lazyRoute(() => import('./features/admin/admin-layout')),
+            children: [
+              {
+                index: true,
+                element: lazyRoute(() => import('./features/admin/overview-page')),
+              },
+              {
+                path: 'usuarios',
+                element: lazyRoute(() => import('./features/admin/users-page')),
+              },
+              {
+                path: 'estabelecimentos',
+                element: lazyRoute(() => import('./features/admin/tenants-page')),
+              },
+              {
+                path: 'financeiro',
+                element: lazyRoute(() => import('./features/admin/finance-page')),
+              },
+              {
+                path: 'auditoria',
+                element: lazyRoute(() => import('./features/admin/audit-page')),
+              },
+              {
+                path: 'sistema',
+                element: lazyRoute(() => import('./features/admin/system-page')),
+              },
+              {
+                path: 'perfil',
+                element: lazyRoute(() => import('./features/admin/profile-page')),
+              },
+              {
+                path: 'mais',
+                element: lazyRoute(() =>
+                  import('./features/admin/admin-layout').then((m) => ({
+                    default: m.AdminMorePage,
+                  })),
+                ),
+              },
+            ],
+          },
         ],
       },
       {

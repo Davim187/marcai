@@ -2,7 +2,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify'
 import fp from 'fastify-plugin'
 import type { MemberRole, Subscription, Tenant } from '@prisma/client'
 import { accessLevel, type AccessLevel, type Feature, hasFeature } from '@marcai/shared'
-import { env, isProd } from '../config/env'
+import { env, isProd, isSuperAdminEmail } from '../config/env'
 import { hashToken, safeEqual } from '../lib/crypto'
 import { forbidden, paymentRequired, unauthorized } from '../lib/errors'
 import { prisma } from '../lib/prisma'
@@ -74,7 +74,14 @@ export const authPlugin = fp(async (app) => {
       where: { tokenHash: hashToken(token) },
       include: { user: true },
     })
-    if (!session || session.expiresAt < new Date()) return
+    if (!session || session.expiresAt < new Date() || session.user.disabledAt) return
+    // Quem está em SUPER_ADMIN_EMAILS vira admin no banco também (aparece na gestão de acessos)
+    const isSuperAdmin = session.user.isSuperAdmin || isSuperAdminEmail(session.user.email)
+    if (isSuperAdmin && !session.user.isSuperAdmin) {
+      prisma.user
+        .update({ where: { id: session.user.id }, data: { isSuperAdmin: true } })
+        .catch((err) => logger.warn({ err }, 'Falha ao marcar administrador do sistema'))
+    }
     request.auth = {
       sessionId: session.id,
       csrfToken: session.csrfToken,
@@ -82,7 +89,7 @@ export const authPlugin = fp(async (app) => {
         id: session.user.id,
         email: session.user.email,
         name: session.user.name,
-        isSuperAdmin: session.user.isSuperAdmin,
+        isSuperAdmin,
       },
       tenantId: session.tenantId,
       impersonatorId: session.impersonatorId,

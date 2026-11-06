@@ -1,9 +1,9 @@
 import { MINUTE_MS } from '@marcai/shared'
 import bcrypt from 'bcryptjs'
 import type { RegisterInput } from '@marcai/shared'
-import { env } from '../../config/env'
+import { env, isSuperAdminEmail } from '../../config/env'
 import { hashToken, randomToken } from '../../lib/crypto'
-import { badRequest, conflict, tooMany, unauthorized } from '../../lib/errors'
+import { badRequest, conflict, forbidden, tooMany, unauthorized } from '../../lib/errors'
 import { emailLayout, sendEmail } from '../../lib/mailer'
 import { prisma } from '../../lib/prisma'
 
@@ -105,7 +105,14 @@ export async function verifyLogin(email: string, password: string) {
     throw unauthorized('E-mail ou senha incorretos')
   }
   failedLogins.delete(email)
+  assertNotDisabled(user)
   return user
+}
+
+export const DISABLED_MESSAGE = 'Esta conta foi desativada. Fale com o suporte.'
+
+export function assertNotDisabled(user: { disabledAt: Date | null }) {
+  if (user.disabledAt) throw forbidden(DISABLED_MESSAGE)
 }
 
 export async function requestPasswordReset(email: string) {
@@ -178,6 +185,7 @@ export async function buildMe(userId: string, sessionTenantId: string | null) {
   })
   const memberships = all.filter((m) => m.acceptedAt)
   const { passwordHash, ...safe } = user
+  safe.isSuperAdmin ||= isSuperAdminEmail(user.email)
   return {
     user: { ...safe, hasPassword: Boolean(passwordHash), hasGoogle: Boolean(user.googleId) },
     memberships: memberships.map((m) => ({ tenantId: m.tenantId, role: m.role, tenant: m.tenant })),

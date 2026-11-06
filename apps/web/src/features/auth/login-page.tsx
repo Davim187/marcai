@@ -49,7 +49,9 @@ export default function LoginPage() {
         <p className="bg-destructive/10 text-destructive mb-4 rounded-lg p-3 text-sm" role="alert">
           {googleError === 'sem-conta'
             ? 'Não encontramos uma conta com esse e-mail.'
-            : 'Não foi possível entrar com o Google. Tente de novo.'}
+            : googleError === 'desativada'
+              ? 'Esta conta foi desativada. Fale com o suporte.'
+              : 'Não foi possível entrar com o Google. Tente de novo.'}
         </p>
       )}
       {session?.googleEnabled && (

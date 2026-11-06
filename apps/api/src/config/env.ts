@@ -18,6 +18,17 @@ const schema = z.object({
   DATABASE_URL: z.string().min(1),
   SESSION_SECRET: z.string().min(16),
   SESSION_TTL_DAYS: z.coerce.number().default(30),
+  /** E-mails que são administradores do sistema (separados por vírgula) */
+  SUPER_ADMIN_EMAILS: z
+    .string()
+    .optional()
+    .default('')
+    .transform((v) =>
+      v
+        .split(',')
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean),
+    ),
   COOKIE_SAMESITE: z.enum(['lax', 'strict', 'none']).default('lax'),
   COOKIE_DOMAIN: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
@@ -127,3 +138,7 @@ export const env = parsed.data
 export type Env = typeof env
 export const isProd = env.NODE_ENV === 'production'
 export const isTest = env.NODE_ENV === 'test'
+
+/** Administrador definido pela configuração (SUPER_ADMIN_EMAILS), além do que está no banco. */
+export const isSuperAdminEmail = (email: string) =>
+  env.SUPER_ADMIN_EMAILS.includes(email.toLowerCase())

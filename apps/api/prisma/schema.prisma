@@ -65,6 +65,8 @@ model User {
   googleId        String?   @unique
   avatarUrl       String?
   isSuperAdmin    Boolean   @default(false)
+  /// Conta desativada pelo administrador do sistema: não entra e perde as sessões abertas
+  disabledAt      DateTime?
   emailVerifiedAt DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

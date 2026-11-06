@@ -7,7 +7,7 @@ import {
   registerSchema,
   resetPasswordSchema,
 } from '@marcai/shared'
-import { env } from '../../config/env'
+import { env, isSuperAdminEmail } from '../../config/env'
 import { hashToken, randomToken, safeEqual } from '../../lib/crypto'
 import { badRequest, forbidden } from '../../lib/errors'
 import { prisma } from '../../lib/prisma'
@@ -275,12 +275,15 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
         })
         if (unverified) await prisma.session.deleteMany({ where: { userId: user.id } })
       }
+      if (user.disabledAt) return reply.redirect(`${env.APP_URL}/entrar?erro=desativada`)
       const { token, csrfToken, session } = await createSession(user.id, {
         userAgent: request.headers['user-agent'],
         ip: request.ip,
       })
       setSessionCookies(reply, token, csrfToken)
-      return reply.redirect(`${env.APP_URL}${session.tenantId ? '/painel' : '/onboarding'}`)
+      const isAdmin = user.isSuperAdmin || isSuperAdminEmail(user.email)
+      const home = session.tenantId ? '/painel' : isAdmin ? '/admin' : '/onboarding'
+      return reply.redirect(`${env.APP_URL}${home}`)
     },
   )
 }
