@@ -34,6 +34,8 @@ const schema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
+  /** Limite de envios por segundo da conta no Resend (padrão do plano: 2). */
+  RESEND_MAX_PER_SECOND: z.coerce.number().int().min(1).default(2),
   /** SMTP (Gmail, Hostinger, Zoho, SES…). Usado quando não há RESEND_API_KEY. */
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().default(587),

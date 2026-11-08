@@ -83,7 +83,8 @@ export function registerErrorHandler(app: FastifyInstance) {
     if (error.statusCode === 429) {
       return reply.status(429).send({
         error: 'MUITAS_TENTATIVAS',
-        message: 'Muitas tentativas. Aguarde um pouco e tente de novo.',
+        // Mantém a mensagem do limite (com os segundos que faltam) quando houver
+        message: error.message || 'Muitas tentativas. Aguarde um pouco e tente de novo.',
       })
     }
     if (error.statusCode && error.statusCode < 500) {

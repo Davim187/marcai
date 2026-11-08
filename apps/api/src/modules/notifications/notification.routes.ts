@@ -1,4 +1,5 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
+import type { FastifyRequest } from 'fastify'
 import type { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import {
@@ -324,11 +325,21 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
     },
   )
 
+  /**
+   * Botões de teste: o limite conta por usuário logado (e não por IP, que atrás de proxy é o
+   * mesmo para todo mundo) e dá folga para quem está configurando o SMTP/WhatsApp.
+   */
+  const testLimit = {
+    max: 20,
+    timeWindow: '10 minutes',
+    keyGenerator: (req: FastifyRequest) => req.auth?.user.id ?? req.ip,
+  }
+
   app.post(
     '/push/test',
     {
       onRequest: requireTenant,
-      config: { rateLimit: { max: 5, timeWindow: '10 minutes' } },
+      config: { rateLimit: testLimit },
       schema: { tags: ['notificações'] },
     },
     async (request) => {
@@ -406,7 +417,7 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
     '/whatsapp/test',
     {
       onRequest: proOnly,
-      config: { rateLimit: { max: 5, timeWindow: '10 minutes' } },
+      config: { rateLimit: testLimit },
       schema: { tags: ['notificações'] },
     },
     async (request) => {
@@ -427,7 +438,7 @@ export const notificationRoutes: FastifyPluginAsyncZod = async (app) => {
     '/email/test',
     {
       onRequest: requireOwner,
-      config: { rateLimit: { max: 5, timeWindow: '10 minutes' } },
+      config: { rateLimit: testLimit },
       schema: { tags: ['notificações'] },
     },
     async (request) => {

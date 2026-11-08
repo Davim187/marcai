@@ -173,7 +173,7 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
     '/forgot-password',
     { config: strictLimit, schema: { tags: ['auth'], body: forgotPasswordSchema } },
     async (request) => {
-      await requestPasswordReset(request.body.email)
+      requestPasswordReset(request.body.email)
       return {
         ok: true,
         message: 'Se o e-mail estiver cadastrado, você vai receber um link em instantes.',

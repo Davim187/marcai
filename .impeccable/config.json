@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "arial",
+        "createdAt": "2026-11-06T18:23:03.756Z",
+        "reason": "E-mail transacional: Gmail e Outlook ignoram webfont. Arial/Helvetica é a pilha que esses clientes realmente desenham."
+      }
+    ]
+  }
+}

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import type { RegisterInput } from '@marcai/shared'
 import { env, isSuperAdminEmail } from '../../config/env'
 import { hashToken, randomToken } from '../../lib/crypto'
+import { bestEffort } from '../../lib/best-effort'
 import { badRequest, conflict, forbidden, tooMany, unauthorized } from '../../lib/errors'
 import { emailLayout, sendEmail } from '../../lib/mailer'
 import { prisma } from '../../lib/prisma'
@@ -63,8 +64,10 @@ export async function registerUser(input: RegisterInput) {
     body: 'Sua conta foi criada. Falta pouco para sua agenda online ficar pronta: termine o cadastro do seu negócio e compartilhe o link na bio do Instagram.\nVocê tem 30 dias grátis para testar tudo, sem cartão.',
     cta: { label: 'Continuar cadastro', url: `${env.APP_URL}/onboarding` },
   })
-  sendEmail({ to: user.email, subject: `Boas-vindas ao ${env.APP_NAME}!`, html, text }).catch(
-    () => undefined,
+  void bestEffort(
+    sendEmail({ to: user.email, subject: `Boas-vindas ao ${env.APP_NAME}!`, html, text }),
+    'enviar e-mail de boas-vindas',
+    { userId: user.id },
   )
   return user
 }
@@ -115,9 +118,41 @@ export function assertNotDisabled(user: { disabledAt: Date | null }) {
   if (user.disabledAt) throw forbidden(DISABLED_MESSAGE)
 }
 
-export async function requestPasswordReset(email: string) {
+/**
+ * Gera o link de redefinição e dispara o e-mail em segundo plano: a resposta tem o mesmo
+ * tempo e o mesmo resultado exista ou não a conta, e uma falha do SMTP não vira erro 500
+ * (fica no log). Devolve a promessa do envio só para os testes poderem aguardar.
+ */
+export function requestPasswordReset(email: string): { sending: Promise<unknown> } {
+  const sending = bestEffort(sendPasswordReset(email), 'enviar e-mail de redefinição de senha')
+  return { sending }
+}
+
+/** Intervalo mínimo entre dois e-mails de redefinição para a mesma conta (anti-spam). */
+const RESET_COOLDOWN_MS = 60_000
+
+/** Marca dos e-mails da conta: no modo exclusivo, o nome e a cor do estabelecimento. */
+async function accountBrand(): Promise<{ brandName?: string; color?: string }> {
+  if (env.APP_MODE !== 'single_tenant' || !env.SINGLE_TENANT_SLUG) return {}
+  const t = await prisma.tenant.findUnique({
+    where: { slug: env.SINGLE_TENANT_SLUG },
+    select: { name: true, primaryColor: true },
+  })
+  return t ? { brandName: t.name, color: t.primaryColor } : {}
+}
+
+async function sendPasswordReset(email: string) {
   const user = await prisma.user.findUnique({ where: { email } })
-  if (!user) return // não revela se o e-mail existe
+  if (!user || user.disabledAt) return // não revela se o e-mail existe
+  // Pedidos repetidos em sequência não lotam a caixa de entrada de ninguém
+  const recent = await prisma.passwordResetToken.findFirst({
+    where: {
+      userId: user.id,
+      usedAt: null,
+      createdAt: { gt: new Date(Date.now() - RESET_COOLDOWN_MS) },
+    },
+  })
+  if (recent) return
   // Só o link mais recente vale: os anteriores deixam de funcionar
   await prisma.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } })
   const token = randomToken()
@@ -129,12 +164,20 @@ export async function requestPasswordReset(email: string) {
     },
   })
   const url = `${env.APP_URL}/redefinir-senha?token=${token}`
+  const brand = await accountBrand()
   const { html, text } = emailLayout({
+    ...brand,
     title: 'Redefinir sua senha',
     body: 'Recebemos um pedido para redefinir a senha da sua conta. O link vale por 1 hora.\nSe não foi você, é só ignorar este e-mail.',
     cta: { label: 'Criar nova senha', url },
   })
-  await sendEmail({ to: user.email, subject: 'Redefinição de senha', html, text })
+  await sendEmail({
+    to: user.email,
+    subject: 'Redefinição de senha',
+    html,
+    text,
+    fromName: brand.brandName,
+  })
 }
 
 export async function resetPassword(token: string, password: string) {

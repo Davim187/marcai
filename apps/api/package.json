@@ -18,7 +18,8 @@
     "db:reset": "prisma migrate reset --force",
     "db:generate": "prisma generate",
     "postinstall": "prisma generate",
-    "tenant:create": "tsx src/scripts/create-tenant.ts"
+    "tenant:create": "tsx src/scripts/create-tenant.ts",
+    "email:previews": "tsx src/scripts/email-previews.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

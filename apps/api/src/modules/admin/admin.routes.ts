@@ -233,7 +233,7 @@ export const adminRoutes: FastifyPluginAsyncZod = async (app) => {
         tenantId: tenant.id,
         kind: 'support_access',
         title: 'Acesso de suporte à sua conta',
-        body: `A equipe de suporte acessou o painel de ${tenant.name} em ${new Date().toLocaleString('pt-BR', { timeZone: tenant.timezone })} para ajudar você. Se não pediu ajuda, responda este e-mail.`,
+        body: `A equipe de suporte acessou o painel de ${tenant.name} em ${new Date().toLocaleString('pt-BR', { timeZone: tenant.timezone })} para ajudar você. Se não pediu ajuda, troque sua senha e fale com o suporte.`,
         path: '/painel',
         inApp: false,
       })
