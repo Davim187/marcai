@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { formatPrice, isValidBrazilianMobile } from '@marcai/shared'
+import { formatBRL, formatPrice, isValidBrazilianMobile, prepaymentAmount } from '@marcai/shared'
 import { PhoneInput } from '@/components/phone-input'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -205,6 +205,22 @@ export function DetailsForm({
           <p className="text-destructive mt-1 text-xs font-medium">{errors.consent}</p>
         )}
       </div>
+      {t.prepayment && service.priceCents > 0 && (
+        <p className="bg-card rounded-xl border p-3 text-sm">
+          <span className="font-semibold">
+            {t.prepayment.percent === 100
+              ? `Pagamento antecipado de ${formatBRL(service.priceCents)}`
+              : `Sinal de ${t.prepayment.percent}%: ${formatBRL(prepaymentAmount(service.priceCents, t.prepayment.percent))}`}
+          </span>
+          <span className="text-muted-foreground">
+            {' '}
+            · pago por PIX logo depois de confirmar.{' '}
+            {t.prepayment.method === 'mercadopago'
+              ? 'O horário confirma assim que o pagamento cair.'
+              : `Você anexa o comprovante e ${t.name} confirma o horário.`}
+          </span>
+        </p>
+      )}
       {t.cancellationPolicy && (
         <p className="bg-card text-muted-foreground rounded-xl border p-3 text-xs">
           {t.cancellationPolicy}
@@ -213,7 +229,7 @@ export function DetailsForm({
       <div className="bg-card/95 pb-safe fixed inset-x-0 bottom-0 z-30 border-t backdrop-blur">
         <div className="mx-auto max-w-xl px-4 py-3">
           <Button type="submit" size="lg" className={cn('w-full')} loading={submitting}>
-            Confirmar agendamento
+            {t.prepayment && service.priceCents > 0 ? 'Reservar e pagar' : 'Confirmar agendamento'}
           </Button>
         </div>
       </div>

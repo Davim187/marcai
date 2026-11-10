@@ -1,3 +1,4 @@
+import type { Tenant } from '@prisma/client'
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import {
@@ -10,11 +11,17 @@ import {
 } from '@marcai/shared'
 import { env } from '../../config/env'
 import { audit } from '../../lib/audit'
-import { forbidden } from '../../lib/errors'
+import { badRequest, forbidden } from '../../lib/errors'
 import { prisma } from '../../lib/prisma'
 import { ctx, requireAuth, requireOwner, requireTenant } from '../../plugins/auth'
 import { createTenantFromOnboarding, isSlugAvailable, loadNationalHolidays } from './tenant.service'
 import { publicUrlFor } from './tenant.summary'
+
+/** Dados do estabelecimento para o painel: nunca devolve segredos (token do Mercado Pago). */
+function forPanel<T extends Tenant>(tenant: T) {
+  const { mpAccessTokenEnc, blocked: _b, blockedReason: _r, deletedAt: _d, ...rest } = tenant
+  return { ...rest, mpConnected: !!mpAccessTokenEnc, publicUrl: publicUrlFor(tenant.slug) }
+}
 
 export const tenantRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
@@ -77,9 +84,7 @@ export const tenantRoutes: FastifyPluginAsyncZod = async (app) => {
     '/',
     { onRequest: requireTenant, schema: { tags: ['tenant'], summary: 'Dados do estabelecimento' } },
     async (request) => {
-      const { tenant } = ctx(request)
-      const { blocked: _b, blockedReason: _r, deletedAt: _d, ...rest } = tenant
-      return { ...rest, publicUrl: publicUrlFor(tenant.slug) }
+      return forPanel(ctx(request).tenant)
     },
   )
 
@@ -101,7 +106,7 @@ export const tenantRoutes: FastifyPluginAsyncZod = async (app) => {
           ?.replace(/^@/, '')
           .replace(/^https?:\/\/(www\.)?instagram\.com\//, '')
           .replace(/\/$/, '') || null
-      return prisma.tenant.update({
+      const updated = await prisma.tenant.update({
         where: { id: tenantId },
         data: {
           ...b,
@@ -109,6 +114,7 @@ export const tenantRoutes: FastifyPluginAsyncZod = async (app) => {
           whatsapp: b.whatsapp ? normalizeBrazilianMobile(b.whatsapp) : null,
         },
       })
+      return forPanel(updated)
     },
   )
 
@@ -153,14 +159,33 @@ export const tenantRoutes: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (request) => {
-      const { tenantId, db } = ctx(request)
-      const updated = await prisma.tenant.update({ where: { id: tenantId }, data: request.body })
+      const { tenantId, tenant, db } = ctx(request)
+      const b = request.body
+      const pixKey = b.pixKey === undefined ? tenant.pixKey : b.pixKey || null
+      const method = b.prepaymentMethod ?? tenant.prepaymentMethod
+      if (b.requirePrepayment) {
+        if (method === 'pix_manual' && !pixKey)
+          throw badRequest('Informe a chave PIX que vai receber o sinal.', 'PIX_SEM_CHAVE')
+        if (method === 'mercadopago' && !tenant.mpAccessTokenEnc)
+          throw badRequest(
+            'Conecte sua conta do Mercado Pago antes de cobrar o sinal por lá.',
+            'MP_NAO_CONECTADO',
+          )
+      }
+      const updated = await prisma.tenant.update({
+        where: { id: tenantId },
+        data: {
+          ...b,
+          ...(b.pixKey !== undefined ? { pixKey } : {}),
+          ...(b.pixKeyHolder !== undefined ? { pixKeyHolder: b.pixKeyHolder || null } : {}),
+        },
+      })
       if (request.body.loadHolidays) {
         await prisma.$transaction((tx) => loadNationalHolidays(tx, tenantId))
       } else {
         await db.holiday.deleteMany({ where: { source: 'national' } })
       }
-      return updated
+      return forPanel(updated)
     },
   )
 }

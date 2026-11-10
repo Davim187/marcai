@@ -19,7 +19,7 @@ export async function deleteTenantPrivateFiles(tenantId: string) {
 
 /**
  * Fotos enviadas na página pública mas nunca usadas numa reserva (desistiu, robô): apagadas
- * depois de 24h. Evita usar o servidor como hospedagem e guardar foto de quem não agendou.
+ * depois de 24h. Comprovantes de sinal (BookingPayment.proofUrl) ficam. Evita usar o servidor como hospedagem e guardar foto de quem não agendou.
  */
 export async function cleanupOrphanPrivateUploads(now = Date.now()) {
   const folders = await readdir(privateUploadRoot).catch(() => [] as string[])
@@ -34,7 +34,8 @@ export async function cleanupOrphanPrivateUploads(now = Date.now()) {
       const used = await prisma.bookingFieldAnswer.count({
         where: { type: 'photo', value: { equals: url } },
       })
-      if (!used) {
+      const proof = used ? 0 : await prisma.bookingPayment.count({ where: { proofUrl: url } })
+      if (!used && !proof) {
         await unlink(file).catch(() => undefined)
         removed++
       }

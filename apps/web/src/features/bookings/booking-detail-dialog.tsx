@@ -3,7 +3,10 @@ import { CalendarClock, Check, CheckCheck, MessageCircle, UserX, X } from 'lucid
 import { useState } from 'react'
 import { Link } from 'react-router'
 import {
+  BOOKING_PAYMENT_STATUS_LABELS,
+  type BookingPaymentStatus,
   BOOKING_STATUS_TOASTS,
+  formatBRL,
   type BookingStatus,
   formatPhone,
   formatPrice,
@@ -32,6 +35,18 @@ import { StatusBadge } from './status'
 type Detail = BookingDTO & {
   customer: BookingDTO['customer'] & { email: string | null; notes: string | null; tags: string[] }
   answers: Array<{ fieldId: string; label: string; type: string; value: unknown }>
+  payment: {
+    method: 'mercadopago' | 'pix_manual'
+    status: BookingPaymentStatus
+    percent: number
+    amountCents: number
+    expiresAt: string
+    proofUrl: string | null
+    proofUploadedAt: string | null
+    paidAt: string | null
+    rejectReason: string | null
+    providerPaymentId: string | null
+  } | null
 }
 
 function answerText(a: { type: string; value: unknown }) {
@@ -164,6 +179,14 @@ export function BookingDetailDialog({
                     )}
                   </div>
                 )}
+                {b.payment && (
+                  <PaymentSection
+                    bookingId={b.id}
+                    payment={b.payment}
+                    timezone={tz}
+                    pending={b.status === 'pending'}
+                  />
+                )}
                 {b.status === 'canceled' && b.cancelReason && (
                   <p className="text-muted-foreground">Motivo do cancelamento: {b.cancelReason}</p>
                 )}
@@ -269,5 +292,118 @@ export function BookingDetailDialog({
         />
       )}
     </>
+  )
+}
+
+/** Sinal antecipado: comprovante do PIX para conferir (aprovar/recusar) ou status do Mercado Pago. */
+function PaymentSection({
+  bookingId,
+  payment,
+  timezone,
+  pending,
+}: {
+  bookingId: string
+  payment: NonNullable<Detail['payment']>
+  timezone: string
+  pending: boolean
+}) {
+  const qc = useQueryClient()
+  const [rejecting, setRejecting] = useState(false)
+  const [reason, setReason] = useState('')
+  const done = () => {
+    setRejecting(false)
+    invalidateBookingViews(qc)
+    qc.invalidateQueries({ queryKey: ['booking', bookingId] })
+  }
+  const approve = useApiMutation(
+    () => api(`/bookings/${bookingId}/payment/approve`, { method: 'POST' }),
+    { success: 'Pagamento aprovado e horário confirmado', onSuccess: done },
+  )
+  const reject = useApiMutation(
+    () => api(`/bookings/${bookingId}/payment/reject`, { body: { reason: reason.trim() } }),
+    { success: 'Pagamento recusado. O horário foi liberado.', onSuccess: done },
+  )
+  const open = payment.status === 'awaiting_payment' || payment.status === 'under_review'
+  const tone =
+    payment.status === 'paid'
+      ? 'border-green/30 bg-green/10'
+      : payment.status === 'under_review'
+        ? 'border-warning/40 bg-warning/10'
+        : 'bg-muted/60'
+  return (
+    <div className={`space-y-2 rounded-xl border p-3 ${tone}`}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-semibold">
+          {payment.percent === 100 ? 'Pagamento antecipado' : `Sinal ${payment.percent}%`} ·{' '}
+          {formatBRL(payment.amountCents)}
+        </p>
+        <span className="text-xs font-medium">{BOOKING_PAYMENT_STATUS_LABELS[payment.status]}</span>
+      </div>
+      <p className="text-muted-foreground text-xs">
+        {payment.method === 'mercadopago' ? 'Mercado Pago' : 'PIX com comprovante'}
+        {payment.status === 'awaiting_payment' &&
+          ` · prazo até ${fmt(payment.expiresAt, timezone, "dd/MM 'às' HH:mm")}`}
+        {payment.paidAt && ` · pago em ${fmt(payment.paidAt, timezone, "dd/MM 'às' HH:mm")}`}
+        {payment.providerPaymentId && ` · pagamento nº ${payment.providerPaymentId}`}
+      </p>
+      {payment.rejectReason && (
+        <p className="text-muted-foreground text-xs">Motivo da recusa: {payment.rejectReason}</p>
+      )}
+      {payment.proofUrl && (
+        <a
+          href={imageSrc(payment.proofUrl)}
+          target="_blank"
+          rel="noreferrer"
+          className="bg-background block overflow-hidden rounded-lg border"
+        >
+          <img
+            src={imageSrc(payment.proofUrl)}
+            alt="Comprovante do PIX enviado pela cliente"
+            className="max-h-64 w-full object-contain"
+          />
+          <span className="text-primary block px-2 py-1 text-xs font-medium underline">
+            Abrir comprovante
+          </span>
+        </a>
+      )}
+      {payment.method === 'pix_manual' && open && pending && !rejecting && (
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <Button variant="success" loading={approve.isPending} onClick={() => approve.mutate()}>
+            <Check /> Aprovar pagamento
+          </Button>
+          <Button variant="outline" onClick={() => setRejecting(true)}>
+            <X /> Recusar
+          </Button>
+        </div>
+      )}
+      {rejecting && (
+        <div className="space-y-2 pt-1">
+          <Field label="Motivo (a cliente recebe)" htmlFor="reject-reason">
+            <Textarea
+              id="reject-reason"
+              rows={2}
+              maxLength={300}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Ex.: o valor não caiu na conta"
+            />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setRejecting(false)}>
+              Voltar
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              loading={reject.isPending}
+              disabled={reason.trim().length < 3}
+              onClick={() => reject.mutate()}
+            >
+              Recusar e liberar horário
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

@@ -11,6 +11,7 @@ import { badRequest, forbidden, notFound } from '../../lib/errors'
 import { googleCalendarUrl } from '../../lib/ics'
 import { prisma } from '../../lib/prisma'
 import { onBookingConfirmedByCustomer } from '../notifications/events'
+import { publicPaymentView } from '../prepayment/prepayment.service'
 import { cancelBooking, rescheduleBooking } from './booking.service'
 import { bookingLinks } from './public.routes'
 
@@ -24,6 +25,7 @@ async function load(token: string) {
       professional: true,
       customer: true,
       service: true,
+      payment: true,
     },
   })
   if (!b || b.tenant.deletedAt) throw notFound('Agendamento não encontrado. Confira o link.')
@@ -105,6 +107,7 @@ export const customerAreaRoutes: FastifyPluginAsyncZod = async (app) => {
           maxAdvanceDays: b.tenant.maxAdvanceDays,
           whiteLabel: env.APP_MODE === 'single_tenant',
         },
+        payment: await publicPaymentView(b.tenant, b, b.payment),
         googleCalendarUrl: googleCalendarUrl({
           uid: b.id,
           title: `${b.serviceName} — ${b.tenant.name}`,
@@ -133,7 +136,8 @@ export const customerAreaRoutes: FastifyPluginAsyncZod = async (app) => {
           where: { id: b.id, customerConfirmedAt: null },
           data: {
             customerConfirmedAt: new Date(),
-            ...(b.status === 'pending' && !b.tenant.requireConfirmation
+            // Pendente por falta de sinal só confirma com o pagamento, nunca pelo "confirmar presença"
+            ...(b.status === 'pending' && !b.tenant.requireConfirmation && !b.payment
               ? { status: 'confirmed', confirmedAt: new Date() }
               : {}),
           },

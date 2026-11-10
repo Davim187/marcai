@@ -18,6 +18,7 @@ import { idParam } from '../../lib/route-schemas'
 export const bookingInclude = {
   professional: { select: { id: true, name: true } },
   customer: { select: { id: true, name: true, phone: true } },
+  payment: { select: { status: true, method: true, amountCents: true } },
 } satisfies Prisma.BookingInclude
 
 /** Profissional (não dona) só vê a própria agenda. */
@@ -177,6 +178,20 @@ export const bookingPanelRoutes: FastifyPluginAsyncZod = async (app) => {
           select: { id: true, name: true, phone: true, email: true, notes: true, tags: true },
         },
         answers: { select: { fieldId: true, label: true, type: true, value: true } },
+        payment: {
+          select: {
+            method: true,
+            status: true,
+            percent: true,
+            amountCents: true,
+            expiresAt: true,
+            proofUrl: true,
+            proofUploadedAt: true,
+            paidAt: true,
+            rejectReason: true,
+            providerPaymentId: true,
+          },
+        },
       },
     })
     if (!b) throw notFound('Agendamento não encontrado')

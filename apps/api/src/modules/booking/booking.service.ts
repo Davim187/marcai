@@ -32,6 +32,8 @@ import {
   onBookingCreated,
   onBookingRescheduled,
 } from '../notifications/events'
+import { needsPrepayment, startPrepayment } from '../prepayment/prepayment.service'
+import { logger } from '../../lib/logger'
 import { checkSlot, slotProblem } from './availability.service'
 
 const MAX_BOOKINGS_PER_PHONE_PER_HOUR = 5
@@ -195,7 +197,11 @@ export async function createBooking(opts: CreateBookingOptions) {
     service.durationMinutes,
     service.bufferMinutes,
   )
-  const status: BookingStatus = online && tenant.requireConfirmation ? 'pending' : 'confirmed'
+  const priceCents = opts.priceCents ?? service.priceCents
+  // Sinal antecipado: a reserva online só confirma depois do pagamento (ou da aprovação)
+  const prepay = online && needsPrepayment(tenant, priceCents)
+  const status: BookingStatus =
+    online && (tenant.requireConfirmation || prepay) ? 'pending' : 'confirmed'
 
   let booking
   try {
@@ -216,7 +222,7 @@ export async function createBooking(opts: CreateBookingOptions) {
         source: opts.source,
         serviceName: service.name,
         durationMinutes: service.durationMinutes,
-        priceCents: opts.priceCents ?? service.priceCents,
+        priceCents,
         priceFrom: service.priceFrom,
         notes: opts.notes || null,
         cancelToken: randomToken(18),
@@ -243,8 +249,23 @@ export async function createBooking(opts: CreateBookingOptions) {
     }
   }
 
+  let payment = null
+  if (prepay) {
+    try {
+      payment = await startPrepayment(tenant, booking)
+    } catch (err) {
+      // Sem link de pagamento a reserva não se sustenta: libera o horário
+      logger.error({ err, tenantId: tenant.id }, 'Falha ao gerar o sinal da reserva')
+      await db.booking.deleteMany({ where: { id: booking.id } })
+      throw badRequest(
+        'Não conseguimos gerar o pagamento do sinal agora. Tente de novo em instantes.',
+        'SINAL_INDISPONIVEL',
+      )
+    }
+  }
+
   await onBookingCreated(booking.id, { notifyCustomer: opts.notifyCustomer ?? true })
-  return booking
+  return { ...booking, payment }
 }
 
 async function assertPhoneRateLimit(db: TenantDb, phoneInput: string) {
@@ -437,6 +458,15 @@ export async function setBookingStatus(opts: {
   // Aprovação de um pedido (confirmação manual): avisa a cliente e agenda o lembrete.
   // Condicional: dois cliques simultâneos só aprovam (e avisam) uma vez.
   if (booking.status === 'pending' && opts.status === 'confirmed') {
+    // Confirmar no painel vale como aprovar o sinal por PIX (ex.: conferiu no extrato)
+    await db.bookingPayment.updateMany({
+      where: {
+        bookingId: booking.id,
+        method: 'pix_manual',
+        status: { in: ['awaiting_payment', 'under_review'] },
+      },
+      data: { status: 'paid', paidAt: now, reviewedAt: now },
+    })
     await onBookingApproved(booking.id)
   }
   return updated

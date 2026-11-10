@@ -16,6 +16,8 @@ export interface PublicTenant {
   maxAdvanceDays: number
   whiteLabel: boolean
   available: boolean
+  /** Sinal antecipado (null quando o estabelecimento não cobra) */
+  prepayment: { percent: number; method: 'mercadopago' | 'pix_manual'; holdMinutes: number } | null
   categories: Array<{ id: string; name: string }>
   services: Array<{
     id: string
@@ -56,6 +58,20 @@ export interface BookingResult {
   googleCalendarUrl: string
   manageUrl: string
   icsUrl: string
+  payment: PrepaymentView | null
+}
+
+/** Sinal antecipado visto pela cliente (página de sucesso e área da cliente). */
+export interface PrepaymentView {
+  method: 'mercadopago' | 'pix_manual'
+  status: 'awaiting_payment' | 'under_review' | 'paid' | 'rejected' | 'expired' | 'refunded'
+  percent: number
+  amountCents: number
+  expiresAt: string
+  proofSent: boolean
+  rejectReason: string | null
+  checkoutUrl: string | null
+  pix: { key: string; holder: string | null; copyPaste: string; qrDataUrl: string } | null
 }
 
 export type PublicService = PublicTenant['services'][number]

@@ -134,6 +134,23 @@ model Tenant {
   dailySummaryEnabled Boolean @default(false)
   loadHolidays        Boolean @default(true)
 
+  // Sinal antecipado (cliente paga antes; o horário só confirma depois do pagamento)
+  requirePrepayment     Boolean @default(false)
+  /// 50 ou 100 (% do valor do serviço)
+  prepaymentPercent     Int     @default(50)
+  /// mercadopago (confirma sozinho ao pagar) | pix_manual (cliente envia comprovante e a dona aprova)
+  prepaymentMethod      String  @default("pix_manual")
+  /// Minutos que o horário fica reservado esperando o pagamento
+  prepaymentHoldMinutes Int     @default(30)
+  pixKey                String?
+  /// Nome de quem recebe o PIX (aparece para a cliente conferir)
+  pixKeyHolder          String?
+  /// Access token do Mercado Pago do estabelecimento (criptografado; nunca sai da API)
+  mpAccessTokenEnc      String?
+  /// Conta conectada (e-mail/apelido do Mercado Pago), só para exibição
+  mpAccountLabel        String?
+  mpConnectedAt         DateTime?
+
   // Preferências de notificação
   notifyInApp                Boolean @default(true)
   notifyPush                 Boolean @default(true)
@@ -167,6 +184,7 @@ model Tenant {
   invoices           Invoice[]
   whatsappConnection WhatsAppConnection?
   slugHistory        SlugHistory[]
+  bookingPayments    BookingPayment[]
 }
 
 model TenantMember {
@@ -375,6 +393,7 @@ model Booking {
   service      Service              @relation(fields: [serviceId], references: [id])
   customer     Customer             @relation(fields: [customerId], references: [id])
   answers      BookingFieldAnswer[]
+  payment      BookingPayment?
 
   @@index([tenantId, startsAt])
   @@index([tenantId, customerId])
@@ -574,6 +593,49 @@ model Invoice {
   /// Nunca duas faturas para o mesmo vencimento da mesma assinatura
   @@unique([subscriptionId, dueDate])
   @@index([tenantId, dueDate])
+}
+
+enum BookingPaymentStatus {
+  /// Esperando a cliente pagar (horário reservado até expiresAt)
+  awaiting_payment
+  /// PIX manual: comprovante enviado, esperando a dona conferir
+  under_review
+  paid
+  rejected
+  expired
+  refunded
+}
+
+/// Sinal (50% ou 100%) pago antes do atendimento.
+model BookingPayment {
+  id                String               @id @default(cuid())
+  tenantId          String
+  bookingId         String               @unique
+  /// mercadopago | pix_manual
+  method            String
+  status            BookingPaymentStatus @default(awaiting_payment)
+  percent           Int
+  amountCents       Int
+  /// Até quando o horário fica reservado esperando o pagamento
+  expiresAt         DateTime
+  /// Mercado Pago: preferência (Checkout Pro) e link de pagamento
+  checkoutId        String?
+  checkoutUrl       String?
+  providerPaymentId String?              @unique
+  /// PIX manual: comprovante enviado pela cliente (arquivo privado)
+  proofUrl          String?
+  proofUploadedAt   DateTime?
+  reviewedAt        DateTime?
+  rejectReason      String?
+  paidAt            DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([status, expiresAt])
+  @@index([tenantId, status])
 }
 
 /// Idempotência de webhooks (pagamento e WhatsApp).

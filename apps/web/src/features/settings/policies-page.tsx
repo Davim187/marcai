@@ -1,6 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import type { BookingRulesInput } from '@marcai/shared'
+import {
+  type BookingRulesInput,
+  PREPAYMENT_METHOD_LABELS,
+  type PrepaymentMethod,
+} from '@marcai/shared'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input, NativeSelect, Textarea } from '@/components/ui/input'
@@ -33,6 +37,14 @@ export interface TenantFull extends BookingRulesInput {
   notifyWhatsappCustomer: boolean
   notifySound: boolean
   notifyPhone: string | null
+  requirePrepayment: boolean
+  prepaymentPercent: number
+  prepaymentMethod: PrepaymentMethod
+  prepaymentHoldMinutes: number
+  pixKey: string | null
+  pixKeyHolder: string | null
+  mpConnected: boolean
+  mpAccountLabel: string | null
 }
 
 export const useTenantFull = () =>
@@ -53,6 +65,12 @@ export default function PoliciesPage() {
         reminderHours: data.reminderHours,
         dailySummaryEnabled: data.dailySummaryEnabled,
         loadHolidays: data.loadHolidays,
+        requirePrepayment: data.requirePrepayment,
+        prepaymentPercent: data.prepaymentPercent,
+        prepaymentMethod: data.prepaymentMethod,
+        prepaymentHoldMinutes: data.prepaymentHoldMinutes,
+        pixKey: data.pixKey ?? '',
+        pixKeyHolder: data.pixKeyHolder ?? '',
       })
   }, [data])
   // Texto digitado no campo de horas (campo vazio ou "e" não pode virar 0 em silêncio)
@@ -151,6 +169,21 @@ export default function PoliciesPage() {
               onCheckedChange={(c) => set('requireConfirmation', c)}
             />
             <SwitchRow
+              id="prepay"
+              label="Recebe antecipado"
+              description="A cliente paga um sinal para reservar. O horário só é confirmado depois do pagamento."
+              checked={!!v.requirePrepayment}
+              onCheckedChange={(c) => set('requirePrepayment', c)}
+            />
+            {v.requirePrepayment && (
+              <PrepaymentFields
+                v={v}
+                set={set}
+                mpConnected={!!data?.mpConnected}
+                mpAccountLabel={data?.mpAccountLabel ?? null}
+              />
+            )}
+            <SwitchRow
               id="hol"
               label="Fechar nos feriados nacionais"
               checked={v.loadHolidays}
@@ -244,6 +277,176 @@ export default function PoliciesPage() {
         </Button>
       </div>
     </div>
+  )
+}
+
+type SetRule = <K extends keyof BookingRulesInput>(k: K, val: BookingRulesInput[K]) => void
+
+/** Sinal antecipado: quanto (50% ou 100%), como recebe e por quanto tempo segura o horário. */
+function PrepaymentFields({
+  v,
+  set,
+  mpConnected,
+  mpAccountLabel,
+}: {
+  v: BookingRulesInput
+  set: SetRule
+  mpConnected: boolean
+  mpAccountLabel: string | null
+}) {
+  return (
+    <div className="border-border bg-muted/40 space-y-4 rounded-lg border p-4">
+      <Field label="Quanto a cliente paga antes" htmlFor="prepay-percent">
+        <div id="prepay-percent" role="radiogroup" className="grid grid-cols-2 gap-2">
+          {[50, 100].map((p) => (
+            <Button
+              key={p}
+              type="button"
+              role="radio"
+              aria-checked={v.prepaymentPercent === p}
+              variant={v.prepaymentPercent === p ? 'default' : 'outline'}
+              onClick={() => set('prepaymentPercent', p)}
+            >
+              {p}% {p === 50 ? 'de sinal' : '(valor total)'}
+            </Button>
+          ))}
+        </div>
+      </Field>
+      <Field label="Como você recebe" htmlFor="prepay-method">
+        <NativeSelect
+          id="prepay-method"
+          value={v.prepaymentMethod}
+          onChange={(e) => set('prepaymentMethod', e.target.value as PrepaymentMethod)}
+        >
+          {(Object.keys(PREPAYMENT_METHOD_LABELS) as PrepaymentMethod[]).map((m) => (
+            <option key={m} value={m}>
+              {PREPAYMENT_METHOD_LABELS[m]}
+            </option>
+          ))}
+        </NativeSelect>
+      </Field>
+      {v.prepaymentMethod === 'pix_manual' ? (
+        <>
+          <Field
+            label="Chave PIX"
+            htmlFor="pix-key"
+            hint="CPF, CNPJ, e-mail, chave aleatória ou celular com +55 (ex.: +5585999998888)."
+          >
+            <Input
+              id="pix-key"
+              value={v.pixKey ?? ''}
+              maxLength={120}
+              onChange={(e) => set('pixKey', e.target.value)}
+            />
+          </Field>
+          <Field
+            label="Nome de quem recebe"
+            htmlFor="pix-holder"
+            hint="A cliente confere esse nome no app do banco antes de pagar."
+          >
+            <Input
+              id="pix-holder"
+              value={v.pixKeyHolder ?? ''}
+              maxLength={80}
+              onChange={(e) => set('pixKeyHolder', e.target.value)}
+            />
+          </Field>
+          <p className="text-muted-foreground text-sm">
+            A cliente paga pelo PIX e anexa o comprovante. Você recebe o aviso, abre o comprovante
+            no agendamento e aprova ou recusa.
+          </p>
+        </>
+      ) : (
+        <MercadoPagoConnect connected={mpConnected} label={mpAccountLabel} />
+      )}
+      <Field
+        label="Tempo para pagar"
+        htmlFor="prepay-hold"
+        hint="O horário fica reservado esse tempo. Sem pagamento (ou comprovante), é liberado sozinho."
+      >
+        <NativeSelect
+          id="prepay-hold"
+          value={v.prepaymentHoldMinutes}
+          onChange={(e) => set('prepaymentHoldMinutes', Number(e.target.value))}
+        >
+          {withCurrentLabeled(
+            [
+              [15, '15 minutos'],
+              [30, '30 minutos'],
+              [60, '1 hora'],
+              [120, '2 horas'],
+              [360, '6 horas'],
+              [720, '12 horas'],
+              [1440, '24 horas'],
+            ],
+            v.prepaymentHoldMinutes ?? 30,
+          ).map(([m, l]) => (
+            <option key={m} value={m}>
+              {l}
+            </option>
+          ))}
+        </NativeSelect>
+      </Field>
+    </div>
+  )
+}
+
+/** Conecta a conta do Mercado Pago do estabelecimento colando o Access Token de produção. */
+function MercadoPagoConnect({ connected, label }: { connected: boolean; label: string | null }) {
+  const [token, setToken] = useState('')
+  const connect = useApiMutation(
+    () => api('/tenant/mercadopago', { method: 'PUT', body: { accessToken: token.trim() } }),
+    { success: 'Mercado Pago conectado', invalidate: [qk.tenant], onSuccess: () => setToken('') },
+  )
+  const disconnect = useApiMutation(() => api('/tenant/mercadopago', { method: 'DELETE' }), {
+    success: 'Mercado Pago desconectado',
+    invalidate: [qk.tenant],
+  })
+  if (connected)
+    return (
+      <div className="border-border bg-background flex flex-wrap items-center justify-between gap-3 rounded-md border p-3">
+        <div className="text-sm">
+          <p className="font-medium">Mercado Pago conectado</p>
+          <p className="text-muted-foreground">
+            {label ?? 'Conta conectada'} · o sinal cai direto na sua conta e o horário confirma
+            sozinho quando a cliente paga.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          loading={disconnect.isPending}
+          onClick={() => disconnect.mutate()}
+        >
+          Desconectar
+        </Button>
+      </div>
+    )
+  return (
+    <Field
+      label="Access Token do Mercado Pago"
+      htmlFor="mp-token"
+      hint="No Mercado Pago: Seu negócio → Configurações → Credenciais de produção → Access Token (começa com APP_USR-)."
+    >
+      <div className="flex gap-2">
+        <Input
+          id="mp-token"
+          type="password"
+          autoComplete="off"
+          placeholder="APP_USR-..."
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+        />
+        <Button
+          type="button"
+          loading={connect.isPending}
+          disabled={token.trim().length < 20}
+          onClick={() => connect.mutate()}
+        >
+          Conectar
+        </Button>
+      </div>
+    </Field>
   )
 }
 

@@ -18,6 +18,12 @@ import { scheduleRoutes } from './schedule/schedule.routes'
 import { serviceRoutes } from './services/service.routes'
 import { teamRoutes } from './team/team.routes'
 import { tenantRoutes } from './tenants/tenant.routes'
+import {
+  mercadoPagoAccountRoutes,
+  prepaymentPanelRoutes,
+  prepaymentPublicRoutes,
+  prepaymentWebhookRoutes,
+} from './prepayment/prepayment.routes'
 import { privateUploadRoutes, registerUploadStatic, uploadRoutes } from './uploads/upload.routes'
 
 export async function registerModules(app: FastifyInstance) {
@@ -29,6 +35,7 @@ export async function registerModules(app: FastifyInstance) {
   await seoRoutes(app)
   await app.register(authRoutes, { prefix: '/api/auth' })
   await app.register(tenantRoutes, { prefix: '/api/tenant' })
+  await app.register(mercadoPagoAccountRoutes, { prefix: '/api/tenant' })
   await app.register(serviceRoutes, { prefix: '/api/services' })
   await app.register(teamRoutes, { prefix: '/api/team' })
   await app.register(scheduleRoutes, { prefix: '/api/schedule' })
@@ -37,13 +44,16 @@ export async function registerModules(app: FastifyInstance) {
   await app.register(privateUploadRoutes, { prefix: '/api/uploads' })
   await app.register(publicRoutes, { prefix: '/api/public' })
   await app.register(customerAreaRoutes, { prefix: '/api/public/bookings' })
+  await app.register(prepaymentPublicRoutes, { prefix: '/api/public/bookings' })
   await app.register(bookingPanelRoutes, { prefix: '/api/bookings' })
+  await app.register(prepaymentPanelRoutes, { prefix: '/api/bookings' })
   await app.register(customerRoutes, { prefix: '/api/customers' })
   await app.register(dashboardRoutes, { prefix: '/api/dashboard' })
   await app.register(notificationRoutes, { prefix: '/api/notifications' })
   await app.register(whatsappWebhookRoutes, { prefix: '/api/webhooks' })
   await app.register(billingRoutes, { prefix: '/api/billing' })
   await app.register(billingWebhookRoutes, { prefix: '/api/webhooks' })
+  await app.register(prepaymentWebhookRoutes, { prefix: '/api/webhooks' })
   await app.register(reportRoutes, { prefix: '/api/reports' })
   await app.register(adminRoutes, { prefix: '/api/admin' })
   await app.register(adminManageRoutes, { prefix: '/api/admin' })

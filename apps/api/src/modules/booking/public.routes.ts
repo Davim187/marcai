@@ -16,6 +16,7 @@ import { prisma } from '../../lib/prisma'
 import { storage } from '../../lib/storage'
 import { readImageUpload } from '../uploads/upload.routes'
 import { availableDates, daySlots } from './availability.service'
+import { publicPaymentView } from '../prepayment/prepayment.service'
 import { createBooking } from './booking.service'
 import { publicProfile, resolvePublicTenant } from './public.service'
 
@@ -231,6 +232,8 @@ export const publicRoutes: FastifyPluginAsyncZod = async (app) => {
         customerName: b.customerName,
         cancellationPolicy: tenant.cancellationPolicy,
         googleCalendarUrl: googleCalendarUrl(event),
+        // Sinal antecipado: o que pagar e como (null quando não há sinal)
+        payment: await publicPaymentView(tenant, booking, booking.payment),
         ...links,
       })
     },

@@ -310,3 +310,40 @@ export function onBookingConfirmedByCustomer(bookingId: string) {
     })
   })
 }
+
+/**
+ * Sinal antecipado: avisa a equipe no painel e no celular (push), sem modelo de mensagem.
+ * Ex.: comprovante PIX enviado, sinal pago pelo Mercado Pago, pagamento fora do prazo.
+ */
+export function onPrepaymentUpdate(
+  bookingId: string,
+  opts: { type: string; title: string; summary?: string },
+) {
+  return safely(`prepayment.${opts.type}`, async () => {
+    const b = await load(bookingId)
+    if (!b) return
+    const t = b.tenant
+    const body = opts.summary ?? `${b.customer.name} · ${b.serviceName} · ${when(b)}`
+    const url = `/painel/agenda/${b.id}`
+    if (t.notifyInApp) {
+      await channels.inapp.send({
+        tenantId: t.id,
+        title: opts.title,
+        body,
+        url,
+        type: opts.type,
+        bookingId: b.id,
+      })
+    }
+    if (t.notifyPush) {
+      for (const m of await recipients(b)) {
+        await enqueue({
+          channel: 'push',
+          kind: opts.type,
+          bookingId: b.id,
+          message: { tenantId: t.id, to: m.user.id, title: opts.title, body, url },
+        })
+      }
+    }
+  })
+}

@@ -1,3 +1,4 @@
+import { activePrepaymentMethod } from '../prepayment/prepayment.service'
 import type { Tenant } from '@prisma/client'
 import { accessLevel } from '@marcai/shared'
 import { env } from '../../config/env'
@@ -46,6 +47,14 @@ export async function publicProfile(tenant: Tenant, available: boolean) {
     cancelMinHours: tenant.cancelMinHours,
     maxAdvanceDays: tenant.maxAdvanceDays,
     whiteLabel: env.APP_MODE === 'single_tenant',
+    // Sinal antecipado: a página avisa antes de confirmar quanto e como pagar
+    prepayment: activePrepaymentMethod(tenant)
+      ? {
+          percent: tenant.prepaymentPercent,
+          method: activePrepaymentMethod(tenant),
+          holdMinutes: tenant.prepaymentHoldMinutes,
+        }
+      : null,
     available,
   }
   if (!available) return { ...base, categories: [], services: [], professionals: [], fields: [] }

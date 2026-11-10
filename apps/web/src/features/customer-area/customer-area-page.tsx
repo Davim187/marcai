@@ -31,7 +31,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { api, errorMessage } from '@/lib/api'
 import { brandStyle } from '@/lib/brand'
 import { capitalize, fmt } from '@/lib/dates'
+import { PrepaymentPanel } from '../booking/prepayment-panel'
 import { SlotPicker, type Slot } from '../booking/slot-picker'
+import type { PrepaymentView } from '../booking/types'
 import { StatusBadge } from '../bookings/status'
 import type { BookingStatus } from '@marcai/shared'
 
@@ -54,6 +56,7 @@ interface CustomerBooking {
   changeDeadline: string
   googleCalendarUrl: string
   icsUrl: string
+  payment: PrepaymentView | null
   tenant: {
     slug: string
     name: string
@@ -101,6 +104,20 @@ export default function CustomerAreaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [b?.id])
 
+  // Volta do Mercado Pago (?pagamento=...): confere o pagamento na hora, sem esperar o aviso
+  useEffect(() => {
+    const back = params.get('pagamento')
+    if (!back || !token) return
+    setParams({}, { replace: true })
+    void api(`/public/bookings/${token}/payment/sync`, { method: 'POST' })
+      .then(() => {
+        if (back === 'recusado') toast.error('O pagamento não foi aprovado. Tente de novo.')
+      })
+      .catch(() => undefined)
+      .finally(refresh)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
+
   async function run(fn: () => Promise<unknown>, success: string) {
     setBusy(true)
     try {
@@ -139,6 +156,8 @@ export default function CustomerAreaPage() {
   }
   const tz = b.tenant.timezone
   const active = b.status === 'pending' || b.status === 'confirmed'
+  const awaitingPayment =
+    b.payment?.status === 'awaiting_payment' || b.payment?.status === 'under_review'
 
   return (
     <div style={brandStyle(b.tenant.primaryColor)} className="bg-background min-h-dvh">
@@ -248,6 +267,16 @@ export default function CustomerAreaPage() {
               </div>
             </Card>
 
+            {b.payment && (b.status !== 'canceled' || b.payment.status !== 'awaiting_payment') && (
+              <PrepaymentPanel
+                token={token!}
+                payment={b.payment}
+                timezone={tz}
+                tenantName={b.tenant.name}
+                onChange={() => refresh()}
+              />
+            )}
+
             {b.status === 'canceled' && (
               <p className="bg-muted rounded-xl p-4 text-sm">
                 Este agendamento foi cancelado.{b.cancelReason && ` Motivo: ${b.cancelReason}`}
@@ -257,6 +286,7 @@ export default function CustomerAreaPage() {
             {active && (
               <div className="grid gap-2">
                 {b.canConfirm &&
+                  !awaitingPayment &&
                   (b.customerConfirmedAt ? (
                     <p className="bg-success/10 text-success flex items-center justify-center gap-2 rounded-xl p-3 text-sm font-semibold">
                       <CheckCircle2 className="h-4 w-4" /> Presença confirmada

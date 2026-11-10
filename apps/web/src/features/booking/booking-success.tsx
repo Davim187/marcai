@@ -3,7 +3,9 @@ import { CalendarPlus, Check, Download, Link2 } from 'lucide-react'
 import { formatPrice } from '@marcai/shared'
 import { Button } from '@/components/ui/button'
 import { capitalize, fmt } from '@/lib/dates'
-import type { BookingResult, PublicTenant } from './types'
+import { useState } from 'react'
+import { PrepaymentPanel } from './prepayment-panel'
+import type { BookingResult, PrepaymentView, PublicTenant } from './types'
 
 export function BookingSuccess({
   result,
@@ -13,6 +15,8 @@ export function BookingSuccess({
   tenant: PublicTenant
 }) {
   const pending = result.status === 'pending'
+  const [payment, setPayment] = useState<PrepaymentView | null>(result.payment ?? null)
+  const awaitingPayment = payment?.status === 'awaiting_payment'
   return (
     <div className="mx-auto max-w-md px-4 py-10">
       <div className="text-center">
@@ -36,7 +40,11 @@ export function BookingSuccess({
           transition={{ delay: 0.2 }}
           className="mt-5 text-2xl font-bold"
         >
-          {pending ? 'Pedido enviado' : 'Horário confirmado'}
+          {awaitingPayment
+            ? 'Falta o pagamento'
+            : pending
+              ? 'Pedido enviado'
+              : 'Horário confirmado'}
         </motion.h1>
         <motion.p
           initial={{ opacity: 0 }}
@@ -44,11 +52,24 @@ export function BookingSuccess({
           transition={{ delay: 0.3 }}
           className="text-muted-foreground mt-1.5"
         >
-          {pending
-            ? `${tenant.name} vai confirmar seu horário em breve.`
-            : `Te esperamos, ${result.customerName.split(' ')[0]}!`}
+          {awaitingPayment
+            ? 'Seu horário está reservado. Pague abaixo para garantir.'
+            : pending
+              ? `${tenant.name} vai confirmar seu horário em breve.`
+              : `Te esperamos, ${result.customerName.split(' ')[0]}!`}
         </motion.p>
       </div>
+      {payment && (
+        <div className="mt-8">
+          <PrepaymentPanel
+            token={result.token}
+            payment={payment}
+            timezone={tenant.timezone}
+            tenantName={tenant.name}
+            onChange={setPayment}
+          />
+        </div>
+      )}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}

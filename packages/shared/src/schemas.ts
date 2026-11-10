@@ -129,6 +129,44 @@ export const tenantProfileSchema = z.object({
 })
 export type TenantProfileInput = z.infer<typeof tenantProfileSchema>
 
+// ---------- Sinal antecipado ----------
+export const PREPAYMENT_METHODS = ['mercadopago', 'pix_manual'] as const
+export type PrepaymentMethod = (typeof PREPAYMENT_METHODS)[number]
+export const PREPAYMENT_PERCENTS = [50, 100] as const
+export type PrepaymentPercent = (typeof PREPAYMENT_PERCENTS)[number]
+export const PREPAYMENT_METHOD_LABELS: Record<PrepaymentMethod, string> = {
+  mercadopago: 'Mercado Pago (confirma sozinho ao pagar)',
+  pix_manual: 'PIX com comprovante (você confere e aprova)',
+}
+export const BOOKING_PAYMENT_STATUSES = [
+  'awaiting_payment',
+  'under_review',
+  'paid',
+  'rejected',
+  'expired',
+  'refunded',
+] as const
+export type BookingPaymentStatus = (typeof BOOKING_PAYMENT_STATUSES)[number]
+export const BOOKING_PAYMENT_STATUS_LABELS: Record<BookingPaymentStatus, string> = {
+  awaiting_payment: 'Aguardando pagamento',
+  under_review: 'Comprovante para conferir',
+  paid: 'Sinal pago',
+  rejected: 'Pagamento recusado',
+  expired: 'Prazo de pagamento vencido',
+  refunded: 'Sinal devolvido',
+}
+/** Valor do sinal (arredondado para cima no centavo). */
+export function prepaymentAmount(priceCents: number, percent: number) {
+  return Math.ceil((priceCents * percent) / 100)
+}
+
+export const mercadoPagoConnectSchema = z.object({
+  accessToken: z
+    .string()
+    .trim()
+    .regex(/^(APP_USR|TEST)-[\w-]{20,300}$/, 'Cole o Access Token (começa com APP_USR- ou TEST-)'),
+})
+
 export const bookingRulesSchema = z.object({
   minAdvanceMinutes: z
     .number()
@@ -150,6 +188,22 @@ export const bookingRulesSchema = z.object({
   reminderHours: z.number().int().min(1).max(72),
   dailySummaryEnabled: z.boolean(),
   loadHolidays: z.boolean(),
+  // Sinal antecipado (opcional no corpo: quem não manda, não mexe)
+  requirePrepayment: z.boolean().optional(),
+  prepaymentPercent: z
+    .number()
+    .int()
+    .refine((v) => PREPAYMENT_PERCENTS.includes(v as PrepaymentPercent), 'Escolha 50% ou 100%')
+    .optional(),
+  prepaymentMethod: z.enum(PREPAYMENT_METHODS).optional(),
+  prepaymentHoldMinutes: z
+    .number()
+    .int()
+    .min(10, 'Mínimo de 10 minutos')
+    .max(48 * 60, 'Máximo de 48 horas')
+    .optional(),
+  pixKey: z.string().trim().max(120).optional().nullable(),
+  pixKeyHolder: z.string().trim().max(80).optional().nullable(),
 })
 export type BookingRulesInput = z.infer<typeof bookingRulesSchema>
 
