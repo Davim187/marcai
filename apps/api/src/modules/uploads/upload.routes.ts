@@ -15,6 +15,21 @@ export async function readImageUpload(request: FastifyRequest) {
   return { buffer, ext: detectImage(buffer) }
 }
 
+/** Comprovante de pagamento: imagem (print) ou PDF (comprovante do banco). */
+export async function readProofUpload(request: FastifyRequest) {
+  const file = await request.file()
+  if (!file) throw badRequest('Nenhum arquivo enviado')
+  const buffer = await file.toBuffer().catch(() => {
+    throw badRequest('Arquivo muito grande. O limite é de 5 MB.', 'ARQUIVO_GRANDE')
+  })
+  if (buffer.subarray(0, 5).toString('latin1') === '%PDF-') return { buffer, ext: 'pdf' }
+  try {
+    return { buffer, ext: detectImage(buffer) }
+  } catch {
+    throw badRequest('Envie o comprovante em PDF ou imagem (JPG, PNG, WEBP).', 'ARQUIVO_INVALIDO')
+  }
+}
+
 export const uploadRoutes: FastifyPluginAsync = async (app) => {
   /** Upload durante o onboarding (o estabelecimento ainda não existe). */
   app.post(
@@ -58,8 +73,14 @@ export const privateUploadRoutes: FastifyPluginAsync = async (app) => {
       const data = await readFile(found.file).catch(() => null)
       if (!data) throw notFound('Arquivo não encontrado')
       const ext = name.split('.').pop()!
+      if (ext === 'pdf')
+        // PDF (comprovante): isolado, sem scripts nem acesso à sessão do painel
+        reply.header('content-security-policy', "sandbox; default-src 'none'")
       return reply
-        .header('content-type', ext === 'jpg' ? 'image/jpeg' : `image/${ext}`)
+        .header(
+          'content-type',
+          ext === 'pdf' ? 'application/pdf' : ext === 'jpg' ? 'image/jpeg' : `image/${ext}`,
+        )
         .header('cache-control', 'private, max-age=3600')
         .header('x-content-type-options', 'nosniff')
         .send(data)

@@ -9,11 +9,11 @@ const PNG = Buffer.from(
   'base64',
 )
 
-function multipart(buffer: Buffer) {
+function multipart(buffer: Buffer, filename = 'c.png', type = 'image/png') {
   const boundary = '----marcai-test'
   const body = Buffer.concat([
     Buffer.from(
-      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="c.png"\r\nContent-Type: image/png\r\n\r\n`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: ${type}\r\n\r\n`,
     ),
     buffer,
     Buffer.from(`\r\n--${boundary}--\r\n`),
@@ -108,6 +108,33 @@ describe('sinal antecipado (PIX com comprovante)', () => {
     })
     expect(after.status).toBe('confirmed')
     expect(after.payment?.status).toBe('paid')
+  })
+
+  it('aceita comprovante em PDF e serve como application/pdf isolado', async () => {
+    const { app, agent, booking } = await setup()
+    const pdf = Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n')
+    const up = await app.inject({
+      method: 'POST',
+      url: `/api/public/bookings/${booking.token}/payment/proof`,
+      ...multipart(pdf, 'c.pdf', 'application/pdf'),
+    })
+    expect(up.statusCode).toBe(200)
+    const detail = (await agent.get(`/api/bookings/${booking.id}`)).json()
+    expect(detail.payment.proofUrl).toMatch(/\.pdf$/)
+    const file = await agent.get(detail.payment.proofUrl)
+    expect(file.statusCode).toBe(200)
+    expect(file.headers['content-type']).toBe('application/pdf')
+    expect(String(file.headers['content-security-policy'])).toContain('sandbox')
+  })
+
+  it('recusa comprovante que não é PDF nem imagem', async () => {
+    const { app, booking } = await setup()
+    const up = await app.inject({
+      method: 'POST',
+      url: `/api/public/bookings/${booking.token}/payment/proof`,
+      ...multipart(Buffer.from('<html>oi</html>'), 'c.html', 'text/html'),
+    })
+    expect(up.statusCode).toBe(400)
   })
 
   it('recusar o comprovante cancela e libera o horário', async () => {

@@ -11,7 +11,7 @@ import { storage } from '../../lib/storage'
 import { ctx, requireOwner, requireTenant } from '../../plugins/auth'
 import { notificationDataId } from '../billing/mercadopago'
 import { scopeWhere } from '../booking/panel.routes'
-import { readImageUpload } from '../uploads/upload.routes'
+import { readProofUpload } from '../uploads/upload.routes'
 import { deletePrivateFiles } from '../uploads/private-cleanup'
 import {
   approvePrepayment,
@@ -49,10 +49,10 @@ export const prepaymentPublicRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const b = await loadByToken(request.params.token)
       if (b.status !== 'pending') throw badRequest('Esse agendamento não está esperando pagamento.')
-      const { buffer, ext } = await readImageUpload(request)
+      const { buffer, ext } = await readProofUpload(request)
       // Mesma pasta privada das fotos de referência: só a equipe do estabelecimento abre
       const url = await storage.savePrivate(`${b.tenantId}-ref`, buffer, ext).catch(() => {
-        throw badRequest('Não conseguimos ler essa imagem. Tente outra foto.', 'ARQUIVO_INVALIDO')
+        throw badRequest('Não conseguimos ler esse arquivo. Tente outro.', 'ARQUIVO_INVALIDO')
       })
       try {
         const { previousProofUrl } = await attachProof(b.tenant, b.id, url)

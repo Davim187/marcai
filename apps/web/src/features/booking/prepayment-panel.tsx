@@ -145,7 +145,7 @@ export function PrepaymentPanel({
           <input
             ref={fileRef}
             type="file"
-            accept="image/*"
+            accept="image/*,application/pdf,.pdf"
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0]
@@ -163,7 +163,7 @@ export function PrepaymentPanel({
             <FileUp /> {payment.proofSent ? 'Trocar comprovante' : 'Anexar comprovante'}
           </Button>
           <p className="text-muted-foreground text-center text-xs">
-            Depois de pagar, tire um print do comprovante e anexe aqui.
+            Depois de pagar, anexe o comprovante em PDF ou um print da tela.
           </p>
         </div>
       )}

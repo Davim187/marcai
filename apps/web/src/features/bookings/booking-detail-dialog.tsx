@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarClock, Check, CheckCheck, MessageCircle, UserX, X } from 'lucide-react'
+import { CalendarClock, Check, CheckCheck, FileText, MessageCircle, UserX, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import {
@@ -356,11 +356,17 @@ function PaymentSection({
           rel="noreferrer"
           className="bg-background block overflow-hidden rounded-lg border"
         >
-          <img
-            src={imageSrc(payment.proofUrl)}
-            alt="Comprovante do PIX enviado pela cliente"
-            className="max-h-64 w-full object-contain"
-          />
+          {payment.proofUrl.endsWith('.pdf') ? (
+            <span className="flex items-center gap-2 px-3 py-3 font-medium">
+              <FileText className="size-5" /> Comprovante em PDF
+            </span>
+          ) : (
+            <img
+              src={imageSrc(payment.proofUrl)}
+              alt="Comprovante do PIX enviado pela cliente"
+              className="max-h-64 w-full object-contain"
+            />
+          )}
           <span className="text-primary block px-2 py-1 text-xs font-medium underline">
             Abrir comprovante
           </span>
