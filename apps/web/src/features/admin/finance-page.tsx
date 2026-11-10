@@ -11,7 +11,7 @@ import { fmtLocal, InvoiceBadge, type InvoiceStatus, StatCard } from './admin-sh
 
 interface Finance {
   mrrCents: number
-  activeByPlan: { essencial: number; pro: number }
+  activeByPlan: { essencial: number; pro: number; premium: number }
   pastDue: number
   trialsEndingIn7Days: number
   paidLast30: { cents: number; count: number }
@@ -40,7 +40,10 @@ export default function AdminFinancePage() {
         <StatCard
           label="MRR"
           value={data && formatBRL(data.mrrCents)}
-          hint={data && `${data.activeByPlan.essencial} Essencial · ${data.activeByPlan.pro} Pro`}
+          hint={
+            data &&
+            `${data.activeByPlan.essencial} Básico · ${data.activeByPlan.pro} Profissional · ${data.activeByPlan.premium} Premium`
+          }
         />
         <StatCard
           label="Recebido (30 dias)"

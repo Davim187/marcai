@@ -107,7 +107,7 @@ evento de domínio (criado/cancelado/remarcado/confirmado)
        ├─ InApp: grava Notification + publica no SSE (sseHub) ──▶ sino do painel (toast + som)
        ├─ enqueue(push)      → NotificationJob
        ├─ enqueue(whatsapp)  → só se o plano permitir (canNotify / hasFeature)
-       ├─ enqueue(email)     → quando não há WhatsApp (Essencial) ou para a cliente com e-mail
+       ├─ enqueue(email)     → quando não há WhatsApp (Básico) ou para a cliente com e-mail
        └─ lembrete: job com runAt = início − X horas, dedupeKey por agendamento+horário
 
 worker (a cada WORKER_POLL_MS)
@@ -146,7 +146,7 @@ worker (a cada WORKER_POLL_MS)
 
 | Tema                       | Decisão                                                                                                                                                        |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Teste grátis               | Durante os 30 dias, o plano efetivo é o **Pro**, para a profissional experimentar o WhatsApp. Depois vale o plano escolhido.                                   |
+| Teste grátis               | Durante os 30 dias, o plano efetivo é o **Premium**, para experimentar tudo (WhatsApp, sinal antecipado, sem limites). Depois vale o plano escolhido.          |
 | Primeira cobrança          | Acontece **no fim do teste**. Assinar durante o teste não cobra na hora.                                                                                       |
 | Prazo de carência          | 7 dias contados do fim do período pago (ou do fim do teste).                                                                                                   |
 | Proteção de concorrência   | Exclusion constraint no Postgres (em vez de `SELECT … FOR UPDATE`): é atômica, mais simples e cobre também sobreposições parciais.                             |

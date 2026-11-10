@@ -171,6 +171,10 @@ export const router = createBrowserRouter([
                     element: lazyRoute(() => import('./features/appearance/appearance-page')),
                   },
                   {
+                    path: 'unidades',
+                    element: lazyRoute(() => import('./features/units/units-page')),
+                  },
+                  {
                     path: 'assinatura',
                     element: lazyRoute(() => import('./features/billing/billing-page')),
                   },

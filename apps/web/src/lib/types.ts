@@ -26,6 +26,14 @@ export interface TenantSummary {
   effectivePlan: PlanId
   access: 'full' | 'grace' | 'blocked'
   features: Feature[]
+  /** Conta com unidades: assinatura e limites são da unidade principal (null = ilimitado) */
+  account: {
+    rootId: string
+    rootName: string
+    isUnit: boolean
+    limits: { locations: number | null; professionals: number | null }
+    usage: { locations: number; professionals: number }
+  }
 }
 
 export type Session =

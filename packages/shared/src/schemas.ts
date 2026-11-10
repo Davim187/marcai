@@ -4,6 +4,7 @@ import { isValidBrazilianMobile } from './phone'
 import { BUSINESS_TYPES, FORM_FIELD_TYPES } from './presets'
 import { MESSAGE_TEMPLATE_KEYS } from './templates'
 import { isValidSlug } from './slug'
+import { PLAN_IDS } from './plans'
 
 const msg = {
   required: 'Campo obrigatório',
@@ -504,7 +505,7 @@ export const customerRescheduleSchema = z.object({ startsAt: z.coerce.date() })
 
 // ---------- Assinatura ----------
 export const changePlanSchema = z.object({
-  plan: z.enum(['essencial', 'pro']),
+  plan: z.enum(PLAN_IDS),
   billingType: z.enum(['PIX', 'BOLETO', 'CREDIT_CARD', 'UNDEFINED']).default('UNDEFINED'),
   /** Cadastrar outro cartão (ex.: o anterior foi recusado) */
   newCard: z.boolean().optional(),

@@ -72,7 +72,12 @@ export async function loadNationalHolidays(
  * Onboarding: cria o estabelecimento com a dona, a primeira profissional, os serviços e
  * campos sugeridos para o tipo de negócio, o expediente e o teste grátis de 30 dias.
  */
-export async function createTenantFromOnboarding(userId: string, input: OnboardingInput) {
+export async function createTenantFromOnboarding(
+  userId: string,
+  input: OnboardingInput,
+  /** Unidade extra de uma conta: sem assinatura própria (usa a da principal) */
+  opts: { parentTenantId?: string } = {},
+) {
   if (!(await isSlugAvailable(input.slug)))
     throw conflict('Esse link já está em uso. Escolha outro.', 'SLUG_EM_USO')
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } })
@@ -89,6 +94,7 @@ export async function createTenantFromOnboarding(userId: string, input: Onboardi
           logoUrl: input.logoUrl ?? null,
           timezone: input.timezone ?? DEFAULT_TIMEZONE,
           onboardingCompleted: true,
+          parentTenantId: opts.parentTenantId ?? null,
           cancellationPolicy:
             'Cancelamentos e remarcações podem ser feitos pelo link até 12 horas antes do horário. Em caso de atraso maior que 15 minutos, o atendimento pode ser reagendado.',
           notifyPhone: user.phone,
@@ -136,7 +142,7 @@ export async function createTenantFromOnboarding(userId: string, input: Onboardi
       }
       await loadNationalHolidays(tx, tenant.id)
 
-      if (env.APP_MODE === 'saas') {
+      if (env.APP_MODE === 'saas' && !opts.parentTenantId) {
         await tx.subscription.create({
           data: {
             tenantId: tenant.id,

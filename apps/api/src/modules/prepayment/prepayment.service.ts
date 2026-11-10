@@ -1,6 +1,6 @@
-import type { Booking, BookingPayment, Tenant } from '@prisma/client'
+import type { Booking, BookingPayment, Subscription, Tenant } from '@prisma/client'
 import QRCode from 'qrcode'
-import { MINUTE_MS, prepaymentAmount, type PrepaymentMethod } from '@marcai/shared'
+import { hasFeature, MINUTE_MS, prepaymentAmount, type PrepaymentMethod } from '@marcai/shared'
 import { env } from '../../config/env'
 import { decryptSecret } from '../../lib/crypto'
 import { badRequest, notFound } from '../../lib/errors'
@@ -95,8 +95,12 @@ export async function verifyMpToken(token: string) {
 // ---------------------------------------------------------------------------------------------
 
 /** Meio de cobrança que funciona agora (configuração completa), ou null. */
-export function activePrepaymentMethod(tenant: Tenant): PrepaymentMethod | null {
+export function activePrepaymentMethod(
+  tenant: Tenant & { subscription?: Subscription | null },
+): PrepaymentMethod | null {
   if (!tenant.requirePrepayment) return null
+  // Recurso do Premium: plano menor (ou sem a assinatura carregada) não cobra sinal
+  if (!hasFeature(tenant.subscription ?? null, 'prepayment', env.APP_MODE)) return null
   if (tenant.prepaymentMethod === 'mercadopago')
     return tenant.mpAccessTokenEnc ? 'mercadopago' : null
   return tenant.pixKey ? 'pix_manual' : null

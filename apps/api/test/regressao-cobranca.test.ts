@@ -41,7 +41,7 @@ describe('REVISAO cobrança (banca)', () => {
       type: 'payment_confirmed',
       invoiceId: inv.id,
       providerPaymentId: 'p1',
-      amountCents: 9900,
+      amountCents: 6900,
     })
     expect((await sub(tenant.id)).status).toBe('active')
     await hook({
@@ -68,7 +68,7 @@ describe('REVISAO cobrança (banca)', () => {
       data: {
         tenantId: tenant.id,
         subscriptionId: s.id,
-        amountCents: 9900,
+        amountCents: 6900,
         status: 'paid',
         providerPaymentId: 'p2',
         dueDate: new Date(Date.now() - 20 * 86_400_000),
@@ -87,7 +87,7 @@ describe('REVISAO cobrança (banca)', () => {
       type: 'payment_confirmed',
       providerSubscriptionId: s0.providerSubscriptionId,
       providerPaymentId: 'c1',
-      amountCents: 9900,
+      amountCents: 6900,
     })
     const r = await hook({
       eventId: 'c1:back',
@@ -114,7 +114,7 @@ describe('REVISAO cobrança (banca)', () => {
       type: 'payment_confirmed',
       invoiceId: inv.id,
       providerPaymentId: 'old',
-      amountCents: 9900,
+      amountCents: 6900,
     })
     const s = await sub(tenant.id)
     expect(s.status).toBe('active')
@@ -136,7 +136,7 @@ describe('REVISAO cobrança (banca)', () => {
       type: 'payment_confirmed',
       invoiceId: inv.id,
       providerPaymentId: 'p9',
-      amountCents: 9900,
+      amountCents: 6900,
     }
     expect((await hook(ev)).status).toBe(500)
     await prisma.$executeRawUnsafe(`DROP TRIGGER falha_teste ON "Subscription"`)
@@ -159,7 +159,7 @@ describe('REVISAO cobrança (banca)', () => {
       type: 'payment_confirmed',
       providerSubscriptionId: s0.providerSubscriptionId,
       providerPaymentId: 'c2',
-      amountCents: 6900,
+      amountCents: 4000,
     })
     expect(r.body).toEqual({ ok: true })
     expect(await prisma.invoice.count({ where: { tenantId: tenant.id, status: 'paid' } })).toBe(1)
@@ -174,7 +174,7 @@ describe('REVISAO cobrança (banca)', () => {
       type: 'payment_confirmed',
       providerSubscriptionId: s0.providerSubscriptionId,
       providerPaymentId: 'mp9',
-      amountCents: 9900,
+      amountCents: 6900,
     })
     const end1 = (await sub(tenant.id)).currentPeriodEnd!.getTime()
     await hook({
@@ -182,7 +182,7 @@ describe('REVISAO cobrança (banca)', () => {
       type: 'payment_confirmed',
       providerSubscriptionId: s0.providerSubscriptionId,
       providerPaymentId: 'mp9',
-      amountCents: 9900,
+      amountCents: 6900,
     })
     expect((await sub(tenant.id)).currentPeriodEnd!.getTime()).toBe(end1)
   })
@@ -211,7 +211,7 @@ describe('REVISAO cobrança (banca)', () => {
     await agent.post('/api/billing/subscribe', { plan: 'pro', billingType: 'CREDIT_CARD' })
     const r = await agent.post('/api/billing/pay-once', { billingType: 'PIX' })
     expect(r.statusCode).toBe(200)
-    expect(r.json().amountCents).toBe(9900)
+    expect(r.json().amountCents).toBe(6900)
     const s = await sub(tenant.id)
     expect(s.billingType).toBe('CREDIT_CARD')
     expect(s.providerSubscriptionId).toBeTruthy()
@@ -320,7 +320,7 @@ describe('REVISAO notificações (banca)', () => {
         tenantId: tenant.id,
         channel: 'whatsapp',
         kind: 'customer_confirmation',
-        payload: { tenantId: tenant.id, to: '5585999990000', title: 't', body: 'b' },
+        payload: { tenantId: tenant.id, to: '5585999690000', title: 't', body: 'b' },
       },
     })
     const delays: number[] = []

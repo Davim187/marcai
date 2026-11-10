@@ -1,3 +1,4 @@
+import { ACCOUNT_SUB_INCLUDE, withAccountSub } from '../lib/account'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import fp from 'fastify-plugin'
 import type { MemberRole, Subscription, Tenant } from '@prisma/client'
@@ -168,7 +169,7 @@ export async function requireTenant(request: FastifyRequest) {
 
   const member = await prisma.tenantMember.findUnique({
     where: { tenantId_userId: { tenantId: auth.tenantId, userId: auth.user.id } },
-    include: { tenant: { include: { subscription: true } } },
+    include: { tenant: { include: ACCOUNT_SUB_INCLUDE } },
   })
   // Super admin "entrando como" o tenant: age como dona, com auditoria.
   let role: MemberRole
@@ -176,13 +177,14 @@ export async function requireTenant(request: FastifyRequest) {
   let professionalId: string | null = null
   if (member?.acceptedAt) {
     role = member.role
-    tenant = member.tenant
+    tenant = withAccountSub(member.tenant)
     professionalId = member.professionalId
   } else if (auth.impersonatorId) {
-    tenant = await prisma.tenant.findUnique({
+    const found = await prisma.tenant.findUnique({
       where: { id: auth.tenantId },
-      include: { subscription: true },
+      include: ACCOUNT_SUB_INCLUDE,
     })
+    tenant = found && withAccountSub(found)
     role = 'owner'
   } else {
     throw forbidden('Você não faz parte deste estabelecimento')

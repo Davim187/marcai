@@ -29,7 +29,7 @@ describe('feature gating por plano', () => {
     expect(hasFeature(sub({ plan: 'pro' }), 'whatsapp_customer')).toBe(true)
   })
   it('teste grátis libera tudo do Pro', () => {
-    expect(effectivePlan(sub({ status: 'trial' }))).toBe('pro')
+    expect(effectivePlan(sub({ status: 'trial' }))).toBe('premium')
     expect(hasFeature(sub({ status: 'trial' }), 'whatsapp_customer')).toBe(true)
   })
   it('modo exclusivo libera tudo do Pro', () => {

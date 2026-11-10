@@ -6,6 +6,7 @@ import {
   HOUR_MS,
   customerRescheduleSchema,
 } from '@marcai/shared'
+import { ACCOUNT_SUB_INCLUDE, withAccountSub } from '../../lib/account'
 import { env } from '../../config/env'
 import { badRequest, forbidden, notFound } from '../../lib/errors'
 import { googleCalendarUrl } from '../../lib/ics'
@@ -21,7 +22,7 @@ async function load(token: string) {
   const b = await prisma.booking.findUnique({
     where: { cancelToken: token },
     include: {
-      tenant: { include: { subscription: true } },
+      tenant: { include: ACCOUNT_SUB_INCLUDE },
       professional: true,
       customer: true,
       service: true,
@@ -29,7 +30,7 @@ async function load(token: string) {
     },
   })
   if (!b || b.tenant.deletedAt) throw notFound('Agendamento não encontrado. Confira o link.')
-  return b
+  return { ...b, tenant: withAccountSub(b.tenant) }
 }
 
 /** Política: cancelar/remarcar sozinha só até X horas antes e se ainda estiver ativo. */

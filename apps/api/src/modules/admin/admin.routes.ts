@@ -90,6 +90,7 @@ export const adminRoutes: FastifyPluginAsyncZod = async (app) => {
       byPlan: {
         essencial: active.filter((s) => s.plan === 'essencial').length,
         pro: active.filter((s) => s.plan === 'pro').length,
+        premium: active.filter((s) => s.plan === 'premium').length,
       },
       churnRate: base ? canceledLast30 / base : 0,
       signupsByDay: [...byDay.entries()].map(([date, count]) => ({ date, count })),

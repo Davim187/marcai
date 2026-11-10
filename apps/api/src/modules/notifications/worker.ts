@@ -1,3 +1,4 @@
+import { ACCOUNT_SUB_INCLUDE, withAccountSub } from '../../lib/account'
 import type { FastifyBaseLogger } from 'fastify'
 import type { NotificationJob } from '@prisma/client'
 import {
@@ -77,10 +78,11 @@ async function buildDailySummary(
   tenantId: string,
   payload: OutboundMessage,
 ): Promise<OutboundMessage | null> {
-  const tenant = await prisma.tenant.findUnique({
+  const found = await prisma.tenant.findUnique({
     where: { id: tenantId },
-    include: { subscription: true },
+    include: ACCOUNT_SUB_INCLUDE,
   })
+  const tenant = found && withAccountSub(found)
   if (!tenant || !tenant.dailySummaryEnabled) return null
   const today = toLocalDate(new Date(), tenant.timezone)
   const bookings = await prisma.booking.findMany({
@@ -214,10 +216,11 @@ export async function scheduleDailySummaries(now = new Date()) {
     const date = toLocalDate(now, t.timezone)
     const hour = Number(toLocalTime(now, t.timezone).slice(0, 2))
     if (hour < 7 || hour >= 12) continue
-    const full = await prisma.tenant.findUnique({
+    const found = await prisma.tenant.findUnique({
       where: { id: t.id },
-      include: { subscription: true },
+      include: ACCOUNT_SUB_INCLUDE,
     })
+    const full = found && withAccountSub(found)
     const base = {
       tenantId: t.id,
       title: `Sua agenda de hoje`,

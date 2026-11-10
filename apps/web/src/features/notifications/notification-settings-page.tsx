@@ -208,7 +208,7 @@ export default function NotificationSettingsPage() {
               {!pro && (
                 <div className="pt-3">
                   <Button asChild variant="soft" className="w-full">
-                    <Link to="/painel/assinatura">Liberar WhatsApp com o plano Pro</Link>
+                    <Link to="/painel/assinatura">Liberar WhatsApp com o plano Profissional</Link>
                   </Button>
                 </div>
               )}

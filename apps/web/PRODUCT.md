@@ -26,7 +26,7 @@ Agendamento online para salões, barbearias, estúdios e profissionais de beleza
 ## Positioning
 
 - **Simplicidade:** configura em minutos, sem treinamento; o link na bio resolve.
-- **Preço baixo:** Essencial R$ 69/mês e Pro R$ 99/mês, com 30 dias grátis.
+- **Preço baixo:** Básico R$ 40/mês, Profissional R$ 69/mês e Premium R$ 99/mês, com 30 dias grátis.
 - **WhatsApp automático:** lembretes e confirmações saem sozinhos pelo WhatsApp (plano Pro).
 - **White-label:** o mesmo código roda como produto exclusivo de um salão, com a marca e o domínio dele.
 

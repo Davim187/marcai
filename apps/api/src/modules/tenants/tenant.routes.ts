@@ -11,7 +11,8 @@ import {
 } from '@marcai/shared'
 import { env } from '../../config/env'
 import { audit } from '../../lib/audit'
-import { badRequest, forbidden } from '../../lib/errors'
+import { badRequest, forbidden, paymentRequired } from '../../lib/errors'
+import { accountRootId, assertCanAddLocation, assertCanAddProfessional } from '../../lib/account'
 import { prisma } from '../../lib/prisma'
 import { ctx, requireAuth, requireOwner, requireTenant } from '../../plugins/auth'
 import { createTenantFromOnboarding, isSlugAvailable, loadNationalHolidays } from './tenant.service'
@@ -163,6 +164,11 @@ export const tenantRoutes: FastifyPluginAsyncZod = async (app) => {
       const b = request.body
       const pixKey = b.pixKey === undefined ? tenant.pixKey : b.pixKey || null
       const method = b.prepaymentMethod ?? tenant.prepaymentMethod
+      if (b.requirePrepayment && !tenant.requirePrepayment && !ctx(request).can('prepayment'))
+        throw paymentRequired(
+          'O sinal antecipado é do plano Premium. Mude de plano para ativar.',
+          'PLANO',
+        )
       if (b.requirePrepayment) {
         if (method === 'pix_manual' && !pixKey)
           throw badRequest('Informe a chave PIX que vai receber o sinal.', 'PIX_SEM_CHAVE')
@@ -186,6 +192,81 @@ export const tenantRoutes: FastifyPluginAsyncZod = async (app) => {
         await db.holiday.deleteMany({ where: { source: 'national' } })
       }
       return forPanel(updated)
+    },
+  )
+
+  /** Unidades da conta (principal + extras). Todas usam a assinatura da principal. */
+  app.get(
+    '/units',
+    { onRequest: requireOwner, schema: { tags: ['tenant'], summary: 'Unidades da conta' } },
+    async (request) => {
+      const { tenant } = ctx(request)
+      const rootId = accountRootId(tenant)
+      const units = await prisma.tenant.findMany({
+        where: { OR: [{ id: rootId }, { parentTenantId: rootId }], deletedAt: null },
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          city: true,
+          parentTenantId: true,
+          _count: { select: { professionals: { where: { deletedAt: null, active: true } } } },
+          members: { where: { userId: request.auth!.user.id }, select: { role: true } },
+        },
+      })
+      return units.map((u) => ({
+        id: u.id,
+        name: u.name,
+        slug: u.slug,
+        city: u.city,
+        isMain: !u.parentTenantId,
+        current: u.id === tenant.id,
+        professionals: u._count.professionals,
+        canEnter: u.members.length > 0,
+        publicUrl: publicUrlFor(u.slug),
+      }))
+    },
+  )
+
+  app.post(
+    '/units',
+    {
+      onRequest: requireOwner,
+      schema: {
+        tags: ['tenant'],
+        summary: 'Cria uma unidade extra na mesma assinatura',
+        body: onboardingSchema,
+      },
+    },
+    async (request, reply) => {
+      if (env.APP_MODE === 'single_tenant') throw forbidden('Unidades desativadas nesta instalação')
+      const { tenant } = ctx(request)
+      const userId = request.auth!.user.id
+      const rootId = accountRootId(tenant)
+      const ownerOfRoot = await prisma.tenantMember.findFirst({
+        where: { tenantId: rootId, userId, role: 'owner', acceptedAt: { not: null } },
+      })
+      if (!ownerOfRoot) throw forbidden('Só a dona da unidade principal cria novas unidades')
+      await assertCanAddLocation(rootId)
+      // A unidade nova já nasce com a dona como profissional
+      await assertCanAddProfessional({ id: rootId, parentTenantId: null })
+      const unit = await createTenantFromOnboarding(userId, request.body, {
+        parentTenantId: rootId,
+      })
+      await prisma.session.update({
+        where: { id: request.auth!.sessionId },
+        data: { tenantId: unit.id },
+      })
+      await audit({
+        action: 'tenant.unit_created',
+        tenantId: unit.id,
+        actorUserId: userId,
+        metadata: { rootId, slug: unit.slug },
+      })
+      return reply
+        .status(201)
+        .send({ id: unit.id, slug: unit.slug, publicUrl: publicUrlFor(unit.slug) })
     },
   )
 }

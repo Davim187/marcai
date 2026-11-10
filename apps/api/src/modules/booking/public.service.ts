@@ -1,3 +1,4 @@
+import { ACCOUNT_SUB_INCLUDE, withAccountSub } from '../../lib/account'
 import { activePrepaymentMethod } from '../prepayment/prepayment.service'
 import type { Tenant } from '@prisma/client'
 import { accessLevel } from '@marcai/shared'
@@ -13,17 +14,18 @@ export async function resolvePublicTenant(slug: string) {
     (slug === '_' || slug === env.SINGLE_TENANT_SLUG)
       ? { slug: env.SINGLE_TENANT_SLUG }
       : { slug }
-  let tenant = await prisma.tenant.findUnique({ where, include: { subscription: true } })
+  let tenant = await prisma.tenant.findUnique({ where, include: ACCOUNT_SUB_INCLUDE })
   if (!tenant && 'slug' in where) {
     // Link antigo: leva para o estabelecimento que trocou de endereço
     const old = await prisma.slugHistory.findUnique({
       where: { slug: where.slug },
-      include: { tenant: { include: { subscription: true } } },
+      include: { tenant: { include: ACCOUNT_SUB_INCLUDE } },
     })
     tenant = old?.tenant ?? null
   }
   if (!tenant || tenant.deletedAt || !tenant.onboardingCompleted)
     throw notFound('Página não encontrada')
+  tenant = withAccountSub(tenant)
   const available =
     !tenant.blocked && accessLevel(tenant.subscription, new Date(), env.APP_MODE) !== 'blocked'
   return { tenant: tenant as Tenant, available }

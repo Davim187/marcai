@@ -24,7 +24,7 @@ describe('assinatura e cobrança', () => {
     expect(res.statusCode).toBe(200)
     const overview = (await agent.get('/api/billing')).json()
     const invoice = overview.invoices[0]
-    expect(invoice.amountCents).toBe(9900)
+    expect(invoice.amountCents).toBe(6900)
     expect(invoice.status).toBe('pending')
     // Simula o webhook (mesmo fluxo do Mercado Pago) duas vezes: só aplica uma.
     await agent.post(`/api/billing/fake/pay/${invoice.id}`)
@@ -39,7 +39,7 @@ describe('assinatura e cobrança', () => {
     const { agent, tenant } = await createOwner()
     await agent.post('/api/billing/subscribe', { plan: 'essencial', billingType: 'BOLETO' })
     const invoice = (await agent.get('/api/billing')).json().invoices[0]
-    expect(invoice.amountCents).toBe(6900)
+    expect(invoice.amountCents).toBe(4000)
     expect(invoice.billingType).toBe('BOLETO')
     const app = await getApp()
     const payload = (amountCents: number, id: string) => ({
@@ -52,7 +52,7 @@ describe('assinatura e cobrança', () => {
     const noSig = await app.inject({
       method: 'POST',
       url: '/api/webhooks/mercadopago',
-      payload: payload(6900, 'a'),
+      payload: payload(4000, 'a'),
     })
     expect(noSig.statusCode).toBe(403)
     const cheap = await app.inject({
@@ -69,7 +69,7 @@ describe('assinatura e cobrança', () => {
       method: 'POST',
       url: '/api/webhooks/mercadopago',
       headers: { 'x-fake-signature': 'test-mp-webhook-secret' },
-      payload: payload(6900, 'c'),
+      payload: payload(4000, 'c'),
     })
     expect(ok.json()).toEqual({ ok: true })
     const sub = await prisma.subscription.findUniqueOrThrow({ where: { tenantId: tenant.id } })
@@ -102,7 +102,7 @@ describe('assinatura e cobrança', () => {
     await agent.post('/api/billing/subscribe', { plan: 'essencial', billingType: 'BOLETO' })
     const { invoices, subscription } = (await agent.get('/api/billing')).json()
     expect(invoices).toHaveLength(1)
-    expect(invoices[0].amountCents).toBe(6900)
+    expect(invoices[0].amountCents).toBe(4000)
     expect(invoices[0].billingType).toBe('BOLETO')
     expect(subscription.plan).toBe('essencial')
   })
@@ -145,7 +145,7 @@ describe('assinatura e cobrança', () => {
       type: 'payment_confirmed',
       providerSubscriptionId: sub.providerSubscriptionId,
       providerPaymentId: 'mp_1',
-      amountCents: 9900,
+      amountCents: 6900,
     })
     sub = await prisma.subscription.findUniqueOrThrow({ where: { tenantId: tenant.id } })
     expect(sub.status).toBe('active')
@@ -155,7 +155,7 @@ describe('assinatura e cobrança', () => {
       type: 'payment_confirmed',
       providerSubscriptionId: sub.providerSubscriptionId,
       providerPaymentId: 'mp_2',
-      amountCents: 9900,
+      amountCents: 6900,
     })
     sub = await prisma.subscription.findUniqueOrThrow({ where: { tenantId: tenant.id } })
     expect(sub.currentPeriodEnd!.getTime()).toBeGreaterThan(firstEnd + 27 * day)

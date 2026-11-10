@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { formatBRL, type SubscriptionStatus } from '@marcai/shared'
+import { formatBRL, PLAN_IDS, type PlanId, PLANS, type SubscriptionStatus } from '@marcai/shared'
 import { askConfirm } from '@/components/confirm-host'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -79,7 +79,7 @@ interface TenantDetail {
     pending: boolean
   }>
   subscription: {
-    plan: 'essencial' | 'pro'
+    plan: PlanId
     status: SubscriptionStatus
     trialEndsAt: string | null
     currentPeriodEnd: string | null
@@ -199,7 +199,7 @@ export default function AdminTenantsPage() {
                         <p>{t.owner?.name ?? '—'}</p>
                         <p className="text-muted-foreground text-xs">{t.owner?.email}</p>
                       </td>
-                      <td className="capitalize">{t.subscription?.plan ?? '—'}</td>
+                      <td>{t.subscription ? PLANS[t.subscription.plan as PlanId].name : '—'}</td>
                       <td>
                         {t.deletedAt ? (
                           <Badge variant="muted">Excluído</Badge>
@@ -337,7 +337,7 @@ function TenantDialog({ id, onClose }: { id: string; onClose: () => void }) {
               <h3 className="mb-2 text-sm font-semibold">Assinatura</h3>
               {t.subscription ? (
                 <p className="text-sm">
-                  Plano <b className="capitalize">{t.subscription.plan}</b> ·{' '}
+                  Plano <b>{PLANS[t.subscription.plan as PlanId].name}</b> ·{' '}
                   {SUB_STATUS[t.subscription.status].label}
                   {t.subscription.status === 'trial' &&
                     t.subscription.trialEndsAt &&
@@ -516,10 +516,13 @@ function AdjustSubscription({
           <NativeSelect
             id="sub-plan"
             value={plan}
-            onChange={(e) => setPlan(e.target.value as 'essencial' | 'pro')}
+            onChange={(e) => setPlan(e.target.value as PlanId)}
           >
-            <option value="essencial">Essencial</option>
-            <option value="pro">Pro</option>
+            {PLAN_IDS.map((id) => (
+              <option key={id} value={id}>
+                {PLANS[id].name}
+              </option>
+            ))}
           </NativeSelect>
         </Field>
         <Field label="Status" htmlFor="sub-status">

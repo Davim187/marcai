@@ -20,7 +20,9 @@ import {
   type InvoiceStatus,
   isOpenInvoice,
   type PlanDefinition,
+  PLAN_IDS,
   type PlanId,
+  PLANS,
   SUBSCRIPTION_STATUS_LABELS,
   type SubscriptionStatus,
 } from '@marcai/shared'
@@ -213,7 +215,7 @@ export default function BillingPage() {
     if (sub.status === 'trial') {
       const left = tenant.subscription?.trialDaysLeft ?? 0
       if (left <= 0) return 'Seu teste grátis terminou. Escolha um plano para continuar.'
-      const base = `Faltam ${left} ${left === 1 ? 'dia' : 'dias'} de teste grátis (até ${date(sub.trialEndsAt!)}). Durante o teste, tudo do Pro fica liberado.`
+      const base = `Faltam ${left} ${left === 1 ? 'dia' : 'dias'} de teste grátis (até ${date(sub.trialEndsAt!)}). Durante o teste, tudo do Premium fica liberado.`
       return sub.billingType
         ? `${base} Nada é cobrado antes disso: a primeira cobrança é em ${date(sub.trialEndsAt!)}${methodLabel ? `, no ${methodLabel}` : ''}.`
         : base
@@ -239,7 +241,7 @@ export default function BillingPage() {
           <div>
             <div className="flex items-center gap-2">
               <p className="text-lg font-bold">
-                Plano {sub?.plan === 'essencial' ? 'Essencial' : 'Pro'}
+                Plano {sub ? PLANS[sub.plan].name : PLANS.pro.name}
               </p>
               <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
             </div>
@@ -329,7 +331,7 @@ export default function BillingPage() {
         </p>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         {data.plans.map((p) => {
           const current = sub?.plan === p.id && hasChosenPlan
           return (
@@ -376,10 +378,10 @@ export default function BillingPage() {
                 >
                   {current
                     ? 'Seu plano atual'
-                    : hasChosenPlan
-                      ? p.id === 'pro'
-                        ? 'Fazer upgrade'
-                        : 'Mudar para o Essencial'
+                    : hasChosenPlan && sub
+                      ? PLAN_IDS.indexOf(p.id) > PLAN_IDS.indexOf(sub.plan)
+                        ? `Fazer upgrade para o ${p.name}`
+                        : `Mudar para o ${p.name}`
                       : `Assinar o ${p.name}`}
                 </Button>
               </CardContent>
@@ -456,7 +458,7 @@ export default function BillingPage() {
       <Dialog open={!!choosing} onOpenChange={(o) => !o && setChoosing(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Assinar o plano {choosing === 'pro' ? 'Pro' : 'Essencial'}</DialogTitle>
+            <DialogTitle>Assinar o plano {choosing ? PLANS[choosing].name : ''}</DialogTitle>
             <DialogDescription>
               {sub?.status === 'trial' && (tenant.subscription?.trialDaysLeft ?? 0) > 0
                 ? `O teste grátis continua até ${date(sub.trialEndsAt!)}. Com PIX ou boleto, a fatura já aparece aqui e você pode pagar quando quiser até essa data; no cartão, a primeira cobrança é nesse dia.`

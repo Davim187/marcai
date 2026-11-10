@@ -96,10 +96,13 @@ export default function OnboardingPage() {
   }, [businessName, slugInput, slugTouched, businessType, shifts, color, logoUrl])
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState<{ publicUrl: string } | null>(null)
+  // Nova unidade da mesma conta (vem de Unidades no painel): mesma assinatura da principal
+  const [unitMode] = useState(() => searchParams.get('unidade') === '1')
 
   useEffect(() => {
-    if (session?.authenticated && session.tenant) navigate('/painel', { replace: true })
-  }, [session, navigate])
+    if (!unitMode && !done && session?.authenticated && session.tenant)
+      navigate('/painel', { replace: true })
+  }, [session, navigate, unitMode, done])
 
   useEffect(() => {
     if (!slugTouched) setSlugInput(slugify(businessName))
@@ -146,19 +149,22 @@ export default function OnboardingPage() {
     }
     setSubmitting(true)
     try {
-      const res = await api<{ publicUrl: string }>('/tenant/onboarding', {
-        body: {
-          businessName: businessName.trim(),
-          slug: slugState!.slug,
-          businessType,
-          shifts,
-          primaryColor: color,
-          logoUrl,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone?.startsWith('America/')
-            ? Intl.DateTimeFormat().resolvedOptions().timeZone
-            : undefined,
+      const res = await api<{ publicUrl: string }>(
+        unitMode ? '/tenant/units' : '/tenant/onboarding',
+        {
+          body: {
+            businessName: businessName.trim(),
+            slug: slugState!.slug,
+            businessType,
+            shifts,
+            primaryColor: color,
+            logoUrl,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone?.startsWith('America/')
+              ? Intl.DateTimeFormat().resolvedOptions().timeZone
+              : undefined,
+          },
         },
-      })
+      )
       clearDraft()
       setDone(res)
     } catch (err) {
@@ -184,7 +190,9 @@ export default function OnboardingPage() {
           >
             <Check className="h-8 w-8" strokeWidth={3} />
           </motion.div>
-          <h1 className="letters text-[2rem] leading-none">Sua agenda está no ar</h1>
+          <h1 className="letters text-[2rem] leading-none">
+            {unitMode ? 'Nova unidade no ar' : 'Sua agenda está no ar'}
+          </h1>
           <p className="text-muted-foreground mt-2 text-sm">
             Coloque esse link na bio do Instagram e mande para suas clientes.
           </p>
@@ -266,7 +274,9 @@ export default function OnboardingPage() {
             {step === 0 && (
               <div className="space-y-5">
                 <div>
-                  <h1 className="letters text-[2rem] leading-none">Como se chama o seu negócio?</h1>
+                  <h1 className="letters text-[2rem] leading-none">
+                    {unitMode ? 'Como se chama a nova unidade?' : 'Como se chama o seu negócio?'}
+                  </h1>
                   <p className="text-muted-foreground mt-1 text-sm">
                     É o nome que suas clientes vão ver na página de agendamento.
                   </p>

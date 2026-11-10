@@ -13,6 +13,8 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SwitchRow } from '@/components/ui/switch'
 import { api } from '@/lib/api'
+import { useHasFeature } from '@/lib/session'
+import { Link } from 'react-router'
 import { qk, useApiMutation } from '@/lib/queries'
 
 export interface TenantFull extends BookingRulesInput {
@@ -52,6 +54,9 @@ export const useTenantFull = () =>
 
 export default function PoliciesPage() {
   const { data } = useTenantFull()
+  const hasFeature = useHasFeature()
+  // Sinal antecipado é do Premium; quem já tinha ligado consegue desligar
+  const prepayLocked = !hasFeature('prepayment') && !data?.requirePrepayment
   const [v, setV] = useState<BookingRulesInput | null>(null)
   useEffect(() => {
     if (data)
@@ -171,7 +176,19 @@ export default function PoliciesPage() {
             <SwitchRow
               id="prepay"
               label="Recebe antecipado"
-              description="A cliente paga um sinal para reservar. O horário só é confirmado depois do pagamento."
+              description={
+                prepayLocked ? (
+                  <>
+                    Disponível no plano Premium.{' '}
+                    <Link to="/painel/assinatura" className="text-primary font-medium underline">
+                      Ver planos
+                    </Link>
+                  </>
+                ) : (
+                  'A cliente paga um sinal para reservar. O horário só é confirmado depois do pagamento.'
+                )
+              }
+              disabled={prepayLocked}
               checked={!!v.requirePrepayment}
               onCheckedChange={(c) => set('requirePrepayment', c)}
             />
@@ -241,7 +258,7 @@ export default function PoliciesPage() {
             <Field
               label="Enviar lembrete para a cliente"
               htmlFor="rem"
-              hint="Pelo WhatsApp (plano Pro), com botões para confirmar ou remarcar."
+              hint="Pelo WhatsApp (planos Profissional e Premium), com botões para confirmar ou remarcar."
             >
               <NativeSelect
                 id="rem"

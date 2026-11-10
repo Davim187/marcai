@@ -3,6 +3,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { changePlanSchema } from '@marcai/shared'
 import { env, isProd } from '../../config/env'
+import { assertPlanFits } from '../../lib/account'
 import { audit } from '../../lib/audit'
 import { forbidden, notFound } from '../../lib/errors'
 import { prisma } from '../../lib/prisma'
@@ -31,6 +32,11 @@ export const billingRoutes: FastifyPluginAsyncZod = async (app) => {
   app.addHook('onRequest', async (request) => {
     if (env.APP_MODE === 'single_tenant') throw notFound('Cobrança desativada no modo exclusivo')
     await requireOwner(request)
+    // Unidade extra não tem assinatura própria: tudo é feito na unidade principal
+    if (ctx(request).tenant.parentTenantId)
+      throw forbidden(
+        'A assinatura é gerenciada na unidade principal. Troque para ela no menu de unidades.',
+      )
   })
 
   app.get(
@@ -50,6 +56,8 @@ export const billingRoutes: FastifyPluginAsyncZod = async (app) => {
     },
     async (request) => {
       const c = ctx(request)
+      // Plano menor só se o uso atual (unidades e profissionais) couber nele
+      await assertPlanFits(c.tenantId, request.body.plan)
       const owner = await prisma.user.findUniqueOrThrow({ where: { id: request.auth!.user.id } })
       const result = await subscribe({
         tenant: { ...c.tenant, subscription: c.subscription },

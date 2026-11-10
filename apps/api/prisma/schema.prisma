@@ -31,6 +31,7 @@ enum BookingSource {
 enum PlanId {
   essencial
   pro
+  premium
 }
 
 enum SubscriptionStatus {
@@ -160,6 +161,11 @@ model Tenant {
   notifySound                Boolean @default(true)
   notifyPhone                String?
 
+  /// Unidade extra da mesma conta: usa a assinatura (plano e limites) da unidade principal
+  parentTenantId      String?
+  parent              Tenant?   @relation("TenantUnits", fields: [parentTenantId], references: [id], onDelete: Restrict)
+  units               Tenant[]  @relation("TenantUnits")
+
   onboardingCompleted Boolean   @default(false)
   blocked             Boolean   @default(false)
   blockedReason       String?
@@ -185,6 +191,8 @@ model Tenant {
   whatsappConnection WhatsAppConnection?
   slugHistory        SlugHistory[]
   bookingPayments    BookingPayment[]
+
+  @@index([parentTenantId])
 }
 
 model TenantMember {

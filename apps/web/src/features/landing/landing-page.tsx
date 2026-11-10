@@ -65,7 +65,7 @@ const BENEFITS = [
 const FAQ = [
   [
     'Preciso de cartão para testar?',
-    'Não. Você usa tudo, inclusive os recursos do plano Pro, por 30 dias grátis. Só escolhe um plano se gostar.',
+    'Não. Você usa tudo, inclusive os recursos do plano Premium, por 30 dias grátis. Só escolhe um plano se gostar.',
   ],
   [
     'Minha cliente precisa baixar aplicativo ou criar conta?',
@@ -400,7 +400,7 @@ export default function LandingPage() {
                 você.
               </p>
             </div>
-            <div className="mt-14 grid gap-6 md:grid-cols-2">
+            <div className="mt-14 grid gap-6 lg:grid-cols-3">
               {Object.values(PLANS).map((p) => {
                 const pro = p.id === 'pro'
                 return (

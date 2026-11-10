@@ -2,6 +2,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { inviteMemberSchema, OPEN_BOOKING_STATUSES, professionalSchema } from '@marcai/shared'
 import { env } from '../../config/env'
+import { assertCanAddProfessional } from '../../lib/account'
 import { hashToken, randomToken } from '../../lib/crypto'
 import { AppError, badRequest, conflict, notFound } from '../../lib/errors'
 import { emailLayout, sendEmail } from '../../lib/mailer'
@@ -57,6 +58,8 @@ export const teamRoutes: FastifyPluginAsyncZod = async (app) => {
         where: { id: request.params.id, deletedAt: null },
       })
       if (!prof) throw notFound('Profissional não encontrado')
+      // Reativar conta como profissional a mais no limite do plano
+      if (data.active && !prof.active) await assertCanAddProfessional(await tenantRef(tenantId))
       if (!data.active) {
         const actives = await db.professional.count({
           where: { deletedAt: null, active: true, id: { not: prof.id } },
@@ -269,6 +272,13 @@ export const teamRoutes: FastifyPluginAsyncZod = async (app) => {
   )
 }
 
+function tenantRef(id: string) {
+  return prisma.tenant.findUniqueOrThrow({
+    where: { id },
+    select: { id: true, parentTenantId: true },
+  })
+}
+
 /** Cria a profissional com os serviços e o expediente da primeira profissional como base. */
 async function createProfessionalWithDefaults(
   db: TenantDb,
@@ -276,6 +286,8 @@ async function createProfessionalWithDefaults(
   serviceIds: string[],
 ) {
   const tenantId = db.$tenantId()
+  // Limite de profissionais do plano (somando todas as unidades da conta)
+  if (data.active !== false) await assertCanAddProfessional(await tenantRef(tenantId))
   const count = await db.professional.count({ where: { deletedAt: null } })
   const services = await db.service.findMany({
     where: { id: { in: serviceIds }, deletedAt: null },

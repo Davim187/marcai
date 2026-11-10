@@ -1,4 +1,12 @@
-import { accessLevel, effectivePlan, FEATURES, hasFeature, trialDaysLeft } from '@marcai/shared'
+import {
+  accessLevel,
+  effectivePlan,
+  FEATURES,
+  hasFeature,
+  planLimits,
+  trialDaysLeft,
+} from '@marcai/shared'
+import { ACCOUNT_SUB_INCLUDE, accountRootId, accountUsage, withAccountSub } from '../../lib/account'
 import { env } from '../../config/env'
 import { prisma } from '../../lib/prisma'
 
@@ -10,15 +18,17 @@ export async function getTenantSummary(tenantId: string, userId: string) {
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
     include: {
-      subscription: true,
+      ...ACCOUNT_SUB_INCLUDE,
       members: { where: { userId } },
       _count: { select: { professionals: { where: { deletedAt: null, active: true } } } },
     },
   })
   if (!tenant || tenant.deletedAt) return null
-  const sub = tenant.subscription
+  const account = withAccountSub(tenant)
+  const sub = account.subscription
+  const rootId = accountRootId(tenant)
   const member = tenant.members[0]
-  const access = tenant.blocked ? 'blocked' : accessLevel(sub, new Date(), env.APP_MODE)
+  const access = account.blocked ? 'blocked' : accessLevel(sub, new Date(), env.APP_MODE)
   return {
     id: tenant.id,
     slug: tenant.slug,
@@ -48,6 +58,14 @@ export async function getTenantSummary(tenantId: string, userId: string) {
     effectivePlan: effectivePlan(sub, env.APP_MODE),
     access,
     features: FEATURES.filter((f) => hasFeature(sub, f, env.APP_MODE)),
+    /** Unidades: a assinatura e os limites são da unidade principal */
+    account: {
+      rootId,
+      rootName: tenant.parent?.name ?? tenant.name,
+      isUnit: !!tenant.parentTenantId,
+      limits: planLimits(sub, env.APP_MODE),
+      usage: await accountUsage(rootId),
+    },
   }
 }
 export type TenantSummary = NonNullable<Awaited<ReturnType<typeof getTenantSummary>>>

@@ -1,3 +1,4 @@
+import { ACCOUNT_SUB_INCLUDE, withAccountSub } from '../../lib/account'
 import type { Booking, BookingFieldAnswer, Customer, Professional, Tenant } from '@prisma/client'
 import {
   DEFAULT_TEMPLATES,
@@ -27,16 +28,18 @@ export type FullBooking = Booking & {
   answers: BookingFieldAnswer[]
 }
 
-export function loadFullBooking(id: string) {
-  return prisma.booking.findUnique({
+export async function loadFullBooking(id: string) {
+  const b = await prisma.booking.findUnique({
     where: { id },
     include: {
-      tenant: { include: { subscription: true } },
+      tenant: { include: ACCOUNT_SUB_INCLUDE },
       customer: true,
       professional: true,
       answers: true,
     },
   })
+  // Unidade extra: plano e recursos (ex.: WhatsApp) vêm da assinatura da principal
+  return b && { ...b, tenant: withAccountSub(b.tenant) }
 }
 
 function answerText(a: BookingFieldAnswer) {

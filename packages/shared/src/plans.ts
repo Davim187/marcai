@@ -1,7 +1,7 @@
 /**
  * Planos e feature gating — ÚNICO lugar onde se decide o que cada plano libera.
  */
-export const PLAN_IDS = ['essencial', 'pro'] as const
+export const PLAN_IDS = ['essencial', 'pro', 'premium'] as const
 export type PlanId = (typeof PLAN_IDS)[number]
 
 export const SUBSCRIPTION_STATUSES = ['trial', 'active', 'past_due', 'canceled'] as const
@@ -41,6 +41,8 @@ export const FEATURES = [
   'basic_reports',
   'whatsapp_professional',
   'whatsapp_customer',
+  /** Sinal antecipado (cliente paga 50% ou 100% para reservar) */
+  'prepayment',
 ] as const
 export type Feature = (typeof FEATURES)[number]
 
@@ -50,7 +52,16 @@ export interface PlanDefinition {
   priceCents: number
   tagline: string
   features: Feature[]
+  /** null = ilimitado */
+  limits: PlanLimits
   highlights: string[]
+}
+
+export interface PlanLimits {
+  /** Unidades (estabelecimentos) na mesma assinatura, contando a principal */
+  locations: number | null
+  /** Barbeiros/profissionais ativos somando todas as unidades */
+  professionals: number | null
 }
 
 const ESSENCIAL_FEATURES: Feature[] = [
@@ -62,34 +73,63 @@ const ESSENCIAL_FEATURES: Feature[] = [
   'basic_reports',
 ]
 
+const PRO_FEATURES: Feature[] = [
+  ...ESSENCIAL_FEATURES,
+  'whatsapp_professional',
+  'whatsapp_customer',
+]
+
 export const PLANS: Record<PlanId, PlanDefinition> = {
   essencial: {
     id: 'essencial',
-    name: 'Essencial',
-    priceCents: 6900,
-    tagline: 'Tudo para organizar sua agenda online.',
+    name: 'Básico',
+    priceCents: 4000,
+    tagline: 'Para quem atende sozinho em um só lugar.',
     features: ESSENCIAL_FEATURES,
+    limits: { locations: 1, professionals: 1 },
     highlights: [
+      '1 unidade e 1 profissional',
       'Página de agendamento com seu link',
       'Agenda por dia, semana e mês',
       'Avisos no painel e notificação no celular',
-      'Cadastro automático de clientes',
-      'Relatórios de faturamento',
+      'Cadastro automático de clientes e relatórios',
     ],
   },
   pro: {
     id: 'pro',
-    name: 'Pro',
-    priceCents: 9900,
-    tagline: 'Para quem quer zero falta e zero mensagem.',
-    features: [...ESSENCIAL_FEATURES, 'whatsapp_professional', 'whatsapp_customer'],
+    name: 'Profissional',
+    priceCents: 6900,
+    tagline: 'Para equipes e quem tem mais de uma unidade.',
+    features: PRO_FEATURES,
+    limits: { locations: 3, professionals: 7 },
     highlights: [
-      'Tudo do Essencial',
+      'Até 3 unidades e 7 profissionais',
+      'Tudo do Básico',
       'Aviso de novo agendamento no seu WhatsApp',
-      'Confirmação automática no WhatsApp da cliente',
-      'Lembrete antes do horário (menos faltas)',
+      'Confirmação e lembrete no WhatsApp da cliente',
     ],
   },
+  premium: {
+    id: 'premium',
+    name: 'Premium',
+    priceCents: 9900,
+    tagline: 'Sem limites, com sinal antecipado para acabar com as faltas.',
+    features: [...PRO_FEATURES, 'prepayment'],
+    limits: { locations: null, professionals: null },
+    highlights: [
+      'Unidades e profissionais ilimitados',
+      'Tudo do Profissional',
+      'Sinal antecipado: a cliente paga 50% ou 100% para reservar',
+      'Recebimento pelo Mercado Pago ou PIX com comprovante',
+    ],
+  },
+}
+
+/** Nome do recurso para mensagens de "disponível no plano X". */
+export const FEATURE_MIN_PLAN: Partial<Record<Feature, PlanId>> = {
+  whatsapp_professional: 'pro',
+  whatsapp_customer: 'pro',
+  prepayment: 'premium',
 }
 
 export const TRIAL_DAYS = 30
@@ -104,12 +144,29 @@ export interface SubscriptionLike {
 
 export type AppMode = 'saas' | 'single_tenant'
 
-/** Plano efetivo: durante o teste grátis a profissional experimenta tudo do Pro. */
+/** Plano efetivo: durante o teste grátis a profissional experimenta tudo (Premium). */
 export function effectivePlan(sub: SubscriptionLike | null, mode: AppMode = 'saas'): PlanId {
-  if (mode === 'single_tenant') return 'pro'
+  if (mode === 'single_tenant') return 'premium'
   if (!sub) return 'essencial'
-  if (sub.status === 'trial') return 'pro'
+  if (sub.status === 'trial') return 'premium'
   return sub.plan
+}
+
+export function planLimits(sub: SubscriptionLike | null, mode: AppMode = 'saas'): PlanLimits {
+  return PLANS[effectivePlan(sub, mode)].limits
+}
+
+/** Plano mais barato que comporta o uso atual (unidades e profissionais). */
+export function minPlanFor(usage: { locations: number; professionals: number }): PlanId {
+  return (
+    PLAN_IDS.find((id) => {
+      const l = PLANS[id].limits
+      return (
+        (l.locations === null || usage.locations <= l.locations) &&
+        (l.professionals === null || usage.professionals <= l.professionals)
+      )
+    }) ?? 'premium'
+  )
 }
 
 export function hasFeature(

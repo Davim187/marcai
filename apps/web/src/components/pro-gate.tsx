@@ -1,13 +1,14 @@
 import { Lock, Sparkles } from 'lucide-react'
+import { formatBRL, PLANS } from '@marcai/shared'
 import { Link } from 'react-router'
 import { useHasFeature } from '@/lib/session'
 import { Button } from './ui/button'
 
-/** Bloqueia um recurso do plano Pro com um aviso de upgrade (gating centralizado no back-end). */
+/** Bloqueia um recurso de plano maior com um aviso de upgrade (gating centralizado no back-end). */
 export function ProGate({
   feature,
   children,
-  title = 'Recurso do plano Pro',
+  title = 'Recurso do plano Profissional',
 }: {
   feature: string
   children: React.ReactNode
@@ -30,7 +31,7 @@ export function ProGate({
         </p>
         <Button asChild size="sm">
           <Link to="/painel/assinatura">
-            <Sparkles /> Fazer upgrade por R$ 99/mês
+            <Sparkles /> Fazer upgrade por {formatBRL(PLANS.pro.priceCents)}/mês
           </Link>
         </Button>
       </div>

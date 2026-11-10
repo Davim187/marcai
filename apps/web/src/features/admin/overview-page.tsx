@@ -49,8 +49,8 @@ export default function AdminOverviewPage() {
         <StatCard label="Estabelecimentos" value={ov?.tenants} />
         <StatCard label="MRR" value={ov && formatBRL(ov.mrrCents)} />
         <StatCard
-          label="Assinantes (Essencial · Pro)"
-          value={ov && `${ov.byPlan.essencial} · ${ov.byPlan.pro}`}
+          label="Assinantes (Básico · Profissional · Premium)"
+          value={ov && `${ov.byPlan.essencial} · ${ov.byPlan.pro} · ${ov.byPlan.premium ?? 0}`}
         />
         <StatCard
           label="Em teste · atrasados"

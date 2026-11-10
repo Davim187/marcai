@@ -10,6 +10,7 @@ import {
   ListChecks,
   Palette,
   Scissors,
+  Store,
   ShieldCheck,
   UserCircle,
   Users,
@@ -51,6 +52,13 @@ export const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
   {
     label: 'Conta',
     items: [
+      {
+        to: '/painel/unidades',
+        label: 'Unidades',
+        icon: Store,
+        ownerOnly: true,
+        saasOnly: true,
+      },
       {
         to: '/painel/assinatura',
         label: 'Assinatura',

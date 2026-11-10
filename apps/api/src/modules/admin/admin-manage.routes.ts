@@ -1,6 +1,6 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { emailSchema, PLANS, passwordSchema } from '@marcai/shared'
+import { emailSchema, PLAN_IDS, PLANS, passwordSchema } from '@marcai/shared'
 import { env, isSuperAdminEmail } from '../../config/env'
 import { audit } from '../../lib/audit'
 import { badRequest, conflict, notFound } from '../../lib/errors'
@@ -239,7 +239,7 @@ export const adminManageRoutes: FastifyPluginAsyncZod = async (app) => {
         tags: ['admin'],
         params: idParam,
         body: z.object({
-          plan: z.enum(['essencial', 'pro']),
+          plan: z.enum(PLAN_IDS),
           status: z.enum(['trial', 'active', 'past_due', 'canceled']),
           /** Até quando vale (fim do teste ou do período pago) */
           until: z.string().date().optional(),
@@ -372,6 +372,7 @@ export const adminManageRoutes: FastifyPluginAsyncZod = async (app) => {
         activeByPlan: {
           essencial: active.filter((s) => s.plan === 'essencial').length,
           pro: active.filter((s) => s.plan === 'pro').length,
+          premium: active.filter((s) => s.plan === 'premium').length,
         },
         pastDue: subs.filter((s) => s.status === 'past_due').length,
         trialsEndingIn7Days: subs.filter(

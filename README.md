@@ -2,7 +2,7 @@
 
 > **Sua agenda cheia, sem precisar responder mensagem.**
 
-O Marcaí é um SaaS de agendamento online para salões, barbearias, estúdios e profissionais de beleza autônomos do Brasil. A profissional coloca o link na bio do Instagram (`marcai.app/studiovertice`), a cliente escolhe o serviço, vê **só os horários livres** e confirma. O horário sai da agenda na hora, sem risco de duas clientes marcarem o mesmo horário, e a profissional recebe o aviso no painel, no celular (push) e, no plano Pro, também no WhatsApp.
+O Marcaí é um SaaS de agendamento online para salões, barbearias, estúdios e profissionais de beleza autônomos do Brasil. A profissional coloca o link na bio do Instagram (`marcai.app/studiovertice`), a cliente escolhe o serviço, vê **só os horários livres** e confirma. O horário sai da agenda na hora, sem risco de duas clientes marcarem o mesmo horário, e a profissional recebe o aviso no painel, no celular (push) e, nos planos Profissional e Premium, também no WhatsApp.
 
 O mesmo código roda em dois modos:
 
@@ -178,7 +178,7 @@ Para vender o sistema exclusivo a um cliente:
    - a página de agendamento abre na **raiz** do domínio (`/`), sem slug;
    - nome, logo, cor, favicon e textos vêm do cadastro do estabelecimento (_Aparência_);
    - não aparece o cadastro público, a cobrança nem a landing, e nenhuma menção ao Marcaí fica visível para a cliente final;
-   - todos os recursos do plano Pro ficam liberados.
+   - todos os recursos do plano Premium ficam liberados.
 
 ## Deploy
 
@@ -224,7 +224,7 @@ Para vender o sistema exclusivo a um cliente:
 - [x] Notificações in-app (SSE + polling), Web Push, e-mail e WhatsApp (Evolution, Meta e console), com fila, retry, backoff, som no painel, alerta de WhatsApp desconectado e e-mail por Resend ou SMTP
 - [x] Mensagens editáveis com variáveis e pré-visualização; lembrete configurável; resumo diário às 07:00
 - [x] Área da cliente por token: ver, confirmar presença, remarcar e cancelar, respeitando a política
-- [x] Planos Essencial/Pro, teste de 30 dias, Mercado Pago (PIX, boleto, cartão), webhooks idempotentes e com verificação, carência de 7 dias e modo somente leitura
+- [x] Planos Básico (R$ 40, 1 unidade e 1 profissional), Profissional (R$ 69, 3 unidades e 7 profissionais) e Premium (R$ 99, ilimitado, com sinal antecipado), unidades na mesma assinatura, teste de 30 dias, Mercado Pago (PIX, boleto, cartão), webhooks idempotentes e com verificação, carência de 7 dias e modo somente leitura
 - [x] Feature gating centralizado (`packages/shared/src/plans.ts`) com aviso de upgrade
 - [x] Modo exclusivo (white-label)
 - [x] Relatórios com gráficos e exportação CSV

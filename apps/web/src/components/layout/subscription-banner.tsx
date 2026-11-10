@@ -1,6 +1,6 @@
 import { AlertTriangle, Sparkles } from 'lucide-react'
 import { Link } from 'react-router'
-import { DAY_MS, GRACE_DAYS } from '@marcai/shared'
+import { DAY_MS, GRACE_DAYS, type PlanId, PLANS } from '@marcai/shared'
 import { useTenant } from '@/lib/session'
 
 export function SubscriptionBanner() {
@@ -52,7 +52,7 @@ export function SubscriptionBanner() {
     return (
       <div className="bg-primary-soft text-primary flex flex-wrap items-center justify-center gap-2 px-4 py-2 text-center text-sm">
         <Sparkles className="h-4 w-4" />
-        {`Plano ${sub.plan === 'pro' ? 'Pro' : 'Essencial'} escolhido. A primeira cobrança é em ${new Date(sub.trialEndsAt).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}.`}
+        {`Plano ${PLANS[sub.plan as PlanId]?.name ?? sub.plan} escolhido. A primeira cobrança é em ${new Date(sub.trialEndsAt).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}.`}
         <Link to="/painel/assinatura" className="font-bold underline">
           Ver assinatura
         </Link>
