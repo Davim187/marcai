@@ -54,7 +54,7 @@ export function CustomerDialog({
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{customer ? 'Editar cliente' : 'Nova cliente'}</DialogTitle>
+          <DialogTitle>{customer ? 'Editar cliente' : 'Novo cliente'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <Field label="Nome" htmlFor="c-name" required>

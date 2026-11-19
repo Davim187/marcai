@@ -13,7 +13,14 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { formatBRL, PLAN_IDS, type PlanId, PLANS, type SubscriptionStatus } from '@marcai/shared'
+import {
+  BUSINESS_TYPES,
+  formatBRL,
+  PLAN_IDS,
+  type PlanId,
+  PLANS,
+  type SubscriptionStatus,
+} from '@marcai/shared'
 import { askConfirm } from '@/components/confirm-host'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -313,7 +320,10 @@ function TenantDialog({ id, onClose }: { id: string; onClose: () => void }) {
             </div>
 
             <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-              <Info label="Tipo de negócio" value={t.businessType} />
+              <Info
+                label="Tipo de negócio"
+                value={BUSINESS_TYPES.find((b) => b.id === t.businessType)?.label ?? t.businessType}
+              />
               <Info label="Cidade" value={t.city} />
               <Info label="WhatsApp" value={t.whatsapp} />
               <Info label="Instagram" value={t.instagram} />

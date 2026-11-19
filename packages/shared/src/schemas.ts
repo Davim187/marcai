@@ -133,8 +133,11 @@ export type TenantProfileInput = z.infer<typeof tenantProfileSchema>
 // ---------- Sinal antecipado ----------
 export const PREPAYMENT_METHODS = ['mercadopago', 'pix_manual'] as const
 export type PrepaymentMethod = (typeof PREPAYMENT_METHODS)[number]
-export const PREPAYMENT_PERCENTS = [50, 100] as const
-export type PrepaymentPercent = (typeof PREPAYMENT_PERCENTS)[number]
+/** O estabelecimento escolhe qualquer porcentagem inteira nesta faixa. */
+export const PREPAYMENT_PERCENT_MIN = 10
+export const PREPAYMENT_PERCENT_MAX = 100
+/** Atalhos mostrados no painel (o campo aceita qualquer valor da faixa). */
+export const PREPAYMENT_PERCENT_SUGGESTIONS = [30, 50, 100] as const
 export const PREPAYMENT_METHOD_LABELS: Record<PrepaymentMethod, string> = {
   mercadopago: 'Mercado Pago (confirma sozinho ao pagar)',
   pix_manual: 'PIX com comprovante (você confere e aprova)',
@@ -193,8 +196,9 @@ export const bookingRulesSchema = z.object({
   requirePrepayment: z.boolean().optional(),
   prepaymentPercent: z
     .number()
-    .int()
-    .refine((v) => PREPAYMENT_PERCENTS.includes(v as PrepaymentPercent), 'Escolha 50% ou 100%')
+    .int('Use um número inteiro')
+    .min(PREPAYMENT_PERCENT_MIN, `O sinal mínimo é ${PREPAYMENT_PERCENT_MIN}%`)
+    .max(PREPAYMENT_PERCENT_MAX, `O sinal máximo é ${PREPAYMENT_PERCENT_MAX}%`)
     .optional(),
   prepaymentMethod: z.enum(PREPAYMENT_METHODS).optional(),
   prepaymentHoldMinutes: z

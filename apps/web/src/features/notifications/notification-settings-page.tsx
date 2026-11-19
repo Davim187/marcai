@@ -110,13 +110,13 @@ export default function NotificationSettingsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Notificações"
-        description="Como você e suas clientes ficam sabendo de cada agendamento."
+        description="Como você e seus clientes ficam sabendo de cada agendamento."
       />
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Avisos para você</CardTitle>
-            <CardDescription>Quando uma cliente agenda, cancela ou remarca.</CardDescription>
+            <CardDescription>Quando um cliente agenda, cancela ou remarca.</CardDescription>
           </CardHeader>
           <CardContent className="divide-y">
             <SwitchRow
@@ -190,7 +190,7 @@ export default function NotificationSettingsPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Mensagens para a cliente</CardTitle>
+              <CardTitle>Mensagens para o cliente</CardTitle>
               <CardDescription>
                 Confirmação logo após agendar e lembrete antes do horário.
               </CardDescription>
@@ -384,7 +384,7 @@ function WhatsAppCard({ settings }: { settings: Settings }) {
         </CardTitle>
         <CardDescription>
           {settings.whatsapp.perTenantNumber
-            ? 'As mensagens para as clientes saem do seu número. Conecte lendo o QR Code, como no WhatsApp Web.'
+            ? 'As mensagens para os clientes saem do seu número. Conecte lendo o QR Code, como no WhatsApp Web.'
             : 'As mensagens saem do número oficial verificado da plataforma.'}
         </CardDescription>
       </CardHeader>
@@ -470,7 +470,7 @@ function WhatsAppCard({ settings }: { settings: Settings }) {
         open={confirmDisconnect}
         onOpenChange={setConfirmDisconnect}
         title="Desconectar o WhatsApp?"
-        description="As confirmações e lembretes para as clientes param de sair até você conectar de novo."
+        description="As confirmações e lembretes para os clientes param de sair até você conectar de novo."
         confirmLabel="Desconectar"
         destructive
         loading={disconnect.isPending}
@@ -538,7 +538,7 @@ function TemplatesCard({ canEdit }: { canEdit: boolean }) {
             >
               {t.title}
               <span className="text-muted-foreground block text-xs font-normal">
-                {t.audience === 'cliente' ? 'Para a cliente' : 'Para você'}
+                {t.audience === 'cliente' ? 'Para o cliente' : 'Para você'}
                 {!t.isDefault && ' · editado'}
               </span>
             </button>

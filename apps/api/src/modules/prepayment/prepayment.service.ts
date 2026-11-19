@@ -1,6 +1,13 @@
 import type { Booking, BookingPayment, Subscription, Tenant } from '@prisma/client'
 import QRCode from 'qrcode'
-import { hasFeature, MINUTE_MS, prepaymentAmount, type PrepaymentMethod } from '@marcai/shared'
+import {
+  hasFeature,
+  MINUTE_MS,
+  PREPAYMENT_PERCENT_MAX,
+  PREPAYMENT_PERCENT_MIN,
+  prepaymentAmount,
+  type PrepaymentMethod,
+} from '@marcai/shared'
 import { env } from '../../config/env'
 import { decryptSecret } from '../../lib/crypto'
 import { badRequest, notFound } from '../../lib/errors'
@@ -118,7 +125,10 @@ export function needsPrepayment(tenant: Tenant, priceCents: number) {
 export async function startPrepayment(tenant: Tenant, booking: Booking) {
   const method = activePrepaymentMethod(tenant)
   if (!method) return null
-  const percent = tenant.prepaymentPercent === 100 ? 100 : 50
+  const percent = Math.min(
+    PREPAYMENT_PERCENT_MAX,
+    Math.max(PREPAYMENT_PERCENT_MIN, tenant.prepaymentPercent),
+  )
   const amountCents = prepaymentAmount(booking.priceCents, percent)
   // O prazo nunca passa do início do atendimento
   const expiresAt = new Date(
@@ -297,7 +307,7 @@ export async function approvePrepayment(tenantId: string, bookingId: string) {
     return
   }
   if (payment.method !== 'pix_manual')
-    throw badRequest('O sinal pelo Mercado Pago é confirmado sozinho quando a cliente paga.')
+    throw badRequest('O sinal pelo Mercado Pago é confirmado sozinho quando o cliente paga.')
   const res = await db.bookingPayment.updateMany({
     where: { id: payment.id, status: { in: ['awaiting_payment', 'under_review'] } },
     data: { status: 'paid', paidAt: new Date(), reviewedAt: new Date() },
@@ -364,8 +374,8 @@ async function applyMpPayment(tenant: Tenant, payment: BookingPayment, mp: MpPay
       kind: 'prepayment_late',
       title: 'Sinal pago depois que o horário foi liberado',
       body: refunded
-        ? `${booking.customerName ?? 'A cliente'} pagou o sinal de ${booking.serviceName} fora do prazo. Devolvemos o valor automaticamente pelo Mercado Pago.`
-        : `${booking.customerName ?? 'A cliente'} pagou o sinal de ${booking.serviceName} fora do prazo e não conseguimos devolver sozinhos. Devolva pelo app do Mercado Pago (pagamento ${mp.id}).`,
+        ? `${booking.customerName ?? 'O cliente'} pagou o sinal de ${booking.serviceName} fora do prazo. Devolvemos o valor automaticamente pelo Mercado Pago.`
+        : `${booking.customerName ?? 'O cliente'} pagou o sinal de ${booking.serviceName} fora do prazo e não conseguimos devolver sozinhos. Devolva pelo app do Mercado Pago (pagamento ${mp.id}).`,
       path: `/painel/agenda/${booking.id}`,
       dedupe: String(mp.id),
     })

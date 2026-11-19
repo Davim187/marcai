@@ -255,7 +255,7 @@ export function NewBookingDialog({
                 {outside && (
                   <p className="text-warning mt-1.5 text-xs">
                     Horário fora do expediente/ocupado: será criado como encaixe (se não conflitar
-                    com outra cliente).
+                    com outro cliente).
                   </p>
                 )}
               </div>
@@ -278,7 +278,7 @@ export function NewBookingDialog({
                     </>
                   ) : (
                     <>
-                      <UserPlus /> Nova cliente
+                      <UserPlus /> Novo cliente
                     </>
                   )}
                 </Button>
@@ -327,7 +327,7 @@ export function NewBookingDialog({
                     ))}
                     {search.data && !search.data.length && (
                       <p className="text-muted-foreground px-2 text-xs">
-                        Nenhuma cliente encontrada.
+                        Nenhum cliente encontrado.
                       </p>
                     )}
                   </div>
@@ -359,7 +359,7 @@ export function NewBookingDialog({
             {has('whatsapp_customer') && (
               <SwitchRow
                 id="nb-notify"
-                label="Enviar confirmação no WhatsApp da cliente"
+                label="Enviar confirmação no WhatsApp do cliente"
                 checked={notify}
                 onCheckedChange={setNotify}
               />

@@ -41,7 +41,7 @@ export const FEATURES = [
   'basic_reports',
   'whatsapp_professional',
   'whatsapp_customer',
-  /** Sinal antecipado (cliente paga 50% ou 100% para reservar) */
+  /** Sinal antecipado (cliente paga parte ou todo o valor para reservar) */
   'prepayment',
 ] as const
 export type Feature = (typeof FEATURES)[number]
@@ -106,7 +106,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
       'Até 3 unidades e 7 profissionais',
       'Tudo do Básico',
       'Aviso de novo agendamento no seu WhatsApp',
-      'Confirmação e lembrete no WhatsApp da cliente',
+      'Confirmação e lembrete no WhatsApp do cliente',
     ],
   },
   premium: {
@@ -119,7 +119,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     highlights: [
       'Unidades e profissionais ilimitados',
       'Tudo do Profissional',
-      'Sinal antecipado: a cliente paga 50% ou 100% para reservar',
+      'Sinal antecipado: você define quanto o cliente paga para reservar',
       'Recebimento pelo Mercado Pago ou PIX com comprovante',
     ],
   },

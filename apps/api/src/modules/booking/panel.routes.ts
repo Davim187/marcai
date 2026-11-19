@@ -213,7 +213,7 @@ export const bookingPanelRoutes: FastifyPluginAsyncZod = async (app) => {
       if (c.role !== 'owner' && b.professionalId !== c.professionalId)
         throw badRequest('Você só pode agendar na sua agenda')
       if (!b.customerId && (!b.customerName || !b.customerPhone))
-        throw badRequest('Informe a cliente (nome e WhatsApp)')
+        throw badRequest('Informe o cliente (nome e WhatsApp)')
       const booking = await createBooking({
         tenant: c.tenant,
         serviceId: b.serviceId,

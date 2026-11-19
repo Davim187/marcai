@@ -93,7 +93,7 @@ export default function TeamPage() {
         <CardHeader>
           <CardTitle>Profissionais</CardTitle>
           <CardDescription>
-            Com mais de uma, a cliente escolhe com quem quer agendar.
+            Com mais de uma, o cliente escolhe com quem quer agendar.
           </CardDescription>
         </CardHeader>
         <CardContent className="divide-y">

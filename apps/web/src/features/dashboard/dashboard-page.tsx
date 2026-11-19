@@ -213,7 +213,7 @@ export default function DashboardPage() {
               <IconBubble icon={Hourglass} tone="mustard" size="lg" />
               <p className="mt-1 font-semibold">{data.pendingCount} pedido(s) esperando você</p>
               <p className="text-muted-foreground text-sm">
-                Confirme ou recuse para a cliente saber se o horário está garantido.
+                Confirme ou recuse para o cliente saber se o horário está garantido.
               </p>
               <Button asChild size="sm" className="mt-2">
                 <Link to="/painel/agendamentos?status=pending">Revisar pedidos</Link>
@@ -246,7 +246,7 @@ export default function DashboardPage() {
             <DialogTitle>QR Code da sua página</DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground text-sm">
-            Imprima e deixe no balcão: a cliente aponta a câmera e agenda o próximo horário.
+            Imprima e deixe no balcão: o cliente aponta a câmera e agenda o próximo horário.
           </p>
           <QrCode value={tenant.publicUrl} filename={`qrcode-${tenant.slug}.png`} size={240} />
         </DialogContent>
@@ -409,8 +409,8 @@ function ShareCard({ onQr }: { onQr: () => void }) {
       <div className="flex min-w-0 flex-col">
         <h2 className="text-lg font-semibold leading-snug">Seu link de agendamento</h2>
         <p className="text-muted-foreground mt-1 text-sm">
-          Coloque na bio do Instagram e no WhatsApp: a cliente escolhe o serviço e o horário
-          sozinha.
+          Coloque na bio do Instagram e no WhatsApp: o cliente escolhe o serviço e o horário
+          sozinho.
         </p>
         <div className="mt-4 flex gap-2">
           <Button onClick={copy} size="sm">

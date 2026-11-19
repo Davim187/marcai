@@ -142,11 +142,11 @@ export default function CustomersPage() {
       ) : !data?.items.length ? (
         <EmptyState
           icon={Users}
-          title={debounced || tag ? 'Ninguém encontrado' : 'Suas clientes aparecem aqui'}
+          title={debounced || tag ? 'Ninguém encontrado' : 'Seus clientes aparecem aqui'}
           description={
             debounced || tag
               ? 'Tente outra busca.'
-              : 'Assim que alguém agendar pelo seu link, ela é cadastrada automaticamente. Você também pode importar uma planilha.'
+              : 'Assim que alguém agendar pelo seu link, a pessoa é cadastrada automaticamente. Você também pode importar uma planilha.'
           }
         />
       ) : (

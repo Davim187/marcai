@@ -37,19 +37,19 @@ const STEPS = [
   {
     icon: BellRing,
     title: 'Receba os agendamentos',
-    text: 'A cliente escolhe um horário livre e você recebe o aviso na hora, com todos os detalhes.',
+    text: 'O cliente escolhe um horário livre e você recebe o aviso na hora, com todos os detalhes.',
   },
 ]
 const BENEFITS = [
   {
     icon: MessageCircle,
     title: 'Chega de responder mensagem',
-    text: 'Nada de “tem horário amanhã?”. A cliente vê só os horários livres e agenda sozinha, até de madrugada.',
+    text: 'Nada de “tem horário amanhã?”. O cliente vê só os horários livres e agenda sozinho, até de madrugada.',
   },
   {
     icon: ShieldCheck,
     title: 'Nunca mais horário duplicado',
-    text: 'O sistema trava o horário no momento da reserva. Duas clientes nunca ficam no mesmo horário.',
+    text: 'O sistema trava o horário no momento da reserva. Dois clientes nunca ficam no mesmo horário.',
   },
   {
     icon: BellRing,
@@ -59,7 +59,7 @@ const BENEFITS = [
   {
     icon: UserX,
     title: 'Menos faltas',
-    text: 'Lembrete automático no WhatsApp da cliente, com botão para confirmar presença ou remarcar.',
+    text: 'Lembrete automático no WhatsApp do cliente, com botão para confirmar presença ou remarcar.',
   },
 ]
 const FAQ = [
@@ -68,12 +68,16 @@ const FAQ = [
     'Não. Você usa tudo, inclusive os recursos do plano Premium, por 30 dias grátis. Só escolhe um plano se gostar.',
   ],
   [
-    'Minha cliente precisa baixar aplicativo ou criar conta?',
-    'Não. Ela abre o link, escolhe o horário, preenche nome e WhatsApp e pronto. Funciona em qualquer celular.',
+    'Meu cliente precisa baixar aplicativo ou criar conta?',
+    'Não. Ele abre o link, escolhe o horário, preenche nome e WhatsApp e pronto. Funciona em qualquer celular.',
   ],
   [
-    'E se eu ainda marcar algumas clientes pelo WhatsApp?',
+    'E se eu ainda marcar alguns clientes pelo WhatsApp?',
     'Sem problema: você cria o agendamento manual pelo painel em segundos e o horário sai da agenda online.',
+  ],
+  [
+    'Serve para terapeutas e profissionais da saúde?',
+    'Sim. No cadastro você escolhe sua área (psicologia, massoterapia, fisioterapia e pilates, nutrição, acupuntura e terapias integrativas, além de beleza) e já começa com serviços e perguntas sugeridos. Dá para ajustar tudo depois.',
   ],
   [
     'Consigo bloquear horários para folga ou médico?',
@@ -85,11 +89,11 @@ const FAQ = [
   ],
   [
     'Funciona para equipe?',
-    'Sim. Cada profissional tem a própria agenda, serviços e expediente, e a cliente escolhe com quem quer agendar.',
+    'Sim. Cada profissional tem a própria agenda, serviços e expediente, e o cliente escolhe com quem quer agendar.',
   ],
   [
-    'Meus dados e os das minhas clientes estão seguros?',
-    'Sim. Seguimos a LGPD: as clientes dão consentimento ao agendar e você pode exportar ou excluir os dados quando quiser.',
+    'Meus dados e os dos meus clientes estão seguros?',
+    'Sim. Seguimos a LGPD: os clientes dão consentimento ao agendar e você pode exportar ou excluir os dados quando quiser.',
   ],
 ]
 const SLOTS = ['08:00', '09:30', '10:00', '13:30', '14:00', '15:30', '16:00', '17:30']
@@ -291,14 +295,14 @@ export default function LandingPage() {
             <div className="felt rounded-md p-7 shadow-[inset_0_0_0_10px_#3A3E44] sm:p-12 lg:px-16 lg:pb-40 lg:pt-16">
               <BoardHeadline />
               <p className="letters text-mustard mt-8 text-sm sm:text-base">
-                Para salões, barbearias, estúdios e profissionais de beleza
+                Para salões, barbearias, estúdios, terapeutas e consultórios
               </p>
             </div>
             <div className="grid gap-10 pb-16 pt-10 sm:pb-24 lg:grid-cols-[1fr_380px] lg:gap-16 lg:pt-12">
               <div className="lg:pl-16">
                 <p className="max-w-[44ch] text-xl leading-relaxed">
-                  Coloque seu link na bio do Instagram. A cliente escolhe o serviço, vê só os
-                  horários livres e agenda sozinha. Você recebe o aviso na hora, até no WhatsApp.
+                  Coloque seu link na bio do Instagram. Seu cliente escolhe o serviço, vê só os
+                  horários livres e agenda sozinho. Você recebe o aviso na hora, até no WhatsApp.
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                   <CTA to="/cadastro" tone="felt">
@@ -491,7 +495,7 @@ export default function LandingPage() {
               <div>
                 <CalendarCheck2 className="h-9 w-9" aria-hidden />
                 <h2 className="letters mt-5 max-w-[16ch] text-5xl leading-[0.95] sm:text-7xl">
-                  Sua próxima cliente pode agendar hoje.
+                  Seu próximo cliente pode agendar hoje.
                 </h2>
                 <p className="mt-4 max-w-[48ch] text-lg">
                   Crie sua página em 3 minutos e coloque o link na bio. É grátis por 30 dias.

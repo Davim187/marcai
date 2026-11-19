@@ -6,6 +6,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import {
   BRAND_PRESET_COLORS,
+  BUSINESS_GROUPS,
   BUSINESS_TYPES,
   DEFAULT_PRIMARY_COLOR,
   RESERVED_SLUGS,
@@ -194,7 +195,7 @@ export default function OnboardingPage() {
             {unitMode ? 'Nova unidade no ar' : 'Sua agenda está no ar'}
           </h1>
           <p className="text-muted-foreground mt-2 text-sm">
-            Coloque esse link na bio do Instagram e mande para suas clientes.
+            Coloque esse link na bio do Instagram e mande para seus clientes.
           </p>
           <div className="bg-background mt-5 flex items-center gap-2 rounded-xl border p-2 pl-3">
             <span className="text-primary flex-1 truncate text-left text-sm font-semibold">
@@ -278,7 +279,7 @@ export default function OnboardingPage() {
                     {unitMode ? 'Como se chama a nova unidade?' : 'Como se chama o seu negócio?'}
                   </h1>
                   <p className="text-muted-foreground mt-1 text-sm">
-                    É o nome que suas clientes vão ver na página de agendamento.
+                    É o nome que seus clientes vão ver na página de agendamento.
                   </p>
                 </div>
                 <Field label="Nome do negócio" htmlFor="businessName">
@@ -370,27 +371,32 @@ export default function OnboardingPage() {
                     Já deixamos serviços e perguntas sugeridos. Você ajusta tudo depois.
                   </p>
                 </div>
-                <div
-                  className="grid grid-cols-2 gap-3 sm:grid-cols-3"
-                  role="radiogroup"
-                  aria-label="Tipo de negócio"
-                >
-                  {BUSINESS_TYPES.map((b) => (
-                    <button
-                      key={b.id}
-                      role="radio"
-                      aria-checked={businessType === b.id}
-                      onClick={() => setBusinessType(b.id)}
-                      className={cn(
-                        'bg-card hover:border-primary/50 flex flex-col items-start gap-2 rounded-2xl border p-4 text-left shadow-sm transition',
-                        businessType === b.id && 'border-primary ring-primary/20 ring-2',
-                      )}
-                    >
-                      <span className="text-2xl" aria-hidden>
-                        {b.emoji}
-                      </span>
-                      <span className="text-sm font-semibold">{b.label}</span>
-                    </button>
+                <div className="space-y-4" role="radiogroup" aria-label="Tipo de negócio">
+                  {BUSINESS_GROUPS.map((g) => (
+                    <div key={g.id} className="space-y-2">
+                      <h2 className="text-muted-foreground text-xs font-semibold uppercase tracking-wide">
+                        {g.label}
+                      </h2>
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        {BUSINESS_TYPES.filter((b) => b.group === g.id).map((b) => (
+                          <button
+                            key={b.id}
+                            role="radio"
+                            aria-checked={businessType === b.id}
+                            onClick={() => setBusinessType(b.id)}
+                            className={cn(
+                              'bg-card hover:border-primary/50 flex flex-col items-start gap-2 rounded-2xl border p-4 text-left shadow-sm transition',
+                              businessType === b.id && 'border-primary ring-primary/20 ring-2',
+                            )}
+                          >
+                            <span className="text-2xl" aria-hidden>
+                              {b.emoji}
+                            </span>
+                            <span className="text-sm font-semibold">{b.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>

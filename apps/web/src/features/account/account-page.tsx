@@ -150,7 +150,7 @@ export default function AccountPage() {
           <DialogHeader>
             <DialogTitle>Excluir conta?</DialogTitle>
             <DialogDescription>
-              Se você for o único responsável, o estabelecimento, a agenda, as clientes e o
+              Se você for o único responsável, o estabelecimento, a agenda, os clientes e o
               histórico são apagados para sempre e a assinatura é cancelada.
             </DialogDescription>
           </DialogHeader>

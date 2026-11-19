@@ -2,8 +2,13 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import {
   type BookingRulesInput,
+  formatBRL,
   PREPAYMENT_METHOD_LABELS,
+  PREPAYMENT_PERCENT_MAX,
+  PREPAYMENT_PERCENT_MIN,
+  PREPAYMENT_PERCENT_SUGGESTIONS,
   type PrepaymentMethod,
+  prepaymentAmount,
 } from '@marcai/shared'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -86,6 +91,17 @@ export default function PoliciesPage() {
     : Number(cancelValue) > 336
       ? 'O máximo é 336 horas (14 dias)'
       : undefined
+  // Porcentagem do sinal digitada (mesma ideia: campo vazio não vira 0 em silêncio)
+  const [percentText, setPercentText] = useState<string | null>(null)
+  const percentValue = percentText ?? String(v?.prepaymentPercent ?? '')
+  const percentError = !v?.requirePrepayment
+    ? undefined
+    : !/^\d+$/.test(percentValue)
+      ? 'Informe uma porcentagem inteira'
+      : Number(percentValue) < PREPAYMENT_PERCENT_MIN ||
+          Number(percentValue) > PREPAYMENT_PERCENT_MAX
+        ? `Escolha entre ${PREPAYMENT_PERCENT_MIN}% e ${PREPAYMENT_PERCENT_MAX}%`
+        : undefined
   const save = useApiMutation(() => api('/tenant/booking-rules', { method: 'PUT', body: v }), {
     success: 'Regras salvas',
     invalidate: [qk.tenant, ['schedule']],
@@ -98,7 +114,7 @@ export default function PoliciesPage() {
     <div>
       <PageHeader
         title="Regras e políticas"
-        description="Como e quando suas clientes podem agendar, cancelar e remarcar."
+        description="Como e quando seus clientes podem agendar, cancelar e remarcar."
       />
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
@@ -152,7 +168,7 @@ export default function PoliciesPage() {
             <Field
               label="Intervalo entre opções de horário"
               htmlFor="slot"
-              hint="De quanto em quanto tempo os horários aparecem para a cliente."
+              hint="De quanto em quanto tempo os horários aparecem para o cliente."
             >
               <NativeSelect
                 id="slot"
@@ -185,7 +201,7 @@ export default function PoliciesPage() {
                     </Link>
                   </>
                 ) : (
-                  'A cliente paga um sinal para reservar. O horário só é confirmado depois do pagamento.'
+                  'O cliente paga um sinal para reservar. O horário só é confirmado depois do pagamento.'
                 )
               }
               disabled={prepayLocked}
@@ -196,6 +212,9 @@ export default function PoliciesPage() {
               <PrepaymentFields
                 v={v}
                 set={set}
+                percentValue={percentValue}
+                percentError={percentError}
+                onPercentText={setPercentText}
                 mpConnected={!!data?.mpConnected}
                 mpAccountLabel={data?.mpAccountLabel ?? null}
               />
@@ -212,7 +231,7 @@ export default function PoliciesPage() {
           <CardHeader>
             <CardTitle>Cancelamento e remarcação</CardTitle>
             <CardDescription>
-              A cliente cancela ou remarca sozinha pelo link da confirmação.
+              O cliente cancela ou remarca sozinho pelo link da confirmação.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -256,7 +275,7 @@ export default function PoliciesPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Field
-              label="Enviar lembrete para a cliente"
+              label="Enviar lembrete para o cliente"
               htmlFor="rem"
               hint="Pelo WhatsApp (planos Profissional e Premium), com botões para confirmar ou remarcar."
             >
@@ -287,7 +306,7 @@ export default function PoliciesPage() {
           size="lg"
           onClick={() => save.mutate()}
           loading={save.isPending}
-          disabled={!!cancelError}
+          disabled={!!cancelError || !!percentError}
           className="shadow-lift"
         >
           Salvar regras
@@ -299,32 +318,75 @@ export default function PoliciesPage() {
 
 type SetRule = <K extends keyof BookingRulesInput>(k: K, val: BookingRulesInput[K]) => void
 
-/** Sinal antecipado: quanto (50% ou 100%), como recebe e por quanto tempo segura o horário. */
+/** Sinal antecipado: quanto (porcentagem livre), como recebe e por quanto tempo segura o horário. */
 function PrepaymentFields({
   v,
   set,
+  percentValue,
+  percentError,
+  onPercentText,
   mpConnected,
   mpAccountLabel,
 }: {
   v: BookingRulesInput
   set: SetRule
+  percentValue: string
+  percentError: string | undefined
+  onPercentText: (text: string | null) => void
   mpConnected: boolean
   mpAccountLabel: string | null
 }) {
   return (
     <div className="border-border bg-muted/40 space-y-4 rounded-lg border p-4">
-      <Field label="Quanto a cliente paga antes" htmlFor="prepay-percent">
-        <div id="prepay-percent" role="radiogroup" className="grid grid-cols-2 gap-2">
-          {[50, 100].map((p) => (
+      <Field
+        label="Quanto o cliente paga antes"
+        htmlFor="prepay-percent"
+        error={percentError}
+        hint={
+          percentError
+            ? undefined
+            : Number(percentValue) === 100
+              ? 'O cliente paga o valor total para reservar.'
+              : `Num serviço de ${formatBRL(10000)}, o sinal fica ${formatBRL(prepaymentAmount(10000, Number(percentValue)))}.`
+        }
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-28">
+            <Input
+              id="prepay-percent"
+              type="number"
+              min={PREPAYMENT_PERCENT_MIN}
+              max={PREPAYMENT_PERCENT_MAX}
+              step={1}
+              inputMode="numeric"
+              aria-invalid={!!percentError}
+              value={percentValue}
+              onChange={(e) => {
+                onPercentText(e.target.value)
+                if (/^\d+$/.test(e.target.value)) set('prepaymentPercent', Number(e.target.value))
+              }}
+              className="pr-8"
+            />
+            <span
+              className="text-muted-foreground pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm"
+              aria-hidden
+            >
+              %
+            </span>
+          </div>
+          {PREPAYMENT_PERCENT_SUGGESTIONS.map((p) => (
             <Button
               key={p}
               type="button"
-              role="radio"
-              aria-checked={v.prepaymentPercent === p}
-              variant={v.prepaymentPercent === p ? 'default' : 'outline'}
-              onClick={() => set('prepaymentPercent', p)}
+              size="sm"
+              aria-pressed={Number(percentValue) === p}
+              variant={Number(percentValue) === p ? 'default' : 'outline'}
+              onClick={() => {
+                onPercentText(null)
+                set('prepaymentPercent', p)
+              }}
             >
-              {p}% {p === 50 ? 'de sinal' : '(valor total)'}
+              {p === 100 ? 'Valor total' : `${p}%`}
             </Button>
           ))}
         </div>
@@ -359,7 +421,7 @@ function PrepaymentFields({
           <Field
             label="Nome de quem recebe"
             htmlFor="pix-holder"
-            hint="A cliente confere esse nome no app do banco antes de pagar."
+            hint="O cliente confere esse nome no app do banco antes de pagar."
           >
             <Input
               id="pix-holder"
@@ -369,7 +431,7 @@ function PrepaymentFields({
             />
           </Field>
           <p className="text-muted-foreground text-sm">
-            A cliente paga pelo PIX e anexa o comprovante. Você recebe o aviso, abre o comprovante
+            O cliente paga pelo PIX e anexa o comprovante. Você recebe o aviso, abre o comprovante
             no agendamento e aprova ou recusa.
           </p>
         </>
@@ -426,7 +488,7 @@ function MercadoPagoConnect({ connected, label }: { connected: boolean; label: s
           <p className="font-medium">Mercado Pago conectado</p>
           <p className="text-muted-foreground">
             {label ?? 'Conta conectada'} · o sinal cai direto na sua conta e o horário confirma
-            sozinho quando a cliente paga.
+            sozinho quando o cliente paga.
           </p>
         </div>
         <Button

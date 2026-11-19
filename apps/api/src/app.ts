@@ -92,7 +92,8 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
     openapi: {
       info: {
         title: 'Marcaí API',
-        description: 'API do Marcaí — agendamento online para profissionais de beleza.',
+        description:
+          'API do Marcaí — agendamento online para profissionais de beleza, saúde e bem-estar.',
         version: '1.0.0',
       },
       components: {

@@ -27,7 +27,7 @@ export function ProGate({
         </span>
         <p className="font-semibold">{title}</p>
         <p className="text-muted-foreground max-w-xs text-sm">
-          Avisos no WhatsApp para você e confirmação + lembrete automático para a cliente.
+          Avisos no WhatsApp para você e confirmação + lembrete automático para o cliente.
         </p>
         <Button asChild size="sm">
           <Link to="/painel/assinatura">

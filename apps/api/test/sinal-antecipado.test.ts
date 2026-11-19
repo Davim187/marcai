@@ -110,6 +110,34 @@ describe('sinal antecipado (PIX com comprovante)', () => {
     expect(after.payment?.status).toBe('paid')
   })
 
+  it('usa a porcentagem escolhida pelo estabelecimento', async () => {
+    const { booking, service } = await setup(30)
+    expect(booking.payment.percent).toBe(30)
+    expect(booking.payment.amountCents).toBe(Math.ceil((service.priceCents * 30) / 100))
+  })
+
+  it('recusa porcentagem fora da faixa', async () => {
+    const o = await createOwner()
+    const base = {
+      minAdvanceMinutes: 0,
+      maxAdvanceDays: 30,
+      slotIntervalMinutes: 30,
+      cancelMinHours: 12,
+      requireConfirmation: false,
+      reminderHours: 24,
+      dailySummaryEnabled: false,
+      loadHolidays: false,
+      requirePrepayment: true,
+      prepaymentMethod: 'pix_manual',
+      pixKey: 'pix@exemplo.com',
+      pixKeyHolder: 'Studio Teste',
+    }
+    for (const prepaymentPercent of [5, 101, 33.5]) {
+      const r = await o.agent.put('/api/tenant/booking-rules', { ...base, prepaymentPercent })
+      expect(r.statusCode).toBe(400)
+    }
+  })
+
   it('aceita comprovante em PDF e serve como application/pdf isolado', async () => {
     const { app, agent, booking } = await setup()
     const pdf = Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n')

@@ -10,18 +10,18 @@ web
 
 Two primary users, weighted equally in decisions:
 
-- **Autônoma solo** (manicure, cabeleireira, lash designer, barbeiro): atende sozinha, usa o painel no celular entre um atendimento e outro, com pouco tempo e as mãos ocupadas.
-- **Dona de salão pequeno** (2 a 5 profissionais): gerencia a agenda da equipe, serviços, regras e relatórios, mais no computador do balcão.
+- **Profissional autônomo** (manicure, cabeleireira, lash designer, barbeiro, psicólogo, massoterapeuta, fisioterapeuta, nutricionista, acupunturista): atende sozinho, usa o painel no celular entre um atendimento e outro, com pouco tempo e as mãos ocupadas.
+- **Dono de negócio pequeno** (salão, barbearia, estúdio, clínica ou consultório com 2 a 5 profissionais): gerencia a agenda da equipe, serviços, regras e relatórios, mais no computador da recepção.
 
 Secondary audiences in the same product:
 
 - **Profissional da equipe**: vê e opera só a própria agenda.
-- **Cliente final**: agenda pela página pública (link na bio do Instagram) e usa a área da cliente para confirmar, remarcar ou cancelar, quase sempre no celular.
+- **Cliente final** (ou paciente): agenda pela página pública (link na bio do Instagram) e usa a área do cliente para confirmar, remarcar ou cancelar, quase sempre no celular.
 - **Super admin** da plataforma.
 
 ## Product Purpose
 
-Agendamento online para salões, barbearias, estúdios e profissionais de beleza do Brasil. A profissional coloca o link na bio, a cliente escolhe serviço e horário livre sozinha, e a profissional deixa de responder mensagem para marcar. Sucesso: agenda cheia, menos faltas, nenhum horário duplicado e menos tempo no WhatsApp.
+Agendamento online para profissionais de beleza, saúde, terapia e bem-estar do Brasil: salões, barbearias, estúdios, terapeutas, clínicas e consultórios. O profissional coloca o link na bio, o cliente escolhe serviço e horário livre sozinho, e o profissional deixa de responder mensagem para marcar. Sucesso: agenda cheia, menos faltas, nenhum horário duplicado e menos tempo no WhatsApp.
 
 ## Positioning
 
@@ -48,8 +48,8 @@ Agendamento online para salões, barbearias, estúdios e profissionais de beleza
 ## Brand Commitments
 
 - Nome: **Marcaí**. Frase de marca: "Sua agenda cheia, sem precisar responder mensagem."
-- Voz: português simples e direto, falando com a profissional ("você"), sem jargão técnico.
-- Visual não deve parecer "feminino demais": o público inclui barbearias e estúdios (decisão anterior do dono).
+- Voz: português simples e direto, falando com o profissional ("você"), sem jargão técnico. Referência a quem agenda: "o cliente" / "seus clientes" (genérico, serve também para paciente); nada de "salão" ou "beleza" em texto que vale para todos os ramos.
+- Visual não deve parecer "feminino demais": o público inclui barbearias, estúdios, terapeutas e consultórios (decisão anterior do dono).
 - Demonstração usa o salão fictício **Studio Vértice**.
 
 ## Evidence on Hand

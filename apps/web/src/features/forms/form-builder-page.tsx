@@ -1,7 +1,13 @@
 import { askConfirm } from '@/components/confirm-host'
 import { ClipboardList, MoreVertical, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { FORM_FIELD_TYPE_LABELS, FORM_FIELD_TYPES, type FormFieldType } from '@marcai/shared'
+import {
+  BUSINESS_TYPES,
+  FORM_FIELD_TYPE_LABELS,
+  FORM_FIELD_TYPES,
+  PRESETS,
+  type FormFieldType,
+} from '@marcai/shared'
 import { SortableList } from '@/components/sortable-list'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -27,11 +33,20 @@ import { PageHeader } from '@/components/ui/page-header'
 import { ListSkeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { api } from '@/lib/api'
+import { useTenant } from '@/lib/session'
 import { qk, useApiMutation, useFormFields, useServices } from '@/lib/queries'
 import type { FormFieldDTO } from '@/lib/types'
 import { CustomFieldInput } from './custom-field-input'
 
+/** Tipos de negócio que têm perguntas sugeridas. */
+const PRESET_TYPES = BUSINESS_TYPES.filter((b) => PRESETS[b.id].fields.length > 0)
+
 export default function FormBuilderPage() {
+  const { tenant } = useTenant()
+  const [presetType, setPresetType] = useState<string>(
+    PRESET_TYPES.find((b) => b.id === tenant.businessType)?.id ?? PRESET_TYPES[0]!.id,
+  )
+  const presetLabels = PRESETS[presetType as keyof typeof PRESETS].fields.map((f) => f.label)
   const { data: fields, isLoading } = useFormFields()
   const [order, setOrder] = useState<FormFieldDTO[]>([])
   useEffect(() => setOrder(fields ?? []), [fields])
@@ -43,12 +58,12 @@ export default function FormBuilderPage() {
     invalidate: [qk.formFields],
   })
   const preset = useApiMutation(
-    () => api<{ created: number }>('/forms/presets/manicure', { method: 'POST' }),
+    () => api<{ created: number }>(`/forms/presets/${presetType}`, { method: 'POST' }),
     {
       success: (r) =>
         r.created
           ? `${r.created} perguntas adicionadas`
-          : 'As perguntas do preset já estão no formulário',
+          : 'As perguntas sugeridas já estão no formulário',
       invalidate: [qk.formFields],
     },
   )
@@ -61,7 +76,7 @@ export default function FormBuilderPage() {
     <div>
       <PageHeader
         title="Formulário de agendamento"
-        description="Perguntas extras que a cliente responde ao agendar. As respostas chegam junto com o aviso."
+        description="Perguntas extras que o cliente responde ao agendar. As respostas chegam junto com o aviso."
         actions={
           <>
             <Button variant="outline" onClick={() => setPreview(true)} disabled={!order.length}>
@@ -76,16 +91,27 @@ export default function FormBuilderPage() {
       <Card className="bg-primary-soft/60 mb-6 flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center">
         <Sparkles className="text-primary h-5 w-5 shrink-0" />
         <p className="flex-1 text-sm">
-          <strong>Preset para manicure:</strong> tipo de unha, se é manutenção, se quer decoração e
-          foto de referência.
+          <strong>Perguntas sugeridas:</strong> {presetLabels.join(' · ')}
         </p>
+        <NativeSelect
+          aria-label="Área das perguntas sugeridas"
+          value={presetType}
+          onChange={(e) => setPresetType(e.target.value)}
+          className="w-full sm:w-56"
+        >
+          {PRESET_TYPES.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.label}
+            </option>
+          ))}
+        </NativeSelect>
         <Button
           size="sm"
           variant="outline"
           onClick={() => preset.mutate()}
           loading={preset.isPending}
         >
-          Adicionar preset
+          Adicionar perguntas
         </Button>
       </Card>
       {isLoading ? (
@@ -94,7 +120,7 @@ export default function FormBuilderPage() {
         <EmptyState
           icon={ClipboardList}
           title="Nenhuma pergunta extra"
-          description="Nome, WhatsApp e observações já são pedidos sempre. Crie perguntas para chegar sabendo o que a cliente quer."
+          description="Nome, WhatsApp e observações já são pedidos sempre. Crie perguntas para chegar sabendo o que o cliente precisa."
           action={
             <Button onClick={() => setEditing('new')}>
               <Plus /> Criar pergunta
@@ -162,7 +188,7 @@ export default function FormBuilderPage() {
       <Dialog open={preview} onOpenChange={setPreview}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Como a cliente vê</DialogTitle>
+            <DialogTitle>Como o cliente vê</DialogTitle>
           </DialogHeader>
           <div className="space-y-5">
             {order

@@ -137,7 +137,7 @@ export function RescheduleDialog({
         <Field
           label="Ou um horário de encaixe"
           htmlFor="ct"
-          hint="Ignora o expediente; só impede conflito com outra cliente."
+          hint="Ignora o expediente; só impede conflito com outro cliente."
         >
           <Input
             id="ct"

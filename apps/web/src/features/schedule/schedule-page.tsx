@@ -103,7 +103,7 @@ export default function SchedulePage() {
     <div>
       <PageHeader
         title="Horários"
-        description="Seu expediente, pausas, folgas e feriados. Só os horários livres aparecem para as clientes."
+        description="Seu expediente, pausas, folgas e feriados. Só os horários livres aparecem para os clientes."
         actions={
           professionals.length > 1 && isOwner ? (
             <NativeSelect
@@ -241,7 +241,7 @@ export default function SchedulePage() {
                         await askConfirm({
                           title: 'Remover esta pausa?',
                           description:
-                            'Esse horário volta a aparecer para as clientes toda semana.',
+                            'Esse horário volta a aparecer para os clientes toda semana.',
                         })
                       )
                         delBlock.mutate(b.id)

@@ -360,7 +360,7 @@ export default function CustomerAreaPage() {
           <DialogHeader>
             <DialogTitle>Cancelar seu horário?</DialogTitle>
             <DialogDescription>
-              O horário fica livre para outra cliente. Se quiser, conte o motivo.
+              O horário fica livre para outra pessoa. Se quiser, conte o motivo.
             </DialogDescription>
           </DialogHeader>
           <Field label="Motivo (opcional)" htmlFor="reason">

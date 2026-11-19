@@ -134,7 +134,7 @@ export function BookingDetailDialog({
                   <p className="text-muted-foreground">{formatPhone(b.customer.phone)}</p>
                   {b.customer.notes && (
                     <p className="bg-warning/10 mt-2 rounded-lg p-2 text-xs">
-                      <span className="font-semibold">Anotação sobre a cliente: </span>
+                      <span className="font-semibold">Anotação sobre o cliente: </span>
                       {b.customer.notes}
                     </p>
                   )}
@@ -149,7 +149,7 @@ export function BookingDetailDialog({
                     <dd className="font-semibold">{b.professional.name}</dd>
                   </div>
                   {b.customerConfirmedAt && (
-                    <div className="text-success col-span-2">A cliente confirmou presença</div>
+                    <div className="text-success col-span-2">O cliente confirmou presença</div>
                   )}
                 </dl>
                 {(b.answers.length > 0 || b.notes) && (
@@ -254,7 +254,7 @@ export function BookingDetailDialog({
           <DialogHeader>
             <DialogTitle>Cancelar agendamento?</DialogTitle>
             <DialogDescription>
-              O horário volta a ficar livre e a cliente é avisada (se as notificações estiverem
+              O horário volta a ficar livre e o cliente é avisado (se as notificações estiverem
               ligadas).
             </DialogDescription>
           </DialogHeader>
@@ -363,7 +363,7 @@ function PaymentSection({
           ) : (
             <img
               src={imageSrc(payment.proofUrl)}
-              alt="Comprovante do PIX enviado pela cliente"
+              alt="Comprovante do PIX enviado pelo cliente"
               className="max-h-64 w-full object-contain"
             />
           )}
@@ -384,7 +384,7 @@ function PaymentSection({
       )}
       {rejecting && (
         <div className="space-y-2 pt-1">
-          <Field label="Motivo (a cliente recebe)" htmlFor="reject-reason">
+          <Field label="Motivo (o cliente recebe)" htmlFor="reject-reason">
             <Textarea
               id="reject-reason"
               rows={2}

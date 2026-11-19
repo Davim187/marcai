@@ -75,7 +75,7 @@ const previews: Preview[] = [
   // ---------- Para a cliente ----------
   {
     file: 'cliente-confirmacao',
-    group: 'Para a cliente',
+    group: 'Para o cliente',
     subject: `Agendamento em ${SALON}`,
     layout: {
       title: `Agendamento em ${SALON}`,
@@ -86,7 +86,7 @@ const previews: Preview[] = [
   },
   {
     file: 'cliente-pedido-recebido',
-    group: 'Para a cliente',
+    group: 'Para o cliente',
     subject: `Pedido recebido — ${SALON}`,
     layout: {
       title: `Pedido recebido — ${SALON}`,
@@ -97,7 +97,7 @@ const previews: Preview[] = [
   },
   {
     file: 'cliente-lembrete',
-    group: 'Para a cliente',
+    group: 'Para o cliente',
     subject: `Lembrete: ${SAMPLE_TEMPLATE_VARS.servico}`,
     layout: {
       title: `Lembrete: ${SAMPLE_TEMPLATE_VARS.servico}`,
@@ -108,7 +108,7 @@ const previews: Preview[] = [
   },
   {
     file: 'cliente-remarcado',
-    group: 'Para a cliente',
+    group: 'Para o cliente',
     subject: `Horário remarcado — ${SALON}`,
     layout: {
       title: `Horário remarcado — ${SALON}`,
@@ -119,7 +119,7 @@ const previews: Preview[] = [
   },
   {
     file: 'cliente-cancelado',
-    group: 'Para a cliente',
+    group: 'Para o cliente',
     subject: `Horário cancelado — ${SALON}`,
     layout: {
       title: `Horário cancelado — ${SALON}`,

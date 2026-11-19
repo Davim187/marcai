@@ -1,6 +1,12 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
-import type { z } from 'zod'
-import { formFieldSchema, MANICURE_FIELDS, reorderSchema } from '@marcai/shared'
+import { z } from 'zod'
+import {
+  BUSINESS_TYPES,
+  formFieldSchema,
+  PRESETS,
+  reorderSchema,
+  type BusinessType,
+} from '@marcai/shared'
 import { notFound } from '../../lib/errors'
 import { prisma } from '../../lib/prisma'
 import { ctx, requireOwner, requireTenant } from '../../plugins/auth'
@@ -127,10 +133,16 @@ export const formRoutes: FastifyPluginAsyncZod = async (app) => {
   )
 
   app.post(
-    '/presets/manicure',
+    '/presets/:type',
     {
       onRequest: requireOwner,
-      schema: { tags: ['formulário'], summary: 'Adiciona o preset de manicure' },
+      schema: {
+        tags: ['formulário'],
+        summary: 'Adiciona as perguntas sugeridas de um tipo de negócio',
+        params: z.object({
+          type: z.enum(BUSINESS_TYPES.map((b) => b.id) as [BusinessType, ...BusinessType[]]),
+        }),
+      },
     },
     async (request) => {
       const c = ctx(request)
@@ -139,7 +151,9 @@ export const formRoutes: FastifyPluginAsyncZod = async (app) => {
         select: { label: true },
       })
       const labels = new Set(existing.map((e) => e.label.toLowerCase()))
-      const toCreate = MANICURE_FIELDS.filter((f) => !labels.has(f.label.toLowerCase()))
+      const toCreate = PRESETS[request.params.type].fields.filter(
+        (f) => !labels.has(f.label.toLowerCase()),
+      )
       await prisma.$transaction((tx) =>
         createPresetFields(tx, c.tenantId, toCreate, existing.length),
       )

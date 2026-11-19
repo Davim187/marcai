@@ -115,7 +115,7 @@ export default function ServicesPage() {
     <div>
       <PageHeader
         title="Serviços"
-        description="O que suas clientes podem agendar. Arraste para mudar a ordem."
+        description="O que seus clientes podem agendar. Arraste para mudar a ordem."
         actions={
           <>
             <Button variant="outline" onClick={() => setCatDialog({ name: '' })}>
@@ -133,7 +133,7 @@ export default function ServicesPage() {
         <EmptyState
           icon={Scissors}
           title="Nenhum serviço ainda"
-          description="Cadastre o primeiro serviço para suas clientes começarem a agendar."
+          description="Cadastre o primeiro serviço para seus clientes começarem a agendar."
           action={
             <Button onClick={() => setEditing('new')}>
               <Plus /> Cadastrar serviço

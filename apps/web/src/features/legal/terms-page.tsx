@@ -7,8 +7,8 @@ export default function TermsPage() {
     <LegalLayout title="Termos de uso" updated="04/11/2026">
       <p>
         Estes Termos regulam o uso da plataforma {name} (“Plataforma”), que oferece páginas de
-        agendamento online e um painel de gestão de agenda para profissionais de beleza
-        (“Profissional”) e permite que clientes finais (“Cliente”) agendem atendimentos.
+        agendamento online e um painel de gestão de agenda para profissionais de beleza, saúde e
+        bem-estar (“Profissional”) e permite que clientes finais (“Cliente”) agendem atendimentos.
       </p>
       <h2>1. Aceite</h2>
       <p>

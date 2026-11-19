@@ -59,7 +59,7 @@ export default function PrivacyPage() {
         </li>
         <li>Solicitar a exclusão dos dados e revogar o consentimento.</li>
         <li>
-          A Profissional exporta e exclui seus dados e os das clientes direto no painel (Minha conta
+          A Profissional exporta e exclui seus dados e os dos clientes direto no painel (Minha conta
           e Clientes).
         </li>
         <li>

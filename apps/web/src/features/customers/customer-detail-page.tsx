@@ -49,7 +49,7 @@ export default function CustomerDetailPage() {
   const [newOpen, setNewOpen] = useState(false)
   const [openId, setOpenId] = useState<string | null>(null)
   const remove = useApiMutation(() => api(`/customers/${id}`, { method: 'DELETE' }), {
-    success: 'Dados da cliente excluídos',
+    success: 'Dados do cliente excluídos',
     invalidate: [['customers']],
     onSuccess: () => navigate('/painel/clientes'),
   })
@@ -179,7 +179,7 @@ export default function CustomerDetailPage() {
       <ConfirmDialog
         open={deleting}
         onOpenChange={setDeleting}
-        title="Excluir os dados desta cliente?"
+        title="Excluir os dados deste cliente?"
         description="Nome, telefone, e-mail, observações e respostas são apagados (LGPD). O histórico financeiro fica anônimo. Agendamentos futuros são cancelados. Não dá para desfazer."
         confirmLabel="Excluir dados"
         destructive
