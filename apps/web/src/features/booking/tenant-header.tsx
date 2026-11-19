@@ -1,5 +1,6 @@
 import { Instagram, MapPin, MessageCircle } from 'lucide-react'
 import { whatsappLink } from '@marcai/shared'
+import { CoverImage } from '@/components/cover-image'
 import { type PublicTenant } from './types'
 
 /** Cabeçalho da página pública: capa, logo, nome, bio e contatos. */
@@ -8,7 +9,12 @@ export function TenantHeader({ t }: { t: PublicTenant }) {
   return (
     <header>
       <div className="brand-cover relative h-36 overflow-hidden sm:h-44 sm:rounded-b-3xl">
-        {t.coverUrl && <img src={t.coverUrl} alt="" className="h-full w-full object-cover" />}
+        {t.coverUrl && (
+          <CoverImage
+            src={t.coverUrl}
+            framing={{ x: t.coverPositionX, y: t.coverPositionY, zoom: t.coverZoom }}
+          />
+        )}
       </div>
       <div className="relative z-10 -mt-12 flex flex-col items-center px-4 text-center">
         {t.logoUrl ? (

@@ -115,6 +115,10 @@ export const onboardingSchema = z.object({
 export type OnboardingInput = z.infer<typeof onboardingSchema>
 
 // ---------- Tenant settings ----------
+/** Zoom da foto de capa, em % (100 = a foto só cobre a área, sem aproximar). */
+export const COVER_ZOOM_MIN = 100
+export const COVER_ZOOM_MAX = 250
+
 export const tenantProfileSchema = z.object({
   name: z.string().trim().min(2).max(80),
   bio: z.string().trim().max(400).optional().nullable(),
@@ -125,6 +129,10 @@ export const tenantProfileSchema = z.object({
   primaryColor: colorSchema,
   logoUrl: uploadUrlSchema,
   coverUrl: uploadUrlSchema,
+  // Enquadramento da capa (opcional no corpo: quem não manda, não mexe)
+  coverPositionX: z.number().int().min(0).max(100).optional(),
+  coverPositionY: z.number().int().min(0).max(100).optional(),
+  coverZoom: z.number().int().min(COVER_ZOOM_MIN).max(COVER_ZOOM_MAX).optional(),
   faviconUrl: uploadUrlSchema,
   timezone: z.string().max(60),
 })

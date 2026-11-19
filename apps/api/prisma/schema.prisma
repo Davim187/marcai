@@ -109,20 +109,24 @@ model PasswordResetToken {
 }
 
 model Tenant {
-  id           String  @id @default(cuid())
-  slug         String  @unique
-  name         String
-  businessType String  @default("manicure")
-  bio          String?
-  address      String?
-  city         String?
-  instagram    String?
-  whatsapp     String?
-  primaryColor String  @default("#1F5F7A")
-  logoUrl      String?
-  coverUrl     String?
-  faviconUrl   String?
-  timezone     String  @default("America/Fortaleza")
+  id             String  @id @default(cuid())
+  slug           String  @unique
+  name           String
+  businessType   String  @default("manicure")
+  bio            String?
+  address        String?
+  city           String?
+  instagram      String?
+  whatsapp       String?
+  primaryColor   String  @default("#1F5F7A")
+  logoUrl        String?
+  coverUrl       String?
+  /// Enquadramento da capa: ponto focal em % (0 a 100) e zoom em % (100 = sem zoom)
+  coverPositionX Int     @default(50)
+  coverPositionY Int     @default(50)
+  coverZoom      Int     @default(100)
+  faviconUrl     String?
+  timezone       String  @default("America/Fortaleza")
 
   // Regras de agendamento
   minAdvanceMinutes   Int     @default(120)
@@ -136,13 +140,13 @@ model Tenant {
   loadHolidays        Boolean @default(true)
 
   // Sinal antecipado (cliente paga antes; o horário só confirma depois do pagamento)
-  requirePrepayment     Boolean @default(false)
+  requirePrepayment     Boolean   @default(false)
   /// 50 ou 100 (% do valor do serviço)
-  prepaymentPercent     Int     @default(50)
+  prepaymentPercent     Int       @default(50)
   /// mercadopago (confirma sozinho ao pagar) | pix_manual (cliente envia comprovante e a dona aprova)
-  prepaymentMethod      String  @default("pix_manual")
+  prepaymentMethod      String    @default("pix_manual")
   /// Minutos que o horário fica reservado esperando o pagamento
-  prepaymentHoldMinutes Int     @default(30)
+  prepaymentHoldMinutes Int       @default(30)
   pixKey                String?
   /// Nome de quem recebe o PIX (aparece para a cliente conferir)
   pixKeyHolder          String?
@@ -162,9 +166,9 @@ model Tenant {
   notifyPhone                String?
 
   /// Unidade extra da mesma conta: usa a assinatura (plano e limites) da unidade principal
-  parentTenantId      String?
-  parent              Tenant?   @relation("TenantUnits", fields: [parentTenantId], references: [id], onDelete: Restrict)
-  units               Tenant[]  @relation("TenantUnits")
+  parentTenantId String?
+  parent         Tenant?  @relation("TenantUnits", fields: [parentTenantId], references: [id], onDelete: Restrict)
+  units          Tenant[] @relation("TenantUnits")
 
   onboardingCompleted Boolean   @default(false)
   blocked             Boolean   @default(false)

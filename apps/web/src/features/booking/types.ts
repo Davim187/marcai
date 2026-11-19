@@ -4,6 +4,9 @@ export interface PublicTenant {
   bio: string | null
   logoUrl: string | null
   coverUrl: string | null
+  coverPositionX: number
+  coverPositionY: number
+  coverZoom: number
   faviconUrl: string | null
   primaryColor: string
   address: string | null

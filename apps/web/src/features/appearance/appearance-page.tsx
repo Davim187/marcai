@@ -7,6 +7,7 @@ import {
   type TenantProfileInput,
   BRAND_PRESET_COLORS,
 } from '@marcai/shared'
+import { CoverFramer, CoverImage, DEFAULT_COVER_FRAMING } from '@/components/cover-image'
 import { ImageUpload } from '@/components/image-upload'
 import { PhoneInput } from '@/components/phone-input'
 import { Button } from '@/components/ui/button'
@@ -42,6 +43,9 @@ export default function AppearancePage() {
         primaryColor: data.primaryColor,
         logoUrl: data.logoUrl,
         coverUrl: data.coverUrl,
+        coverPositionX: data.coverPositionX,
+        coverPositionY: data.coverPositionY,
+        coverZoom: data.coverZoom,
         faviconUrl: data.faviconUrl,
         timezone: data.timezone,
       })
@@ -54,6 +58,13 @@ export default function AppearancePage() {
   if (!v || !data) return <Skeleton className="h-96" />
   const set = <K extends keyof TenantProfileInput>(k: K, val: TenantProfileInput[K]) =>
     setV({ ...v, [k]: val })
+  const framing = {
+    x: v.coverPositionX ?? DEFAULT_COVER_FRAMING.x,
+    y: v.coverPositionY ?? DEFAULT_COVER_FRAMING.y,
+    zoom: v.coverZoom ?? DEFAULT_COVER_FRAMING.zoom,
+  }
+  const setFraming = (f: typeof framing) =>
+    setV({ ...v, coverPositionX: f.x, coverPositionY: f.y, coverZoom: f.zoom })
   const palette = generatePalette(v.primaryColor)
   const adjusted = palette.primary.toLowerCase() !== v.primaryColor.toLowerCase()
 
@@ -89,12 +100,27 @@ export default function AppearancePage() {
                   <p className="mb-2 text-sm font-medium">Foto de capa</p>
                   <ImageUpload
                     value={v.coverUrl}
-                    onChange={(u) => set('coverUrl', u)}
+                    onChange={(u) =>
+                      // Foto nova começa centralizada
+                      setV({
+                        ...v,
+                        coverUrl: u,
+                        coverPositionX: DEFAULT_COVER_FRAMING.x,
+                        coverPositionY: DEFAULT_COVER_FRAMING.y,
+                        coverZoom: DEFAULT_COVER_FRAMING.zoom,
+                      })
+                    }
                     shape="wide"
                     label="Capa (1200×400)"
                   />
                 </div>
               </div>
+              {v.coverUrl && (
+                <div>
+                  <p className="mb-2 text-sm font-medium">Enquadramento da capa</p>
+                  <CoverFramer src={v.coverUrl} value={framing} onChange={setFraming} />
+                </div>
+              )}
               <div>
                 <p className="mb-2 text-sm font-medium">Cor principal</p>
                 <div className="flex flex-wrap items-center gap-3">
@@ -231,8 +257,8 @@ export default function AppearancePage() {
             className="border-foreground/90 bg-background shadow-lift mx-auto w-full max-w-[340px] overflow-hidden rounded-[2rem] border-[6px]"
             style={brandStyle(v.primaryColor)}
           >
-            <div className="brand-cover h-24">
-              {v.coverUrl && <img src={v.coverUrl} alt="" className="h-full w-full object-cover" />}
+            <div className="brand-cover h-24 overflow-hidden">
+              {v.coverUrl && <CoverImage src={v.coverUrl} framing={framing} />}
             </div>
             <div className="relative z-10 -mt-9 flex flex-col items-center px-4 text-center">
               {v.logoUrl ? (

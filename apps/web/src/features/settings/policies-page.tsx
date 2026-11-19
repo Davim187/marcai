@@ -34,6 +34,9 @@ export interface TenantFull extends BookingRulesInput {
   primaryColor: string
   logoUrl: string | null
   coverUrl: string | null
+  coverPositionX: number
+  coverPositionY: number
+  coverZoom: number
   faviconUrl: string | null
   timezone: string
   publicUrl: string
