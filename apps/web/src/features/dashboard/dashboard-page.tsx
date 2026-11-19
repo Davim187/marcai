@@ -62,7 +62,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-4 sm:space-y-5">
       <div className="flex flex-col gap-3 pb-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+        <div data-tour="dashboard-greeting">
           <h1 className="letters text-4xl leading-none sm:text-5xl">
             {greeting()}, {user.name.split(' ')[0]}!
           </h1>
@@ -75,6 +75,7 @@ export default function DashboardPage() {
           variant="inverse"
           onClick={() => setNewOpen(true)}
           className="hidden sm:inline-flex"
+          data-tour="new-booking"
         >
           <Plus /> Agendamento manual
         </Button>
@@ -235,8 +236,9 @@ export default function DashboardPage() {
         onClick={() => setNewOpen(true)}
         size="icon"
         variant="inverse"
-        className="shadow-lift fixed bottom-24 right-4 z-20 h-14 w-14 sm:hidden"
+        className="shadow-lift fixed bottom-[calc(9rem+env(safe-area-inset-bottom))] right-3 z-20 h-14 w-14 sm:hidden"
         aria-label="Novo agendamento"
+        data-tour="new-booking"
       >
         <Plus className="!size-6" />
       </Button>
@@ -405,7 +407,10 @@ function ShareCard({ onQr }: { onQr: () => void }) {
   }
 
   return (
-    <Card className="grid items-center gap-4 overflow-hidden p-5 sm:grid-cols-2 lg:col-span-5">
+    <Card
+      className="grid items-center gap-4 overflow-hidden p-5 sm:grid-cols-2 lg:col-span-5"
+      data-tour="dashboard-link"
+    >
       <div className="flex min-w-0 flex-col">
         <h2 className="text-lg font-semibold leading-snug">Seu link de agendamento</h2>
         <p className="text-muted-foreground mt-1 text-sm">

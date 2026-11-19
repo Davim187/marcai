@@ -177,3 +177,13 @@
     scrollbar-width: none;
   }
 }
+
+/* Barra de progresso das demonstrações da central de ajuda */
+@keyframes demo-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}

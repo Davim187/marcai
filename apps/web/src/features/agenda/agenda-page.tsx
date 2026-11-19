@@ -130,7 +130,7 @@ export default function AgendaPage() {
   return (
     <div>
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" data-tour="agenda-nav">
           <Button variant="outline" size="sm" onClick={() => setAnchor(today)}>
             Hoje
           </Button>
@@ -145,7 +145,7 @@ export default function AgendaPage() {
           </h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Tabs value={view} onValueChange={(v) => setView(v as View)}>
+          <Tabs value={view} onValueChange={(v) => setView(v as View)} data-tour="agenda-views">
             <TabsList>
               <TabsTrigger value="day">Dia</TabsTrigger>
               <TabsTrigger value="week">Semana</TabsTrigger>
@@ -177,6 +177,7 @@ export default function AgendaPage() {
             Cancelados
           </label>
           <Button
+            data-tour="agenda-new"
             onClick={() =>
               setPrefill({
                 date: view === 'month' ? today : anchor,
@@ -192,6 +193,7 @@ export default function AgendaPage() {
       <div
         className="text-muted-foreground mb-3 flex flex-wrap gap-3 text-xs"
         aria-label="Legenda de cores"
+        data-tour="agenda-legend"
       >
         {(['pending', 'confirmed', 'completed', 'no_show'] as const).map((s) => (
           <span key={s} className="flex items-center gap-1.5">

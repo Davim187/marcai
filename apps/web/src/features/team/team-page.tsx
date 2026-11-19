@@ -80,10 +80,10 @@ export default function TeamPage() {
         description="Cada profissional tem a própria agenda, serviços e expediente."
         actions={
           <>
-            <Button variant="outline" onClick={() => setInviting(true)}>
+            <Button variant="outline" onClick={() => setInviting(true)} data-tour="team-invite">
               <UserPlus /> Dar acesso ao painel
             </Button>
-            <Button onClick={() => setEditing('new')}>
+            <Button onClick={() => setEditing('new')} data-tour="team-new">
               <Plus /> Profissional
             </Button>
           </>

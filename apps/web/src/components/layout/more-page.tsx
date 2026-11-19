@@ -5,11 +5,13 @@ import { copyToClipboard } from '@/lib/utils'
 import { Button } from '../ui/button'
 import { Card } from '../ui/card'
 import { NavLink } from 'react-router'
+import { useBeginnerMode } from '@/features/help/state/help-state'
 import { ADMIN_ITEM, filterNav, NAV_GROUPS } from './nav-config'
 
 /** Menu completo para o celular (aba "Mais"). */
 export default function MorePage() {
   const { tenant, appMode, user } = useTenant()
+  const beginner = useBeginnerMode()
   return (
     <div className="space-y-6">
       <Card className="p-4">
@@ -55,7 +57,15 @@ export default function MorePage() {
                     end
                     className="hover:bg-muted flex items-center gap-3 px-4 py-3.5 text-sm font-medium"
                   >
-                    <i.icon className="text-primary h-5 w-5" /> {i.label}
+                    <i.icon className="text-primary h-5 w-5 shrink-0" />
+                    <span className="min-w-0">
+                      {i.label}
+                      {beginner && i.description && (
+                        <span className="text-muted-foreground block text-xs font-normal">
+                          {i.description}
+                        </span>
+                      )}
+                    </span>
                   </NavLink>
                 ),
               )}

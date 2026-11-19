@@ -77,6 +77,8 @@ model User {
   passwordResets    PasswordResetToken[]
   pushSubscriptions PushSubscription[]
   notifications     Notification[]
+  helpPreference    HelpPreference?
+  helpProgress      HelpProgress[]
 }
 
 /// Uma sessão = um login (um aparelho). O access token (cookie curto) e o refresh token
@@ -738,4 +740,36 @@ model SlugHistory {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+}
+
+/// Central de ajuda: preferências de orientação de cada usuário.
+model HelpPreference {
+  userId       String    @id
+  /// Modo iniciante: dicas por página, explicações visíveis e descrições no menu
+  beginnerMode Boolean   @default(false)
+  /// Quando a boas-vindas foi mostrada (null = ainda não viu; não repete depois)
+  introSeenAt  DateTime?
+  updatedAt    DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Progresso em tours, guias interativos, tutoriais e demonstrações (um registro por item).
+model HelpProgress {
+  id             String    @id @default(cuid())
+  userId         String
+  /// "tour:sistema", "guide:agenda", "tutorial:criar-servico", "demo:link"…
+  itemId         String
+  /// Última etapa vista (para continuar de onde parou)
+  step           Int       @default(0)
+  /// started | completed | skipped
+  status         String
+  timesCompleted Int       @default(0)
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemId])
 }

@@ -24,6 +24,7 @@ import { capitalize, fmt, localToIso, todayIn } from '@/lib/dates'
 import { qk, useApiMutation, useProfessionals, createTimeOff } from '@/lib/queries'
 import { useTenant } from '@/lib/session'
 import { ShiftsEditor, WEEKDAYS } from './shifts-editor'
+import { HelpHint } from '@/features/help/help-layer'
 
 interface ScheduleData {
   workingHours: Array<ShiftInput & { id: string; professionalId: string }>
@@ -123,9 +124,11 @@ export default function SchedulePage() {
       />
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="space-y-6 lg:col-span-3">
-          <Card>
+          <Card data-tour="schedule-hours">
             <CardHeader>
-              <CardTitle>Expediente semanal</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                Expediente semanal <HelpHint id="workingHours" />
+              </CardTitle>
               <CardDescription>
                 Ligue os dias em que atende e defina um ou mais turnos.
               </CardDescription>
@@ -156,10 +159,12 @@ export default function SchedulePage() {
         </div>
 
         <div className="space-y-6 lg:col-span-2">
-          <Card>
+          <Card data-tour="schedule-timeoff">
             <CardHeader className="flex-row items-start justify-between">
               <div>
-                <CardTitle>Folgas e bloqueios</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  Folgas e bloqueios <HelpHint id="timeOff" />
+                </CardTitle>
                 <CardDescription>Médico, viagem, folga…</CardDescription>
               </div>
               <Button size="sm" variant="soft" onClick={() => setTimeOffOpen(true)}>
@@ -210,10 +215,12 @@ export default function SchedulePage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card data-tour="schedule-breaks">
             <CardHeader className="flex-row items-start justify-between">
               <div>
-                <CardTitle>Pausas fixas</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  Pausas fixas <HelpHint id="breaks" />
+                </CardTitle>
                 <CardDescription>Repetem toda semana (ex.: almoço).</CardDescription>
               </div>
               <Button size="sm" variant="soft" onClick={() => setBlockOpen(true)}>
@@ -255,10 +262,12 @@ export default function SchedulePage() {
           </Card>
 
           {isOwner && (
-            <Card>
+            <Card data-tour="schedule-holidays">
               <CardHeader className="flex-row items-start justify-between">
                 <div>
-                  <CardTitle>Feriados</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    Feriados <HelpHint id="holidays" />
+                  </CardTitle>
                   <CardDescription>
                     Nacionais carregados automaticamente. Desligue se for atender.
                   </CardDescription>

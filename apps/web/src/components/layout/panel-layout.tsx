@@ -21,10 +21,14 @@ import { cn, copyToClipboard } from '@/lib/utils'
 import { NotificationBell } from '@/features/notifications/notification-bell'
 import { InviteBanner } from '../invite-banner'
 import { SubscriptionBanner } from './subscription-banner'
+import { BeginnerTip, HelpLayer, HelpMenu } from '@/features/help/help-layer'
+import { useBeginnerMode } from '@/features/help/state/help-state'
 import { ADMIN_ITEM, BOTTOM_NAV, filterNav, NAV_GROUPS } from './nav-config'
 
 function SideNav({ onNavigate }: { onNavigate?: () => void }) {
   const { tenant, appMode, user } = useTenant()
+  // Modo iniciante: cada item mostra para que serve
+  const beginner = useBeginnerMode()
   return (
     <nav className="flex flex-col gap-6" aria-label="Menu principal">
       {NAV_GROUPS.map((group) => {
@@ -52,16 +56,30 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
                       to={item.to}
                       end={item.to === '/painel'}
                       onClick={onNavigate}
+                      data-tour={`nav:${item.to}`}
                       className={({ isActive }) =>
                         cn(
-                          'text-sidebar-muted hover:text-sidebar-foreground flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-white/[0.06]',
+                          'text-sidebar-muted hover:text-sidebar-foreground group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-white/[0.06]',
                           isActive &&
                             'bg-sidebar-active text-sidebar-active-foreground hover:bg-sidebar-active hover:text-sidebar-active-foreground font-semibold',
                         )
                       }
                     >
-                      <item.icon className="h-[18px] w-[18px]" aria-hidden />
-                      {item.label}
+                      <item.icon
+                        className={cn(
+                          'h-[18px] w-[18px] shrink-0',
+                          beginner && 'mt-0.5 self-start',
+                        )}
+                        aria-hidden
+                      />
+                      <span className="min-w-0">
+                        {item.label}
+                        {beginner && item.description && (
+                          <span className="block text-[0.72rem] font-normal leading-snug opacity-75">
+                            {item.description}
+                          </span>
+                        )}
+                      </span>
                     </NavLink>
                   )}
                 </li>
@@ -119,113 +137,138 @@ export default function PanelLayout() {
   }
 
   return (
-    <div className="bg-background min-h-dvh">
-      {impersonating && (
-        <div className="bg-warning text-warning-foreground sticky top-0 z-50 flex items-center justify-center gap-3 px-4 py-2 text-sm font-semibold">
-          Modo suporte: você está vendo o painel de {tenant.name}.
-          <button className="underline" onClick={exitSupport}>
-            Encerrar
-          </button>
-        </div>
-      )}
-      {/* Sidebar desktop */}
-      {/* Menu lateral: o quadro de feltro, com a plaquinha do salão por cima */}
-      <aside className="felt fixed inset-y-0 left-0 z-30 hidden w-64 flex-col lg:flex">
-        <div className="flex h-16 items-center px-5">
-          <BrandLogo className="[&_svg]:ring-sidebar-border [&_svg]:rounded-lg [&_svg]:ring-1" />
-        </div>
-        <div className="bg-sidebar-active text-sidebar-active-foreground shadow-lift mx-3 mb-5 rounded-md p-3">
-          <p className="letters truncate text-base">{tenant.name}</p>
-          <button
-            onClick={copyLink}
-            className="text-cobalt mt-0.5 flex w-full items-center gap-1.5 truncate text-xs underline-offset-4 hover:underline"
-          >
-            <Copy className="h-3 w-3 shrink-0" />
-            <span className="truncate">{tenant.publicUrl.replace(/^https?:\/\//, '')}</span>
-          </button>
-        </div>
-        <div className="scrollbar-none flex-1 overflow-y-auto px-3 pb-6">
-          <SideNav />
-        </div>
-      </aside>
-
-      <div className="lg:pl-64">
-        <header className="bg-background/90 sticky top-0 z-20 flex h-14 items-center gap-2 border-b px-4 backdrop-blur-md sm:h-16 sm:px-6">
-          <div className="flex min-w-0 flex-1 items-center gap-2 lg:hidden">
-            <span className="truncate text-base font-bold">{tenant.name}</span>
+    <HelpLayer>
+      <div className="bg-background min-h-dvh">
+        {impersonating && (
+          <div className="bg-warning text-warning-foreground sticky top-0 z-50 flex items-center justify-center gap-3 px-4 py-2 text-sm font-semibold">
+            Modo suporte: você está vendo o painel de {tenant.name}.
+            <button className="underline" onClick={exitSupport}>
+              Encerrar
+            </button>
           </div>
-          <div className="hidden flex-1 lg:block" />
-          <Button variant="round" size="icon" asChild className="hidden sm:inline-flex">
-            <a
-              href={tenant.publicUrl}
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Abrir minha página de agendamento"
-            >
-              <ExternalLink />
-            </a>
-          </Button>
-          <Button
-            variant="round"
-            size="icon"
-            onClick={toggle}
-            aria-label={theme === 'dark' ? 'Usar modo claro' : 'Usar modo escuro'}
+        )}
+        {/* Sidebar desktop */}
+        {/* Menu lateral: o quadro de feltro, com a plaquinha do salão por cima */}
+        <aside className="felt fixed inset-y-0 left-0 z-30 hidden w-64 flex-col lg:flex">
+          <div className="flex h-16 items-center px-5">
+            <BrandLogo className="[&_svg]:ring-sidebar-border [&_svg]:rounded-lg [&_svg]:ring-1" />
+          </div>
+          <div
+            className="bg-sidebar-active text-sidebar-active-foreground shadow-lift mx-3 mb-5 rounded-md p-3"
+            data-tour="public-link"
           >
-            {theme === 'dark' ? <Sun /> : <Moon />}
-          </Button>
-          <NotificationBell />
-          <DropdownMenu>
-            <DropdownMenuTrigger className="rounded-full" aria-label="Menu da conta">
-              <Avatar name={user.name} src={user.avatarUrl} className="h-9 w-9" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>
-                <span className="text-foreground block text-sm">{user.name}</span>
-                <span className="block font-normal">{user.email}</span>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => navigate('/painel/conta')}>
-                Minha conta
-              </DropdownMenuItem>
-              {session.memberships.length > 1 &&
-                session.memberships
-                  .filter((m) => m.tenantId !== tenant.id)
-                  .map((m) => (
-                    <DropdownMenuItem
-                      key={m.tenantId}
-                      onSelect={async () => {
-                        await api('/auth/switch-tenant', { body: { tenantId: m.tenantId } })
-                        qc.clear()
-                        window.location.href = '/painel'
-                      }}
-                    >
-                      Trocar para {m.tenant.name}
-                    </DropdownMenuItem>
-                  ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={impersonating ? exitSupport : logout} destructive>
-                <LogOut /> {impersonating ? 'Sair do modo suporte' : 'Sair'}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </header>
+            <p className="letters truncate text-base">{tenant.name}</p>
+            <button
+              onClick={copyLink}
+              className="text-cobalt mt-0.5 flex w-full items-center gap-1.5 truncate text-xs underline-offset-4 hover:underline"
+            >
+              <Copy className="h-3 w-3 shrink-0" />
+              <span className="truncate">{tenant.publicUrl.replace(/^https?:\/\//, '')}</span>
+            </button>
+          </div>
+          <div className="scrollbar-none flex-1 overflow-y-auto px-3 pb-6">
+            <SideNav />
+          </div>
+        </aside>
 
-        <InviteBanner />
-        <SubscriptionBanner />
+        <div className="lg:pl-64">
+          <header className="bg-background/90 sticky top-0 z-20 flex h-14 items-center gap-2 border-b px-4 backdrop-blur-md sm:h-16 sm:px-6">
+            <div className="flex min-w-0 flex-1 items-center gap-2 lg:hidden">
+              <span className="truncate text-base font-bold">{tenant.name}</span>
+            </div>
+            <div className="hidden flex-1 lg:block" />
+            <Button variant="round" size="icon" asChild className="hidden sm:inline-flex">
+              <a
+                href={tenant.publicUrl}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Abrir minha página de agendamento"
+              >
+                <ExternalLink />
+              </a>
+            </Button>
+            <Button
+              variant="round"
+              size="icon"
+              onClick={toggle}
+              aria-label={theme === 'dark' ? 'Usar modo claro' : 'Usar modo escuro'}
+            >
+              {theme === 'dark' ? <Sun /> : <Moon />}
+            </Button>
+            <HelpMenu />
+            <NotificationBell />
+            <DropdownMenu>
+              <DropdownMenuTrigger className="rounded-full" aria-label="Menu da conta">
+                <Avatar name={user.name} src={user.avatarUrl} className="h-9 w-9" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>
+                  <span className="text-foreground block text-sm">{user.name}</span>
+                  <span className="block font-normal">{user.email}</span>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => navigate('/painel/conta')}>
+                  Minha conta
+                </DropdownMenuItem>
+                {session.memberships.length > 1 &&
+                  session.memberships
+                    .filter((m) => m.tenantId !== tenant.id)
+                    .map((m) => (
+                      <DropdownMenuItem
+                        key={m.tenantId}
+                        onSelect={async () => {
+                          await api('/auth/switch-tenant', { body: { tenantId: m.tenantId } })
+                          qc.clear()
+                          window.location.href = '/painel'
+                        }}
+                      >
+                        Trocar para {m.tenant.name}
+                      </DropdownMenuItem>
+                    ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={impersonating ? exitSupport : logout} destructive>
+                  <LogOut /> {impersonating ? 'Sair do modo suporte' : 'Sair'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </header>
 
-        <main className="mx-auto max-w-6xl px-4 pb-28 pt-5 sm:px-6 sm:pt-8 lg:pb-10">
-          <Outlet />
-        </main>
-      </div>
+          <InviteBanner />
+          <SubscriptionBanner />
 
-      {/* Bottom navigation (celular) */}
-      <nav className="felt pb-safe fixed inset-x-0 bottom-0 z-30 lg:hidden" aria-label="Navegação">
-        <ul className="grid grid-cols-5 gap-1 px-2 pt-1.5">
-          {BOTTOM_NAV.map((item) => (
-            <li key={item.to}>
+          <main className="mx-auto max-w-6xl px-4 pb-28 pt-5 sm:px-6 sm:pt-8 lg:pb-10">
+            <BeginnerTip />
+            <Outlet />
+          </main>
+        </div>
+
+        {/* Bottom navigation (celular) */}
+        <nav
+          className="felt pb-safe fixed inset-x-0 bottom-0 z-30 lg:hidden"
+          aria-label="Navegação"
+        >
+          <ul className="grid grid-cols-5 gap-1 px-2 pt-1.5">
+            {BOTTOM_NAV.map((item) => (
+              <li key={item.to}>
+                <NavLink
+                  to={item.to}
+                  end={item.to === '/painel'}
+                  data-tour={`nav:${item.to}`}
+                  className={({ isActive }) =>
+                    cn(
+                      'text-sidebar-muted flex flex-col items-center gap-0.5 rounded-md py-1.5 text-[11px] font-medium transition-colors',
+                      isActive && 'bg-sidebar-active text-sidebar-active-foreground font-semibold',
+                    )
+                  }
+                >
+                  <item.icon className="h-5 w-5" aria-hidden />
+                  {item.label}
+                </NavLink>
+              </li>
+            ))}
+            <li>
               <NavLink
-                to={item.to}
-                end={item.to === '/painel'}
+                to="/painel/mais"
                 className={({ isActive }) =>
                   cn(
                     'text-sidebar-muted flex flex-col items-center gap-0.5 rounded-md py-1.5 text-[11px] font-medium transition-colors',
@@ -233,28 +276,14 @@ export default function PanelLayout() {
                   )
                 }
               >
-                <item.icon className="h-5 w-5" aria-hidden />
-                {item.label}
+                <MoreHorizontal className="h-5 w-5" aria-hidden />
+                Mais
               </NavLink>
             </li>
-          ))}
-          <li>
-            <NavLink
-              to="/painel/mais"
-              className={({ isActive }) =>
-                cn(
-                  'text-sidebar-muted flex flex-col items-center gap-0.5 rounded-md py-1.5 text-[11px] font-medium transition-colors',
-                  isActive && 'bg-sidebar-active text-sidebar-active-foreground font-semibold',
-                )
-              }
-            >
-              <MoreHorizontal className="h-5 w-5" aria-hidden />
-              Mais
-            </NavLink>
-          </li>
-        </ul>
-      </nav>
-    </div>
+          </ul>
+        </nav>
+      </div>
+    </HelpLayer>
   )
 }
 

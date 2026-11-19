@@ -185,6 +185,14 @@ export const router = createBrowserRouter([
                 element: lazyRoute(() => import('./features/account/account-page')),
               },
               { path: 'mais', element: lazyRoute(() => import('./components/layout/more-page')) },
+              {
+                path: 'ajuda',
+                element: lazyRoute(() => import('./features/help/pages/help-center-page')),
+              },
+              {
+                path: 'ajuda/:slug',
+                element: lazyRoute(() => import('./features/help/pages/help-article-page')),
+              },
             ],
           },
         ],

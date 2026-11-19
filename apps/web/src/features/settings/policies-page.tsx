@@ -22,6 +22,7 @@ import { api } from '@/lib/api'
 import { useHasFeature } from '@/lib/session'
 import { Link } from 'react-router'
 import { qk, useApiMutation } from '@/lib/queries'
+import { HelpHint } from '@/features/help/help-layer'
 
 export interface TenantFull extends BookingRulesInput {
   id: string
@@ -125,13 +126,17 @@ export default function PoliciesPage() {
         description="Como e quando seus clientes podem agendar, cancelar e remarcar."
       />
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+        <Card data-tour="policies-online">
           <CardHeader>
             <CardTitle>Agendamento online</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <Field
-              label="Antecedência mínima"
+              label={
+                <>
+                  Antecedência mínima <HelpHint id="minAdvance" className="ml-1" />
+                </>
+              }
               htmlFor="min"
               hint="Evita marcações em cima da hora."
             >
@@ -160,7 +165,14 @@ export default function PoliciesPage() {
                 ))}
               </NativeSelect>
             </Field>
-            <Field label="Até quantos dias à frente" htmlFor="max">
+            <Field
+              label={
+                <>
+                  Até quantos dias à frente <HelpHint id="maxAdvance" className="ml-1" />
+                </>
+              }
+              htmlFor="max"
+            >
               <NativeSelect
                 id="max"
                 value={v.maxAdvanceDays}
@@ -174,7 +186,11 @@ export default function PoliciesPage() {
               </NativeSelect>
             </Field>
             <Field
-              label="Intervalo entre opções de horário"
+              label={
+                <>
+                  Intervalo entre opções de horário <HelpHint id="slotInterval" className="ml-1" />
+                </>
+              }
               htmlFor="slot"
               hint="De quanto em quanto tempo os horários aparecem para o cliente."
             >
@@ -192,14 +208,23 @@ export default function PoliciesPage() {
             </Field>
             <SwitchRow
               id="confirm"
-              label="Confirmar manualmente cada agendamento"
+              label={
+                <>
+                  Confirmar manualmente cada agendamento{' '}
+                  <HelpHint id="requireConfirmation" className="ml-1" />
+                </>
+              }
               description="Os agendamentos chegam como “pendente” até você confirmar. O horário fica reservado mesmo assim."
               checked={v.requireConfirmation}
               onCheckedChange={(c) => set('requireConfirmation', c)}
             />
             <SwitchRow
               id="prepay"
-              label="Recebe antecipado"
+              label={
+                <>
+                  Recebe antecipado <HelpHint id="prepayment" className="ml-1" />
+                </>
+              }
               description={
                 prepayLocked ? (
                   <>
@@ -235,9 +260,11 @@ export default function PoliciesPage() {
             />
           </CardContent>
         </Card>
-        <Card>
+        <Card data-tour="policies-recurring">
           <CardHeader>
-            <CardTitle>Horário fixo semanal</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Horário fixo semanal <HelpHint id="recurring" />
+            </CardTitle>
             <CardDescription>
               Para quem atende o mesmo cliente toda semana (terapia, aulas, tratamentos).
             </CardDescription>
@@ -273,9 +300,11 @@ export default function PoliciesPage() {
             </Field>
           </CardContent>
         </Card>
-        <Card>
+        <Card data-tour="policies-cancel">
           <CardHeader>
-            <CardTitle>Cancelamento e remarcação</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Cancelamento e remarcação <HelpHint id="cancelHours" />
+            </CardTitle>
             <CardDescription>
               O cliente cancela ou remarca sozinho pelo link da confirmação.
             </CardDescription>
@@ -317,7 +346,9 @@ export default function PoliciesPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Lembretes</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Lembretes <HelpHint id="reminder" />
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <Field
@@ -347,7 +378,10 @@ export default function PoliciesPage() {
           </CardContent>
         </Card>
       </div>
-      <div className="sticky bottom-20 mt-6 flex justify-end lg:bottom-4">
+      <div
+        className="sticky bottom-20 mt-6 flex justify-end pr-14 lg:bottom-4 lg:pr-16"
+        data-tour="policies-save"
+      >
         <Button
           size="lg"
           onClick={() => save.mutate()}

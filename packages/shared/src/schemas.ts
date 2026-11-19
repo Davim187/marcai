@@ -546,3 +546,20 @@ export const blockTenantSchema = z.object({
   blocked: z.boolean(),
   reason: z.string().max(300).optional(),
 })
+
+// ---------- Central de ajuda ----------
+/** Itens com progresso: tour, guia interativo, tutorial ou demonstração ("tutorial:criar-servico"). */
+export const helpItemIdSchema = z
+  .string()
+  .regex(/^(tour|guide|tutorial|demo):[a-z0-9-]{1,60}$/, 'Item de ajuda inválido')
+export const HELP_PROGRESS_STATUSES = ['started', 'completed', 'skipped'] as const
+export type HelpProgressStatus = (typeof HELP_PROGRESS_STATUSES)[number]
+export const helpProgressSchema = z.object({
+  step: z.number().int().min(0).max(100),
+  status: z.enum(HELP_PROGRESS_STATUSES),
+})
+export const helpPreferencesSchema = z.object({
+  beginnerMode: z.boolean().optional(),
+  /** true marca a boas-vindas como vista; false mostra de novo */
+  introSeen: z.boolean().optional(),
+})

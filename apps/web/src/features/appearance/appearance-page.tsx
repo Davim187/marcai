@@ -23,6 +23,7 @@ import { qk, useApiMutation, useServices } from '@/lib/queries'
 import { useRefreshSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { useTenantFull } from '../settings/policies-page'
+import { HelpHint } from '@/features/help/help-layer'
 
 const COLORS = BRAND_PRESET_COLORS
 
@@ -74,16 +75,22 @@ export default function AppearancePage() {
         title="Aparência"
         description="Deixe sua página de agendamento com a cara do seu negócio."
         actions={
-          <Button onClick={() => save.mutate()} loading={save.isPending}>
+          <Button
+            onClick={() => save.mutate()}
+            loading={save.isPending}
+            data-tour="appearance-save"
+          >
             Salvar
           </Button>
         }
       />
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
-          <Card>
+          <Card data-tour="appearance-brand">
             <CardHeader>
-              <CardTitle>Marca</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                Marca <HelpHint id="brand" />
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="flex flex-wrap gap-6">
@@ -168,7 +175,7 @@ export default function AppearancePage() {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card data-tour="appearance-info">
             <CardHeader>
               <CardTitle>Informações</CardTitle>
               <CardDescription>Aparecem no topo da sua página.</CardDescription>
@@ -251,7 +258,7 @@ export default function AppearancePage() {
           </Card>
         </div>
         {/* Pré-visualização ao vivo */}
-        <div className="lg:sticky lg:top-24 lg:self-start">
+        <div className="lg:sticky lg:top-24 lg:self-start" data-tour="appearance-preview">
           <p className="text-muted-foreground mb-2 text-[0.8rem] font-medium">Pré-visualização</p>
           <div
             className="border-foreground/90 bg-background shadow-lift mx-auto w-full max-w-[340px] overflow-hidden rounded-[2rem] border-[6px]"

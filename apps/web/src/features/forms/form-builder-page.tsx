@@ -37,6 +37,7 @@ import { useTenant } from '@/lib/session'
 import { qk, useApiMutation, useFormFields, useServices } from '@/lib/queries'
 import type { FormFieldDTO } from '@/lib/types'
 import { CustomFieldInput } from './custom-field-input'
+import { HelpHint } from '@/features/help/help-layer'
 
 /** Tipos de negócio que têm perguntas sugeridas. */
 const PRESET_TYPES = BUSINESS_TYPES.filter((b) => PRESETS[b.id].fields.length > 0)
@@ -82,16 +83,20 @@ export default function FormBuilderPage() {
             <Button variant="outline" onClick={() => setPreview(true)} disabled={!order.length}>
               Pré-visualizar
             </Button>
-            <Button onClick={() => setEditing('new')}>
+            <Button onClick={() => setEditing('new')} data-tour="forms-new">
               <Plus /> Nova pergunta
             </Button>
           </>
         }
       />
-      <Card className="bg-primary-soft/60 mb-6 flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center">
+      <Card
+        className="bg-primary-soft/60 mb-6 flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center"
+        data-tour="forms-presets"
+      >
         <Sparkles className="text-primary h-5 w-5 shrink-0" />
         <p className="flex-1 text-sm">
-          <strong>Perguntas sugeridas:</strong> {presetLabels.join(' · ')}
+          <strong>Perguntas sugeridas</strong> <HelpHint id="formPresets" className="mx-0.5" />:{' '}
+          {presetLabels.join(' · ')}
         </p>
         <NativeSelect
           aria-label="Área das perguntas sugeridas"

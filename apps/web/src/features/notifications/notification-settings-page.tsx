@@ -36,6 +36,7 @@ import { useRefreshSession, useTenant } from '@/lib/session'
 import { playChime } from '@/lib/sound'
 import { cn } from '@/lib/utils'
 import { currentPushSubscription, disablePush, enablePush, pushSupported } from './push'
+import { HelpHint } from '@/features/help/help-layer'
 
 interface Settings {
   inApp: boolean
@@ -113,9 +114,11 @@ export default function NotificationSettingsPage() {
         description="Como você e seus clientes ficam sabendo de cada agendamento."
       />
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+        <Card data-tour="notif-you">
           <CardHeader>
-            <CardTitle>Avisos para você</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Avisos para você <HelpHint id="notifyYou" />
+            </CardTitle>
             <CardDescription>Quando um cliente agenda, cancela ou remarca.</CardDescription>
           </CardHeader>
           <CardContent className="divide-y">
@@ -188,9 +191,11 @@ export default function NotificationSettingsPage() {
           </CardContent>
         </Card>
         <div className="space-y-6">
-          <Card>
+          <Card data-tour="notif-customer">
             <CardHeader>
-              <CardTitle>Mensagens para o cliente</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                Mensagens para o cliente <HelpHint id="notifyCustomer" />
+              </CardTitle>
               <CardDescription>
                 Confirmação logo após agendar e lembrete antes do horário.
               </CardDescription>
@@ -513,9 +518,11 @@ function TemplatesCard({ canEdit }: { canEdit: boolean }) {
   )
   if (!templates || !current) return null
   return (
-    <Card>
+    <Card data-tour="notif-templates">
       <CardHeader>
-        <CardTitle>Textos das mensagens</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          Textos das mensagens <HelpHint id="templates" />
+        </CardTitle>
         <CardDescription>
           Use as variáveis entre chaves. A pré-visualização mostra um exemplo.
         </CardDescription>

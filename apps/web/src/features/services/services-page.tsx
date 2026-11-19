@@ -37,6 +37,7 @@ import { api } from '@/lib/api'
 import { qk, useApiMutation, useCategories, useProfessionals, useServices } from '@/lib/queries'
 import type { Service } from '@/lib/types'
 import { useQueryClient } from '@tanstack/react-query'
+import { HelpHint } from '@/features/help/help-layer'
 
 type FormValues = z.input<typeof serviceSchema>
 
@@ -118,10 +119,14 @@ export default function ServicesPage() {
         description="O que seus clientes podem agendar. Arraste para mudar a ordem."
         actions={
           <>
-            <Button variant="outline" onClick={() => setCatDialog({ name: '' })}>
+            <Button
+              variant="outline"
+              onClick={() => setCatDialog({ name: '' })}
+              data-tour="services-category"
+            >
               <FolderPlus /> Categoria
             </Button>
-            <Button onClick={() => setEditing('new')}>
+            <Button onClick={() => setEditing('new')} data-tour="services-new">
               <Plus /> Novo serviço
             </Button>
           </>
@@ -392,7 +397,11 @@ function ServiceDialog({ service, onClose }: { service: Service | null; onClose:
               />
             </Field>
             <Field
-              label="Intervalo após (min)"
+              label={
+                <>
+                  Intervalo após (min) <HelpHint id="serviceBuffer" className="ml-1" />
+                </>
+              }
               htmlFor="bufferMinutes"
               hint="Limpeza/organização entre clientes."
               error={e.bufferMinutes?.message}

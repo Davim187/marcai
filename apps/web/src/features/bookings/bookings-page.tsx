@@ -84,7 +84,7 @@ export default function BookingsPage() {
         title="Agendamentos"
         description="Todos os horários marcados, com filtros e busca."
       />
-      <Card className="mb-4 space-y-3 p-3 sm:p-4">
+      <Card className="mb-4 space-y-3 p-3 sm:p-4" data-tour="bookings-filters">
         <div className="relative">
           <Search className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
           <Input

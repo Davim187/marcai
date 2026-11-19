@@ -14,6 +14,7 @@ import { dashboardRoutes } from './dashboard/dashboard.routes'
 import { notificationRoutes } from './notifications/notification.routes'
 import { whatsappWebhookRoutes } from './notifications/webhooks.routes'
 import { formRoutes } from './forms/form.routes'
+import { helpRoutes } from './help/help.routes'
 import { scheduleRoutes } from './schedule/schedule.routes'
 import { serviceRoutes } from './services/service.routes'
 import { teamRoutes } from './team/team.routes'
@@ -58,4 +59,5 @@ export async function registerModules(app: FastifyInstance) {
   await app.register(adminRoutes, { prefix: '/api/admin' })
   await app.register(adminManageRoutes, { prefix: '/api/admin' })
   await app.register(accountRoutes, { prefix: '/api/account' })
+  await app.register(helpRoutes, { prefix: '/api/help' })
 }

@@ -78,13 +78,17 @@ export default function CustomersPage() {
           // Importar, exportar e cadastrar é só da gestão (a API também bloqueia)
           tenant.role === 'owner' && (
             <>
-              <Button variant="outline" onClick={() => fileRef.current?.click()}>
+              <Button
+                variant="outline"
+                onClick={() => fileRef.current?.click()}
+                data-tour="customers-import"
+              >
                 <Upload /> Importar
               </Button>
               <Button variant="outline" onClick={exportCsv}>
                 <Download /> Exportar
               </Button>
-              <Button onClick={() => setCreating(true)}>
+              <Button onClick={() => setCreating(true)} data-tour="customers-new">
                 <Plus /> Novo cliente
               </Button>
             </>
@@ -102,7 +106,7 @@ export default function CustomersPage() {
           e.target.value = ''
         }}
       />
-      <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+      <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_auto_auto]" data-tour="customers-search">
         <div className="relative">
           <Search className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
           <Input

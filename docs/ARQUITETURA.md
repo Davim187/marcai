@@ -43,6 +43,17 @@ Este documento explica como o sistema está organizado, como funcionam o agendam
 | `account`               | Perfil, exportação e exclusão da conta (LGPD)                                                     |
 | `seo`                   | Meta tags Open Graph no servidor, sitemap, robots, servir o SPA                                   |
 | `uploads`               | Upload de imagens (validação pelos bytes, `StorageProvider` local)                                |
+| `help`                  | Central de ajuda: modo iniciante, boas-vindas vista e progresso de tours/tutoriais por usuário    |
+
+## Central de ajuda (`apps/web/src/features/help`)
+
+Tudo de orientação do painel fica num módulo só, montado em volta do layout (`HelpLayer`):
+
+- `content/`: catálogo tipado (artigos, perguntas frequentes, problemas, tutoriais, tours, guias por página, demonstrações, dicas ⓘ e dicas do modo iniciante) e a busca sem acento. Os textos usam os rótulos reais da tela; `content.test.ts` falha se um tour apontar para um `data-tour` que não existe ou se um conteúdo citar outro que sumiu.
+- `tour/`: motor dos tours e guias interativos (navega até a página da etapa, procura o elemento `[data-tour="…"]`, recorta e escurece o resto, balão com teclado ← → Esc). Para destacar algo novo: coloque `data-tour="nome"` no elemento e use `target: 'nome'` na etapa.
+- `demo/`: demonstrações animadas desenhadas em código (sem vídeo), com "reduzir movimento" respeitado.
+- `assistant/`: chat com `AssistantProvider`. Hoje responde só com o conteúdo da central (`source: 'central'`); para ligar uma IA, crie um provedor que chame a API (chave só no servidor) e registre em `providers.ts`.
+- `state/`: preferências e progresso salvos por usuário em `HelpPreference` e `HelpProgress` (rotas `/api/help`), com atualização otimista.
 
 ## Multi-tenancy
 
