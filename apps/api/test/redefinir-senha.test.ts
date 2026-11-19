@@ -1,20 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
-import type * as Mailer from '../src/lib/mailer'
+import { logger } from '../src/lib/logger'
 import { requestPasswordReset } from '../src/modules/auth/auth.service'
 import { prisma } from '../src/lib/prisma'
 import { createOwner, getApp, TestAgent } from './helpers'
 
-const sent = vi.hoisted(() => [] as Array<{ to: string; text?: string }>)
-vi.mock('../src/lib/mailer', async (importOriginal) => {
-  const mod = await importOriginal<typeof Mailer>()
-  return {
-    ...mod,
-    sendEmail: vi.fn(async (msg: { to: string; text?: string }) => {
-      sent.push(msg)
-      return { id: null }
-    }),
-  }
-})
+// Em teste o e-mail não sai: o mailer registra "📧 [e-mail simulado]" no log com o texto.
+// (Um vi.mock do mailer não pega: o test/setup.ts já carregou o app antes dele.)
+const sent: Array<{ to: string; text?: string }> = []
+vi.spyOn(logger, 'info').mockImplementation(((obj: unknown, msg?: string) => {
+  if (msg === '📧 [e-mail simulado]') sent.push(obj as { to: string; text?: string })
+}) as typeof logger.info)
 
 /** Pede o link e devolve o token que foi no e-mail. */
 async function linkFor(email: string) {
@@ -53,7 +48,7 @@ describe('redefinição de senha por e-mail', () => {
     // O link só vale uma vez
     const again = await anon.post('/api/auth/reset-password', { token, password: 'outra12345' })
     expect(again.statusCode).toBe(400)
-    expect(again.json().code).toBe('TOKEN_INVALIDO')
+    expect(again.json().error).toBe('TOKEN_INVALIDO')
   })
 
   it('responde igual para e-mail inexistente e não envia nada', async () => {
@@ -84,6 +79,6 @@ describe('redefinição de senha por e-mail', () => {
     await prisma.passwordResetToken.updateMany({ data: { expiresAt: new Date(Date.now() - 1) } })
     const r2 = await anon.post('/api/auth/reset-password', { token: second, password: 'nova12345' })
     expect(r2.statusCode).toBe(400)
-    expect(r2.json().code).toBe('TOKEN_INVALIDO')
+    expect(r2.json().error).toBe('TOKEN_INVALIDO')
   })
 })

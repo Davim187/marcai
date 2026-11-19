@@ -28,10 +28,10 @@ describe('planos e unidades', () => {
     await activate(tenant.id, 'essencial')
     const p = await agent.post('/api/team/professionals', { name: 'Segundo Barbeiro' })
     expect(p.statusCode).toBe(402)
-    expect(p.json().code).toBe('LIMITE_PROFISSIONAIS')
+    expect(p.json().error).toBe('LIMITE_PROFISSIONAIS')
     const u = await newUnit(agent, `u-${rnd()}`)
     expect(u.statusCode).toBe(402)
-    expect(u.json().code).toBe('LIMITE_UNIDADES')
+    expect(u.json().error).toBe('LIMITE_UNIDADES')
   })
 
   it('Profissional: até 3 unidades, que usam a assinatura da principal', async () => {
@@ -72,7 +72,7 @@ describe('planos e unidades', () => {
     expect((await agent.post('/api/team/professionals', { name: 'Outro' })).statusCode).toBe(201)
     const r = await agent.post('/api/billing/subscribe', { plan: 'essencial', billingType: 'PIX' })
     expect(r.statusCode).toBe(402)
-    expect(r.json().code).toBe('PLANO_PEQUENO')
+    expect(r.json().error).toBe('PLANO_PEQUENO')
   })
 
   it('sinal antecipado só no Premium', async () => {

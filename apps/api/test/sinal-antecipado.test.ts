@@ -71,7 +71,7 @@ describe('sinal antecipado (PIX com comprovante)', () => {
       prepaymentMethod: 'pix_manual',
     })
     expect(r.statusCode).toBe(400)
-    expect(r.json().code).toBe('PIX_SEM_CHAVE')
+    expect(r.json().error).toBe('PIX_SEM_CHAVE')
   })
 
   it('reserva fica pendente com o PIX do sinal, comprovante e aprovação confirmam', async () => {

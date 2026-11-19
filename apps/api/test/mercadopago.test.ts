@@ -90,7 +90,7 @@ describe('Mercado Pago: fluxo completo com a API simulada', () => {
           id: 555,
           status: paymentStatus,
           external_reference: `inv:${invoiceId}`,
-          transaction_amount: 99,
+          transaction_amount: 69,
           date_approved: '2026-11-04T12:00:00Z',
           payment_type_id: 'bank_transfer',
         }
@@ -106,7 +106,7 @@ describe('Mercado Pago: fluxo completo com a API simulada', () => {
       payment_methods: { excluded_payment_types: { id: string }[] }
     }
     expect(pref.external_reference).toBe(`inv:${invoiceId}`)
-    expect(pref.items[0]!.unit_price).toBe(99)
+    expect(pref.items[0]!.unit_price).toBe(69)
     expect(pref.payment_methods.excluded_payment_types.map((t) => t.id)).toContain('credit_card')
 
     const app = await getApp()
@@ -137,7 +137,7 @@ describe('Mercado Pago: fluxo completo com a API simulada', () => {
   it('ignora pagamentos que não são de faturas do sistema', async () => {
     mockMp((url) =>
       url.endsWith('/v1/payments/777')
-        ? { id: 777, status: 'approved', external_reference: 'outra-coisa', transaction_amount: 99 }
+        ? { id: 777, status: 'approved', external_reference: 'outra-coisa', transaction_amount: 69 }
         : undefined,
     )
     const app = await getApp()
@@ -161,7 +161,7 @@ describe('Mercado Pago: fluxo completo com a API simulada', () => {
         return {
           id: 42,
           preapproval_id: 'PA1',
-          transaction_amount: 99,
+          transaction_amount: 69,
           payment: { id: 9001, status: 'approved' },
         }
       return undefined
@@ -175,7 +175,7 @@ describe('Mercado Pago: fluxo completo com a API simulada', () => {
       auto_recurring: { transaction_amount: number }
     }
     expect(body.external_reference).toBe(`ten:${tenant.id}`)
-    expect(body.auto_recurring.transaction_amount).toBe(99)
+    expect(body.auto_recurring.transaction_amount).toBe(69)
 
     const app = await getApp()
     await app.inject({
