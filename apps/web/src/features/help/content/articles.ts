@@ -208,7 +208,7 @@ export const ARTICLES: Article[] = [
     category: 'equipe-conta',
     audience: 'owner',
     route: '/painel/assinatura',
-    keywords: ['plano', 'preço', 'assinatura', 'teste grátis', 'pagar', 'boleto', 'cartão', 'pix'],
+    keywords: ['plano', 'preço', 'mensalidade', 'assinatura', 'teste grátis', 'boleto', 'cartão'],
     sections: [
       {
         heading: 'Básico — R$ 40/mês',
@@ -224,6 +224,85 @@ export const ARTICLES: Article[] = [
       },
       {
         body: 'O pagamento é mensal por PIX, boleto ou cartão, em Assinatura. Dá para trocar de plano ou cancelar quando quiser.',
+      },
+    ],
+  },
+  {
+    slug: 'cancelar-assinatura',
+    kind: 'article',
+    title: 'Cancelar a assinatura',
+    summary:
+      'Em Assinatura, toque em "Cancelar assinatura". Nada mais é cobrado e você continua com acesso até o fim do período pago (ou do teste grátis).',
+    category: 'equipe-conta',
+    audience: 'owner',
+    route: '/painel/assinatura',
+    keywords: ['cancelar assinatura', 'parar de pagar', 'desistir', 'encerrar plano', 'sair'],
+    sections: [
+      {
+        body: 'Em Assinatura, toque em "Cancelar assinatura" e confirme. Nada mais é cobrado.',
+      },
+      {
+        body: 'Você continua usando até o fim do período pago (no teste grátis, até o último dia do teste). Depois disso, sua página de agendamento sai do ar. Para voltar, é só escolher um plano de novo.',
+      },
+    ],
+  },
+  {
+    slug: 'relatorios',
+    kind: 'article',
+    title: 'Ver quanto entrou e quanto está previsto',
+    summary:
+      'No Início ficam os previstos do dia, da semana e do mês. Em Relatórios você escolhe o período e vê faturado, previsto, ticket médio, faltas, serviços mais vendidos e clientes que mais voltam.',
+    category: 'agenda',
+    audience: 'owner',
+    route: '/painel/relatorios',
+    keywords: [
+      'relatório',
+      'faturamento',
+      'quanto ganhei',
+      'ganhar',
+      'ganho',
+      'lucro',
+      'vendas',
+      'dinheiro',
+      'previsto',
+      'ticket médio',
+    ],
+    sections: [
+      {
+        heading: 'No Início',
+        body: 'Os cartões mostram o previsto para hoje, a semana e o mês, somando os agendamentos marcados.',
+      },
+      {
+        heading: 'Em Relatórios',
+        body: 'Escolha o período (De / Até). Aparecem o faturado (atendimentos concluídos), o previsto, o ticket médio e as faltas, o faturamento por dia, os serviços mais vendidos, os horários mais procurados, os dias da semana e os clientes que mais voltam.',
+      },
+    ],
+  },
+  {
+    slug: 'senha',
+    kind: 'article',
+    title: 'Trocar a senha ou entrar sem lembrar dela',
+    summary:
+      'Logado: Minha conta → "Trocar senha". Esqueceu: na tela de entrar, toque em "Esqueci minha senha" e siga o link que chega no seu e-mail.',
+    category: 'equipe-conta',
+    audience: 'all',
+    route: '/painel/conta',
+    keywords: [
+      'senha',
+      'trocar senha',
+      'mudar senha',
+      'esqueci a senha',
+      'recuperar senha',
+      'login',
+    ],
+    sections: [
+      {
+        heading: 'Trocar',
+        body: 'Em Minha conta, no card "Trocar senha" (ou "Criar senha", se você entra com o Google), informe a senha atual e a nova.',
+      },
+      {
+        heading: 'Esqueceu',
+        body: 'Na tela de entrar, toque em "Esqueci minha senha" e informe seu e-mail. Chega um link que vale por 1 hora para criar uma senha nova.',
       },
     ],
   },

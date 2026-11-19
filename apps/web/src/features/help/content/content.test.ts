@@ -85,6 +85,36 @@ describe('conteúdo da central de ajuda', () => {
     expect(searchHelp('xyzabc', 'owner')).toEqual([])
   })
 
+  /** Perguntas como as pessoas escrevem de verdade, e o assunto que precisa vir primeiro. */
+  const REAL: Array<[string, string]> = [
+    ['quero tirar uma semana de férias', 'Bloquear uma folga, viagem ou consulta'],
+    ['vou viajar e não vou atender', 'Bloquear uma folga, viagem ou consulta'],
+    ['não vou atender amanhã', 'Bloquear uma folga, viagem ou consulta'],
+    ['fechar a agenda no natal', 'Bloquear uma folga, viagem ou consulta'],
+    ['cliente não apareceu', 'Marcar atendimento concluído ou falta'],
+    ['cliente faltou', 'Marcar atendimento concluído ou falta'],
+    ['como mudo o preço de um serviço', 'Cadastrar um serviço'],
+    ['cliente quer vir toda semana no mesmo horário', 'Horário fixo semanal (cliente fixo)'],
+    ['quero receber antes do atendimento', 'Cobrar sinal pelo PIX com comprovante'],
+    ['como faço o cliente pagar adiantado', 'Cobrar sinal pelo PIX com comprovante'],
+    ['cliente quer mudar o horário', 'Remarcar ou cancelar um agendamento'],
+    ['como coloco meu link no instagram', 'Divulgar seu link de agendamento'],
+    ['lembrete não chegou', 'As mensagens no WhatsApp pararam de sair'],
+    ['como adiciono uma funcionária', 'Adicionar profissionais e dar acesso'],
+    ['mudar a cor da minha página', 'Deixar a página com a cara do seu negócio'],
+    ['trocar a foto de capa', 'Deixar a página com a cara do seu negócio'],
+    ['como vejo quanto vou ganhar no mês', 'Ver quanto entrou e quanto está previsto'],
+    ['nao aparece horario pro cliente', 'Nenhum horário aparece na minha página'],
+    ['como apagar os dados de um cliente', 'Dados dos clientes e LGPD'],
+    ['perguntar se a cliente tem alergia', 'Fazer perguntas antes do atendimento'],
+    ['almoço todo dia', 'Configurar os dias e horários de atendimento'],
+    ['cancelar minha assinatura', 'Cancelar a assinatura'],
+    ['mudar minha senha', 'Trocar a senha ou entrar sem lembrar dela'],
+  ]
+  it.each(REAL)('“%s” → %s', (q, title) => {
+    expect(searchHelp(q, 'owner')[0]?.entry.item.title).toBe(title)
+  })
+
   it('a equipe não vê conteúdo só da dona', () => {
     const titles = searchHelp('mercado pago access token', 'professional').map(
       (h) => h.entry.item.title,
