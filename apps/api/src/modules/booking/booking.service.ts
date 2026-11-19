@@ -31,10 +31,12 @@ import {
   onBookingCanceled,
   onBookingCreated,
   onBookingRescheduled,
+  onSeriesOccurrenceCreated,
 } from '../notifications/events'
 import { needsPrepayment, startPrepayment } from '../prepayment/prepayment.service'
 import { logger } from '../../lib/logger'
 import { checkSlot, slotProblem } from './availability.service'
+import { startSeries } from './series.service'
 
 const MAX_BOOKINGS_PER_PHONE_PER_HOUR = 5
 
@@ -142,6 +144,21 @@ export interface CreateBookingOptions {
   /** Encaixe manual fora do expediente: só checa conflito com outros clientes. */
   allowOutsideHours?: boolean
   notifyCustomer?: boolean
+  /** Horário fixo: reserva o mesmo dia e horário nas próximas semanas. */
+  recurring?: boolean
+}
+
+/**
+ * Agendamentos recentes de um cliente para o limite anti-abuso. Um horário fixo conta como
+ * um agendamento só (as sessões das semanas seguintes não contam).
+ */
+async function recentBookings(db: TenantDb, customer: Prisma.CustomerWhereInput) {
+  const since = new Date(Date.now() - HOUR_MS)
+  const [single, series] = await Promise.all([
+    db.booking.count({ where: { customer, seriesId: null, createdAt: { gte: since } } }),
+    db.bookingSeries.count({ where: { customer, createdAt: { gte: since } } }),
+  ])
+  return single + series
 }
 
 export async function createBooking(opts: CreateBookingOptions) {
@@ -200,6 +217,18 @@ export async function createBooking(opts: CreateBookingOptions) {
   const priceCents = opts.priceCents ?? service.priceCents
   // Sinal antecipado: a reserva online só confirma depois do pagamento (ou da aprovação)
   const prepay = online && needsPrepayment(tenant, priceCents)
+  if (opts.recurring) {
+    if (online && !tenant.recurringEnabled)
+      throw badRequest(
+        'Este estabelecimento não oferece horário fixo pela página.',
+        'FIXO_DESATIVADO',
+      )
+    if (prepay)
+      throw badRequest(
+        'Horário fixo não está disponível com sinal antecipado. Agende uma sessão por vez.',
+        'FIXO_COM_SINAL',
+      )
+  }
   const status: BookingStatus =
     online && (tenant.requireConfirmation || prepay) ? 'pending' : 'confirmed'
 
@@ -238,9 +267,7 @@ export async function createBooking(opts: CreateBookingOptions) {
   // Rede de segurança contra reservas em paralelo: o limite por telefone é conferido de novo
   // depois de gravar (a primeira checagem não enxerga requisições simultâneas)
   if (online && !opts.customer.id) {
-    const recent = await db.booking.count({
-      where: { customerId, createdAt: { gte: new Date(Date.now() - HOUR_MS) } },
-    })
+    const recent = await recentBookings(db, { id: customerId })
     if (recent > MAX_BOOKINGS_PER_PHONE_PER_HOUR) {
       await db.booking.deleteMany({ where: { id: booking.id } })
       throw tooMany(
@@ -264,16 +291,17 @@ export async function createBooking(opts: CreateBookingOptions) {
     }
   }
 
+  // Horário fixo: a série nasce antes dos avisos, para eles já falarem do horário fixo
+  const series = opts.recurring ? await startSeries(tenant, booking, by) : null
+
   await onBookingCreated(booking.id, { notifyCustomer: opts.notifyCustomer ?? true })
-  return { ...booking, payment }
+  return { ...booking, seriesId: series?.id ?? null, payment, series }
 }
 
 async function assertPhoneRateLimit(db: TenantDb, phoneInput: string) {
   const phone = normalizeBrazilianMobile(phoneInput)
   if (!phone) return
-  const recent = await db.booking.count({
-    where: { customer: { phone }, createdAt: { gte: new Date(Date.now() - HOUR_MS) } },
-  })
+  const recent = await recentBookings(db, { phone })
   if (recent >= MAX_BOOKINGS_PER_PHONE_PER_HOUR) {
     throw tooMany(
       'Muitos agendamentos com esse número. Tente mais tarde ou fale com o estabelecimento.',
@@ -394,6 +422,10 @@ export async function cancelBooking(opts: {
   reason?: string | null
 }) {
   const db = forTenant(opts.tenantId)
+  const before = await db.booking.findFirst({
+    where: { id: opts.bookingId },
+    select: { status: true, seriesId: true },
+  })
   const res = await db.booking.updateMany({
     where: { id: opts.bookingId, status: { in: [...OPEN_BOOKING_STATUSES] } },
     data: {
@@ -408,6 +440,23 @@ export async function cancelBooking(opts: {
   if (!res.count) {
     if (booking.status === 'canceled') return booking // já estava cancelado: idempotente
     throw badRequest('Esse agendamento não pode mais ser cancelado')
+  }
+  // Pedido de horário fixo recusado: a série inteira cai junto (um aviso só, o deste cancelamento)
+  if (before?.status === 'pending' && before.seriesId && opts.by === 'professional') {
+    const now = new Date()
+    await db.bookingSeries.updateMany({
+      where: { id: before.seriesId, endedAt: null },
+      data: { endedAt: now, endedBy: 'professional' },
+    })
+    await db.booking.updateMany({
+      where: { seriesId: before.seriesId, status: 'pending' },
+      data: {
+        status: 'canceled',
+        canceledAt: now,
+        canceledBy: 'professional',
+        cancelReason: opts.reason || null,
+      },
+    })
   }
   await onBookingCanceled(booking.id, opts.by)
   return booking
@@ -468,6 +517,20 @@ export async function setBookingStatus(opts: {
       data: { status: 'paid', paidAt: now, reviewedAt: now },
     })
     await onBookingApproved(booking.id)
+    // Horário fixo: aprovar uma sessão aprova o pedido inteiro (as outras ganham só o lembrete)
+    if (booking.seriesId) {
+      const others = await db.booking.findMany({
+        where: { seriesId: booking.seriesId, status: 'pending', id: { not: booking.id } },
+        select: { id: true },
+      })
+      if (others.length) {
+        await db.booking.updateMany({
+          where: { id: { in: others.map((o) => o.id) }, status: 'pending' },
+          data: { status: 'confirmed', confirmedAt: now },
+        })
+        for (const o of others) await onSeriesOccurrenceCreated(o.id)
+      }
+    }
   }
   return updated
 }

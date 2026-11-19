@@ -14,6 +14,7 @@ import { prisma } from '../../lib/prisma'
 import { onBookingConfirmedByCustomer } from '../notifications/events'
 import { publicPaymentView } from '../prepayment/prepayment.service'
 import { cancelBooking, rescheduleBooking } from './booking.service'
+import { endSeries, seriesSummary } from './series.service'
 import { bookingLinks } from './public.routes'
 
 const tokenParam = z.object({ token: z.string().min(10).max(64) })
@@ -64,6 +65,22 @@ function assertCanChange(
   )
 }
 
+/** Horário fixo visto pelo cliente: próximas sessões (cada uma com o próprio link). */
+async function customerSeries(b: Awaited<ReturnType<typeof load>>) {
+  const s = await seriesSummary(b.tenant, b.seriesId!)
+  if (!s) return null
+  return {
+    active: s.active,
+    upcoming: s.upcoming.map((u) => ({
+      startsAt: u.startsAt,
+      status: u.status,
+      token: u.cancelToken,
+    })),
+    // Encerrar cancela só as sessões fora do prazo da política; as próximas demais ficam
+    cancelMinHours: b.tenant.cancelMinHours,
+  }
+}
+
 /** Área da cliente final (sem login), acessada pelo link com token único. */
 export const customerAreaRoutes: FastifyPluginAsyncZod = async (app) => {
   const limit = { rateLimit: { max: 60, timeWindow: '10 minutes' } }
@@ -109,6 +126,7 @@ export const customerAreaRoutes: FastifyPluginAsyncZod = async (app) => {
           whiteLabel: env.APP_MODE === 'single_tenant',
         },
         payment: await publicPaymentView(b.tenant, b, b.payment),
+        series: b.seriesId ? await customerSeries(b) : null,
         googleCalendarUrl: googleCalendarUrl({
           uid: b.id,
           title: `${b.serviceName} — ${b.tenant.name}`,
@@ -171,6 +189,25 @@ export const customerAreaRoutes: FastifyPluginAsyncZod = async (app) => {
         reason: request.body.reason,
       })
       return { ok: true }
+    },
+  )
+
+  app.post(
+    '/:token/end-series',
+    {
+      config: limit,
+      schema: {
+        tags: ['cliente final'],
+        summary: 'Encerrar o horário fixo',
+        params: tokenParam,
+      },
+    },
+    async (request) => {
+      const b = await load(request.params.token)
+      if (!b.seriesId) throw badRequest('Esse agendamento não é de um horário fixo.')
+      // Sessões dentro do prazo de cancelamento continuam marcadas (como no cancelamento avulso)
+      const from = new Date(Date.now() + b.tenant.cancelMinHours * HOUR_MS)
+      return endSeries({ tenant: b.tenant, seriesId: b.seriesId, by: 'customer', from })
     },
   )
 

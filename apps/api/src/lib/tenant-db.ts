@@ -29,6 +29,7 @@ export const TENANT_SCOPED_MODELS = new Set<string>([
   'Subscription',
   'Invoice',
   'BookingPayment',
+  'BookingSeries',
 ])
 
 const WHERE_OPS = new Set([

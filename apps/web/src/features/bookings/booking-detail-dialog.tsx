@@ -1,11 +1,22 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarClock, Check, CheckCheck, FileText, MessageCircle, UserX, X } from 'lucide-react'
+import { askConfirm } from '@/components/confirm-host'
+import {
+  CalendarClock,
+  Check,
+  CheckCheck,
+  FileText,
+  MessageCircle,
+  Repeat,
+  UserX,
+  X,
+} from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import {
   BOOKING_PAYMENT_STATUS_LABELS,
   type BookingPaymentStatus,
   BOOKING_STATUS_TOASTS,
+  everyWeekAt,
   formatBRL,
   type BookingStatus,
   formatPhone,
@@ -46,6 +57,12 @@ type Detail = BookingDTO & {
     paidAt: string | null
     rejectReason: string | null
     providerPaymentId: string | null
+  } | null
+  /** Horário fixo semanal (null em agendamento avulso) */
+  series: {
+    id: string
+    active: boolean
+    upcoming: Array<{ id: string; startsAt: string; status: BookingStatus }>
   } | null
 }
 
@@ -90,6 +107,25 @@ export function BookingDetailDialog({
     mutate: (v: { status: BookingStatus; reason?: string }) => {
       if (!statusMutation.isPending) statusMutation.mutate(v)
     },
+  }
+  const endSeries = useApiMutation(
+    () => api<{ canceled: number }>(`/bookings/${bookingId}/end-series`, { method: 'POST' }),
+    {
+      success: (r) =>
+        r.canceled === 1
+          ? 'Horário fixo encerrado. 1 sessão cancelada.'
+          : `Horário fixo encerrado. ${r.canceled} sessões canceladas.`,
+      onSuccess: () => invalidateBookingViews(qc),
+    },
+  )
+  async function confirmEndSeries() {
+    const ok = await askConfirm({
+      title: 'Encerrar o horário fixo?',
+      description:
+        'Esta sessão e as próximas são canceladas e o cliente recebe um aviso só. As sessões que já passaram ficam no histórico.',
+      confirmLabel: 'Encerrar horário fixo',
+    })
+    if (ok) endSeries.mutate()
   }
   const started = b ? new Date(b.startsAt) <= new Date() : false
   const active = b && (b.status === 'pending' || b.status === 'confirmed')
@@ -179,6 +215,36 @@ export function BookingDetailDialog({
                     )}
                   </div>
                 )}
+                {b.series && (
+                  <div className="rounded-xl border p-3">
+                    <p className="flex items-center gap-2 font-semibold">
+                      <Repeat className="text-primary h-4 w-4" aria-hidden />
+                      Horário fixo: {everyWeekAt(new Date(b.startsAt), tz)}
+                    </p>
+                    {!b.series.active && (
+                      <p className="text-muted-foreground mt-0.5 text-xs">
+                        Encerrado: não reserva semanas novas.
+                      </p>
+                    )}
+                    {b.series.upcoming.length > 0 && (
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        Próximas:{' '}
+                        {b.series.upcoming.map((u) => fmt(u.startsAt, tz, 'dd/MM')).join(', ')}
+                      </p>
+                    )}
+                    {b.series.active && active && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive -ml-2 mt-2"
+                        onClick={confirmEndSeries}
+                        loading={endSeries.isPending}
+                      >
+                        Encerrar horário fixo
+                      </Button>
+                    )}
+                  </div>
+                )}
                 {b.payment && (
                   <PaymentSection
                     bookingId={b.id}
@@ -252,10 +318,19 @@ export function BookingDetailDialog({
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cancelar agendamento?</DialogTitle>
+            <DialogTitle>
+              {b?.series && b.status === 'pending'
+                ? 'Recusar o pedido de horário fixo?'
+                : b?.series
+                  ? 'Cancelar só esta sessão?'
+                  : 'Cancelar agendamento?'}
+            </DialogTitle>
             <DialogDescription>
-              O horário volta a ficar livre e o cliente é avisado (se as notificações estiverem
-              ligadas).
+              {b?.series && b.status === 'pending'
+                ? 'Todas as sessões do pedido são recusadas e o cliente é avisado.'
+                : b?.series
+                  ? 'As outras semanas continuam reservadas. Para parar de vez, use "Encerrar horário fixo".'
+                  : 'O horário volta a ficar livre e o cliente é avisado (se as notificações estiverem ligadas).'}
             </DialogDescription>
           </DialogHeader>
           <Field label="Motivo (opcional)" htmlFor="reason">

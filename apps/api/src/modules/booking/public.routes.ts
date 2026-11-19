@@ -207,6 +207,7 @@ export const publicRoutes: FastifyPluginAsyncZod = async (app) => {
         notes: b.notes || null,
         answers: b.answers,
         source: 'online',
+        recurring: b.recurring,
       })
       const links = bookingLinks(booking.cancelToken)
       const event = {
@@ -234,6 +235,11 @@ export const publicRoutes: FastifyPluginAsyncZod = async (app) => {
         googleCalendarUrl: googleCalendarUrl(event),
         // Sinal antecipado: o que pagar e como (null quando não há sinal)
         payment: await publicPaymentView(tenant, booking, booking.payment),
+        // Horário fixo: semanas reservadas e as que não couberam (folga, feriado, ocupado)
+        series: booking.series && {
+          created: booking.series.created.map((d) => d.toISOString()),
+          skipped: booking.series.skipped.map((d) => d.toISOString()),
+        },
         ...links,
       })
     },

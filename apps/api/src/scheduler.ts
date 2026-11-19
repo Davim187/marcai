@@ -6,6 +6,7 @@ import { runBillingTick } from './modules/billing/billing.tick'
 import { expireOverduePrepayments } from './modules/prepayment/prepayment.service'
 import { processDueJobs, scheduleDailySummaries } from './modules/notifications/worker'
 import { cleanupOrphanPrivateUploads } from './modules/uploads/private-cleanup'
+import { extendActiveSeries } from './modules/booking/series.service'
 
 type Log = FastifyBaseLogger | typeof baseLogger
 
@@ -21,6 +22,11 @@ const TASKS: Array<{ name: string; everyMs: number; run: (log: Log) => Promise<u
     name: 'sinais não pagos no prazo',
     everyMs: MINUTE_MS,
     run: () => expireOverduePrepayments(),
+  },
+  {
+    name: 'renovação dos horários fixos',
+    everyMs: HOUR_MS,
+    run: () => extendActiveSeries(),
   },
   {
     name: 'limpeza de fotos não usadas',

@@ -37,12 +37,18 @@ export interface TenantSummary {
 }
 
 export type Session =
-  | { authenticated: false; appMode: 'saas' | 'single_tenant'; googleEnabled: boolean }
+  | {
+      authenticated: false
+      appMode: 'saas' | 'single_tenant'
+      googleEnabled: boolean
+      canRefresh?: boolean
+    }
   | {
       authenticated: true
       appMode: 'saas' | 'single_tenant'
       googleEnabled: boolean
       csrfToken: string
+      accessExpiresAt: string
       impersonating: boolean
       user: {
         id: string

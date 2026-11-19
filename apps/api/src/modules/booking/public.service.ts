@@ -51,6 +51,11 @@ export async function publicProfile(tenant: Tenant, available: boolean) {
     cancellationPolicy: tenant.cancellationPolicy,
     cancelMinHours: tenant.cancelMinHours,
     maxAdvanceDays: tenant.maxAdvanceDays,
+    // Horário fixo semanal (não combina com sinal antecipado)
+    recurring:
+      tenant.recurringEnabled && !activePrepaymentMethod(tenant)
+        ? { weeks: tenant.recurringWeeks }
+        : null,
     whiteLabel: env.APP_MODE === 'single_tenant',
     // Sinal antecipado: a página avisa antes de confirmar quanto e como pagar
     prepayment: activePrepaymentMethod(tenant)

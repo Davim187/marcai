@@ -37,16 +37,28 @@ export default function MorePage() {
           <div key={g.label}>
             <h2 className="text-muted-foreground mb-2 px-1 text-[0.8rem] font-medium">{g.label}</h2>
             <Card className="divide-y overflow-hidden">
-              {items.map((i) => (
-                <NavLink
-                  key={i.to}
-                  to={i.to}
-                  end
-                  className="hover:bg-muted flex items-center gap-3 px-4 py-3.5 text-sm font-medium"
-                >
-                  <i.icon className="text-primary h-5 w-5" /> {i.label}
-                </NavLink>
-              ))}
+              {items.map((i) =>
+                i.external ? (
+                  <a
+                    key={i.to}
+                    href={i.to}
+                    target="_blank"
+                    rel="noopener"
+                    className="hover:bg-muted flex items-center gap-3 px-4 py-3.5 text-sm font-medium"
+                  >
+                    <i.icon className="text-primary h-5 w-5" /> {i.label}
+                  </a>
+                ) : (
+                  <NavLink
+                    key={i.to}
+                    to={i.to}
+                    end
+                    className="hover:bg-muted flex items-center gap-3 px-4 py-3.5 text-sm font-medium"
+                  >
+                    <i.icon className="text-primary h-5 w-5" /> {i.label}
+                  </NavLink>
+                ),
+              )}
             </Card>
           </div>
         )

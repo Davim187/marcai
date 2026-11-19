@@ -68,3 +68,10 @@ export function formatInTz(instant: Date, timezone: string, pattern: string): st
 }
 
 export { toZonedTime, fromZonedTime }
+
+/** "toda quinta-feira às 14:00" / "todo sábado às 09:00" (horário fixo semanal). */
+export function everyWeekAt(instant: Date, timezone: string): string {
+  const day = formatDateLong(instant, timezone).split(',')[0]!.toLowerCase()
+  const every = day === 'sábado' || day === 'domingo' ? 'todo' : 'toda'
+  return `${every} ${day} às ${toLocalTime(instant, timezone)}`
+}

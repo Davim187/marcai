@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Search, UserPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { formatPhone, isValidBrazilianMobile } from '@marcai/shared'
+import { everyWeekAt, formatPhone, isValidBrazilianMobile } from '@marcai/shared'
 import { MoneyInput } from '@/components/money-input'
 import { PhoneInput } from '@/components/phone-input'
 import { Button } from '@/components/ui/button'
@@ -58,6 +58,7 @@ export function NewBookingDialog({
   const [newCustomer, setNewCustomer] = useState(!prefill.customer)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [recurring, setRecurring] = useState(false)
   const [query, setQuery] = useState('')
   const [notes, setNotes] = useState('')
   const [price, setPrice] = useState<number | null>(null)
@@ -121,9 +122,10 @@ export function NewBookingDialog({
           ...(price !== null ? { priceCents: price } : {}),
           allowOutsideHours: outside,
           notifyCustomer: notify,
+          recurring,
         },
       })
-      done('Agendamento criado')
+      done(recurring ? 'Horário fixo criado' : 'Agendamento criado')
     } catch (err) {
       toast.error(errorMessage(err))
     } finally {
@@ -356,6 +358,17 @@ export function NewBookingDialog({
                 />
               </Field>
             </div>
+            <SwitchRow
+              id="nb-recurring"
+              label="Repetir toda semana (horário fixo)"
+              description={
+                date && time
+                  ? `Reserva ${everyWeekAt(new Date(localToIso(date, time, tz)), tz)} e renova sozinho. Semanas com folga, feriado ou horário ocupado são puladas.`
+                  : 'Reserva o mesmo dia e horário toda semana e renova sozinho.'
+              }
+              checked={recurring}
+              onCheckedChange={setRecurring}
+            />
             {has('whatsapp_customer') && (
               <SwitchRow
                 id="nb-notify"

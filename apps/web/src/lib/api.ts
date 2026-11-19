@@ -18,10 +18,73 @@ export function setCsrfToken(token: string | undefined) {
   csrfToken = token
 }
 
-export async function api<T = unknown>(
-  path: string,
-  opts: { method?: string; body?: unknown; signal?: AbortSignal; raw?: boolean } = {},
-): Promise<T> {
+type ApiOpts = { method?: string; body?: unknown; signal?: AbortSignal; raw?: boolean }
+
+/** Rotas em que um 401 é a resposta final (não adianta renovar a sessão e tentar de novo). */
+const NO_REFRESH = /^\/auth\/(login|register|refresh|logout|reset-password|forgot-password)/
+
+let refreshing: Promise<boolean> | null = null
+let refreshTimer: ReturnType<typeof setTimeout> | undefined
+
+/**
+ * Troca o refresh token (cookie httpOnly) por um par novo. Uma renovação por vez nesta aba;
+ * entre abas, o Web Locks evita duas renovações simultâneas com o mesmo cookie.
+ */
+export function refreshSession(): Promise<boolean> {
+  refreshing ??= (async () => {
+    const run = async () => {
+      try {
+        const res = await fetch(`${BASE}/api/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+        })
+        if (!res.ok) return false
+        handleSessionPayload(await res.json().catch(() => null))
+        return true
+      } catch {
+        return false
+      }
+    }
+    const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined
+    return locks ? locks.request('marcai-refresh', run) : run()
+  })().finally(() => {
+    refreshing = null
+  })
+  return refreshing
+}
+
+/** Agenda a renovação 1 min antes do access token vencer (cookies de imagem/SSE seguem válidos). */
+export function scheduleRefresh(accessExpiresAt: string | undefined) {
+  clearTimeout(refreshTimer)
+  if (!accessExpiresAt) return
+  const wait = new Date(accessExpiresAt).getTime() - Date.now() - 60_000
+  refreshTimer = setTimeout(() => void refreshSession(), Math.max(wait, 5_000))
+}
+
+export function stopRefresh() {
+  clearTimeout(refreshTimer)
+}
+
+function handleSessionPayload(data: unknown) {
+  if (!data || typeof data !== 'object') return
+  const d = data as { csrfToken?: unknown; accessExpiresAt?: unknown }
+  // Login/cadastro/refresh devolvem o token de CSRF no corpo (o cookie é httpOnly)
+  if (typeof d.csrfToken === 'string') csrfToken = d.csrfToken
+  if (typeof d.accessExpiresAt === 'string') scheduleRefresh(d.accessExpiresAt)
+}
+
+export async function api<T = unknown>(path: string, opts: ApiOpts = {}): Promise<T> {
+  if (path.startsWith('/auth/logout')) stopRefresh()
+  try {
+    return await request<T>(path, opts)
+  } catch (err) {
+    if (!(err instanceof ApiError) || err.status !== 401 || NO_REFRESH.test(path)) throw err
+    if (!(await refreshSession())) throw err
+    return request<T>(path, opts)
+  }
+}
+
+async function request<T>(path: string, opts: ApiOpts): Promise<T> {
   const method = opts.method ?? (opts.body !== undefined ? 'POST' : 'GET')
   const headers: Record<string, string> = {}
   const isForm = opts.body instanceof FormData
@@ -65,15 +128,7 @@ export async function api<T = unknown>(
       d.details,
     )
   }
-  // Login/cadastro devolvem o token de CSRF no corpo (o cookie é httpOnly)
-  if (
-    data &&
-    typeof data === 'object' &&
-    'csrfToken' in data &&
-    typeof data.csrfToken === 'string'
-  ) {
-    csrfToken = data.csrfToken
-  }
+  handleSessionPayload(data)
   return data as T
 }
 

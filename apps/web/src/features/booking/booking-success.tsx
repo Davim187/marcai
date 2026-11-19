@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
-import { CalendarPlus, Check, Download, Link2 } from 'lucide-react'
-import { formatPrice } from '@marcai/shared'
+import { CalendarPlus, Check, Download, Link2, Repeat } from 'lucide-react'
+import { everyWeekAt, formatPrice } from '@marcai/shared'
 import { Button } from '@/components/ui/button'
 import { capitalize, fmt } from '@/lib/dates'
 import { useState } from 'react'
@@ -44,7 +44,9 @@ export function BookingSuccess({
             ? 'Falta o pagamento'
             : pending
               ? 'Pedido enviado'
-              : 'Horário confirmado'}
+              : result.series
+                ? 'Horário fixo confirmado'
+                : 'Horário confirmado'}
         </motion.h1>
         <motion.p
           initial={{ opacity: 0 }}
@@ -95,6 +97,33 @@ export function BookingSuccess({
           </div>
         ))}
       </motion.div>
+      {result.series && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45 }}
+          className="bg-primary-soft mt-4 rounded-2xl p-4 text-sm"
+        >
+          <p className="flex items-center gap-2 font-semibold">
+            <Repeat className="text-primary h-4 w-4" aria-hidden />
+            Horário fixo: {everyWeekAt(new Date(result.startsAt), tenant.timezone)}
+          </p>
+          <p className="text-muted-foreground mt-1">
+            {pending ? 'Pedido para as datas' : 'Reservado para'}{' '}
+            {result.series.created.map((d) => fmt(d, tenant.timezone, 'dd/MM')).join(', ')}. As
+            próximas semanas são reservadas sozinhas.
+          </p>
+          {result.series.skipped.length > 0 && (
+            <p className="mt-2">
+              <span className="font-medium">Não deu para reservar:</span>{' '}
+              {result.series.skipped.map((d) => fmt(d, tenant.timezone, 'dd/MM')).join(', ')}{' '}
+              <span className="text-muted-foreground">
+                (folga, feriado ou horário ocupado). Combine essas datas direto com {tenant.name}.
+              </span>
+            </p>
+          )}
+        </motion.div>
+      )}
       <div className="mt-6 grid gap-2">
         <Button size="lg" asChild>
           <a href={result.googleCalendarUrl} target="_blank" rel="noreferrer">

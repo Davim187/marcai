@@ -3,6 +3,7 @@ import {
   type BusinessType,
   brazilianHolidays,
   DAY_MS,
+  BUSINESS_TYPES,
   DEFAULT_TIMEZONE,
   isValidSlug,
   type OnboardingInput,
@@ -90,6 +91,9 @@ export async function createTenantFromOnboarding(
           slug: input.slug,
           name: input.businessName,
           businessType: input.businessType,
+          // Terapias e consultas costumam ter cliente fixo: o horário semanal já vem ligado
+          recurringEnabled:
+            BUSINESS_TYPES.find((b) => b.id === input.businessType)?.group === 'saude',
           primaryColor: input.primaryColor ?? '#1F5F7A',
           logoUrl: input.logoUrl ?? null,
           timezone: input.timezone ?? DEFAULT_TIMEZONE,

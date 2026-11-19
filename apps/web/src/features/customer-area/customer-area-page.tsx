@@ -9,11 +9,12 @@ import {
   MapPin,
   MessageCircle,
   RefreshCw,
+  Repeat,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
-import { formatPrice, whatsappLink } from '@marcai/shared'
+import { everyWeekAt, formatPrice, whatsappLink } from '@marcai/shared'
 import { LogoMark } from '@/components/logo'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -57,6 +58,12 @@ interface CustomerBooking {
   googleCalendarUrl: string
   icsUrl: string
   payment: PrepaymentView | null
+  /** Horário fixo semanal (null em agendamento avulso) */
+  series: {
+    active: boolean
+    upcoming: Array<{ startsAt: string; status: BookingStatus; token: string }>
+    cancelMinHours: number
+  } | null
   tenant: {
     slug: string
     name: string
@@ -89,6 +96,7 @@ export default function CustomerAreaPage() {
   const setMode = (next: 'view' | 'reschedule') =>
     next === 'reschedule' ? setParams({ remarcando: '1' }) : setParams({}, { replace: true })
   const [cancelOpen, setCancelOpen] = useState(false)
+  const [endOpen, setEndOpen] = useState(false)
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
   const [slot, setSlot] = useState<Slot | null>(null)
@@ -311,7 +319,7 @@ export default function CustomerAreaPage() {
                       className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                       onClick={() => setCancelOpen(true)}
                     >
-                      <CalendarX2 /> Cancelar
+                      <CalendarX2 /> {b.series ? 'Cancelar só esta' : 'Cancelar'}
                     </Button>
                   </div>
                 ) : (
@@ -336,6 +344,53 @@ export default function CustomerAreaPage() {
                 )}
               </div>
             )}
+            {b.series && (
+              <Card className="p-4 text-sm">
+                <p className="flex items-center gap-2 font-semibold">
+                  <Repeat className="text-primary h-4 w-4" aria-hidden />
+                  Horário fixo: {everyWeekAt(new Date(b.startsAt), tz)}
+                </p>
+                {!b.series.active && (
+                  <p className="text-muted-foreground mt-1">
+                    Encerrado. As sessões abaixo continuam marcadas.
+                  </p>
+                )}
+                {b.series.upcoming.length > 0 && (
+                  <>
+                    <p className="text-muted-foreground mb-1.5 mt-3 text-xs font-medium">
+                      Próximas sessões
+                    </p>
+                    <ul className="flex flex-wrap gap-1.5">
+                      {b.series.upcoming.map((u) => (
+                        <li key={u.token}>
+                          <Link
+                            to={`/a/${u.token}`}
+                            aria-current={u.token === token ? 'page' : undefined}
+                            className={
+                              u.token === token
+                                ? 'bg-primary text-primary-foreground inline-block rounded-lg px-2.5 py-1 font-medium'
+                                : 'bg-muted hover:bg-primary-soft inline-block rounded-lg px-2.5 py-1'
+                            }
+                          >
+                            {fmt(u.startsAt, tz, 'dd/MM')}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                {b.series.active && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive -ml-2 mt-3"
+                    onClick={() => setEndOpen(true)}
+                  >
+                    Encerrar horário fixo
+                  </Button>
+                )}
+              </Card>
+            )}
             {!active && (
               <Button asChild size="lg" className="w-full">
                 <a href={b.tenant.whiteLabel ? '/' : `/${b.tenant.slug}`}>Agendar novo horário</a>
@@ -358,9 +413,13 @@ export default function CustomerAreaPage() {
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cancelar seu horário?</DialogTitle>
+            <DialogTitle>
+              {b.series ? 'Cancelar só esta sessão?' : 'Cancelar seu horário?'}
+            </DialogTitle>
             <DialogDescription>
-              O horário fica livre para outra pessoa. Se quiser, conte o motivo.
+              {b.series
+                ? 'As outras semanas continuam reservadas. Se quiser, conte o motivo.'
+                : 'O horário fica livre para outra pessoa. Se quiser, conte o motivo.'}
             </DialogDescription>
           </DialogHeader>
           <Field label="Motivo (opcional)" htmlFor="reason">
@@ -396,6 +455,41 @@ export default function CustomerAreaPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {b.series && (
+        <Dialog open={endOpen} onOpenChange={setEndOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Encerrar o horário fixo?</DialogTitle>
+              <DialogDescription>
+                As próximas sessões são canceladas e o horário fica livre para outra pessoa.
+                {b.series.cancelMinHours > 0 &&
+                  ` Sessões nas próximas ${b.series.cancelMinHours}h continuam marcadas; para essas, fale com ${b.tenant.name}.`}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setEndOpen(false)}>
+                Voltar
+              </Button>
+              <Button
+                variant="destructive"
+                loading={busy}
+                onClick={async () => {
+                  if (
+                    await run(
+                      () => api(`/public/bookings/${token}/end-series`, { method: 'POST' }),
+                      'Horário fixo encerrado',
+                    )
+                  )
+                    setEndOpen(false)
+                }}
+              >
+                Encerrar horário fixo
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

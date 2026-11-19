@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { formatBRL, formatPrice, isValidBrazilianMobile, prepaymentAmount } from '@marcai/shared'
+import {
+  everyWeekAt,
+  formatBRL,
+  formatPrice,
+  isValidBrazilianMobile,
+  prepaymentAmount,
+} from '@marcai/shared'
 import { PhoneInput } from '@/components/phone-input'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -46,6 +52,7 @@ export function DetailsForm({
   const [notes, setNotes] = useState('')
   const [consent, setConsent] = useState(false)
   const [website, setWebsite] = useState('')
+  const [recurring, setRecurring] = useState(false)
   const [answers, setAnswers] = useState<Record<string, unknown>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -89,6 +96,7 @@ export function DetailsForm({
           notes,
           consent,
           website,
+          recurring: !!t.recurring && recurring,
           answers: Object.entries(answers)
             .filter(([, v]) => v !== undefined && v !== '' && !(Array.isArray(v) && !v.length))
             .map(([fieldId, value]) => ({ fieldId, value })),
@@ -126,6 +134,28 @@ export function DetailsForm({
           {formatPrice(service.priceCents, service.priceFrom)}
         </p>
       </div>
+      {t.recurring && (
+        <label
+          className={cn(
+            'bg-card flex cursor-pointer items-start gap-3 rounded-2xl border p-4 text-sm transition',
+            recurring && 'border-primary ring-primary/20 ring-2',
+          )}
+        >
+          <Checkbox
+            checked={recurring}
+            onCheckedChange={(v) => setRecurring(v === true)}
+            className="mt-0.5"
+          />
+          <span>
+            <span className="font-semibold">Quero esse horário fixo toda semana</span>
+            <span className="text-muted-foreground mt-0.5 block">
+              Reservamos {everyWeekAt(new Date(slot.startsAt), t.timezone)} nas próximas{' '}
+              {t.recurring.weeks} semanas e renovamos sozinho. Dá para desmarcar uma sessão ou
+              encerrar o horário fixo quando quiser.
+            </span>
+          </span>
+        </label>
+      )}
       <Field label="Seu nome" htmlFor="name" error={errors.customerName} required>
         <Input
           id="name"
@@ -229,7 +259,11 @@ export function DetailsForm({
       <div className="bg-card/95 pb-safe fixed inset-x-0 bottom-0 z-30 border-t backdrop-blur">
         <div className="mx-auto max-w-xl px-4 py-3">
           <Button type="submit" size="lg" className={cn('w-full')} loading={submitting}>
-            {t.prepayment && service.priceCents > 0 ? 'Reservar e pagar' : 'Confirmar agendamento'}
+            {t.prepayment && service.priceCents > 0
+              ? 'Reservar e pagar'
+              : recurring && t.recurring
+                ? 'Confirmar horário fixo'
+                : 'Confirmar agendamento'}
           </Button>
         </div>
       </div>

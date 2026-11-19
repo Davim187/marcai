@@ -2,6 +2,7 @@
 export const MINUTE_MS = 60_000
 export const HOUR_MS = 60 * MINUTE_MS
 export const DAY_MS = 24 * HOUR_MS
+export const WEEK_MS = 7 * DAY_MS
 
 /** Cor padrão da marca e cores sugeridas no onboarding e em Aparência. */
 export const DEFAULT_PRIMARY_COLOR = '#1F5F7A'

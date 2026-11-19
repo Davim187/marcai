@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<title>Guia do Painel Marcaí</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: coluna de leitura única, índice no topo, cada tarefa como bloco com passos numerados e caminho no menu em "trilha" */
+:root {
+  --bg: #f6f5f1;
+  --surface: #ffffff;
+  --fg: #23262b;
+  --muted: #646a73;
+  --line: #dddbd4;
+  --accent: #2b3038;
+  --accent-fg: #f6f3ea;
+  --soft: #eceae4;
+  --ok: #2f7a4f;
+  --warn: #9a5b12;
+  --warn-bg: #fbf1e2;
+  --font-display: 'Barlow Condensed', 'Barlow', system-ui, sans-serif;
+  --font-body: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15171a; --surface: #1d2024; --fg: #eceae4; --muted: #a3a8b0; --line: #30343a;
+    --accent: #eceae4; --accent-fg: #17191c; --soft: #262a2f; --ok: #6cc48f; --warn: #e6b062; --warn-bg: #2b2418;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15171a; --surface: #1d2024; --fg: #eceae4; --muted: #a3a8b0; --line: #30343a;
+  --accent: #eceae4; --accent-fg: #17191c; --soft: #262a2f; --ok: #6cc48f; --warn: #e6b062; --warn-bg: #2b2418;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 17px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 80px;
+}
+.wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 56px; }
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.1; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2.4rem, 7vw, 3.4rem); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 2rem; font-weight: 700; }
+h3 { font-size: 1.3rem; font-weight: 600; margin-top: 8px; }
+p { margin: 0; }
+.eyebrow { font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+header { display: flex; flex-direction: column; gap: 14px; }
+.lead { font-size: 1.15rem; color: var(--muted); max-width: 60ch; }
+nav.toc { display: flex; flex-wrap: wrap; gap: 8px; }
+nav.toc a {
+  font-family: var(--font-display); font-weight: 600; font-size: 1rem; letter-spacing: 0.02em;
+  text-decoration: none; color: var(--fg); border: 1px solid var(--line); background: var(--surface);
+  padding: 6px 14px; border-radius: 999px;
+}
+nav.toc a:hover, nav.toc a:focus-visible { border-color: var(--fg); outline: none; }
+section { display: flex; flex-direction: column; gap: 18px; scroll-margin-top: 20px; }
+.path { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.95rem; }
+.path span.crumb { background: var(--soft); padding: 2px 10px; border-radius: 6px; font-weight: 600; }
+.path span.sep { color: var(--muted); }
+ol.steps { list-style: none; counter-reset: s; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+ol.steps > li { counter-increment: s; display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; }
+ol.steps > li::before {
+  content: counter(s); font-family: var(--font-display); font-weight: 700; font-size: 1.05rem;
+  width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--accent-fg);
+  display: grid; place-items: center; margin-top: 1px;
+}
+ol.steps > li > div { min-width: 0; }
+.btn {
+  display: inline-block; font-family: var(--font-body); font-weight: 600; font-size: 0.92em;
+  background: var(--accent); color: var(--accent-fg); padding: 1px 9px; border-radius: 6px; white-space: nowrap;
+}
+.btn.outline { background: transparent; color: var(--fg); border: 1px solid var(--line); }
+.field { font-weight: 600; }
+.fields { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin-top: 8px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.fields dt { font-weight: 600; }
+.fields dd { margin: 0; color: var(--muted); min-width: 0; }
+.req { color: var(--warn); font-size: 0.85em; font-weight: 600; margin-left: 4px; }
+.note { padding: 14px 16px; border-radius: 10px; background: var(--soft); font-size: 0.97rem; }
+.note.warn { background: var(--warn-bg); color: var(--fg); border-left: 3px solid var(--warn); }
+.note strong { display: block; margin-bottom: 2px; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.option { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.option h3 { margin: 0; }
+.tag { align-self: flex-start; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 8px; border-radius: 4px; background: var(--soft); color: var(--muted); }
+.option ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 0.97rem; }
+code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.88em; background: var(--soft); padding: 1px 6px; border-radius: 4px; overflow-wrap: anywhere; }
+.calc { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+.calc label { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; font-weight: 600; color: var(--muted); }
+.calc input { font: inherit; font-size: 1.05rem; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 130px; }
+.calc input:focus-visible { outline: 2px solid var(--fg); outline-offset: 1px; }
+.calc .out { flex: 1 1 180px; min-width: 0; }
+.calc .out .big { font-family: var(--font-display); font-size: 2.2rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.calc .out small { color: var(--muted); display: block; margin-top: 4px; }
+.faq { display: flex; flex-direction: column; gap: 10px; }
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; }
+summary { cursor: pointer; font-weight: 600; }
+details p { margin-top: 8px; color: var(--muted); }
+hr { border: 0; border-top: 1px solid var(--line); margin: 0; }
+footer { color: var(--muted); font-size: 0.92rem; }
+@media (max-width: 560px) {
+  body { font-size: 16px; padding-block: 28px 60px; }
+  .split { grid-template-columns: 1fr; }
+  .fields { grid-template-columns: 1fr; gap: 2px; }
+  .fields dd { margin-bottom: 8px; }
+}
+.back { color: var(--fg); text-decoration: none; }
+.back:hover, .back:focus-visible { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow"><a class="back" href="/painel">← Voltar ao painel</a></p>
+    <h1>Como deixar seu Marcaí pronto para receber clientes</h1>
+    <p class="lead">Cadastrar clientes, cobrar sinal para reservar e receber pelo PIX ou pelo Mercado Pago. Tudo fica no painel, em <strong>marcai → Painel</strong>. No celular, os itens de configuração ficam na aba <strong>Mais</strong>, no rodapé.</p>
+    <nav class="toc" aria-label="Neste guia">
+      <a href="#clientes">Clientes</a>
+      <a href="#sinal">Sinal</a>
+      <a href="#pix">Chave PIX</a>
+      <a href="#mercadopago">Mercado Pago</a>
+      <a href="#aprovar">Aprovar pagamento</a>
+      <a href="#outras">Outras regras</a>
+      <a href="#duvidas">Dúvidas</a>
+    </nav>
+  </header>
+
+  <!-- CLIENTES -->
+  <section id="clientes">
+    <p class="eyebrow">1 · Clientes</p>
+    <h2>Cadastrar clientes</h2>
+    <p>Você não precisa cadastrar ninguém para começar. Toda vez que alguém agenda pelo seu link, o cliente entra na lista sozinho. O Marcaí usa o WhatsApp para não criar a mesma pessoa duas vezes.</p>
+    <p>Para cadastrar alguém na mão (por exemplo, uma cliente antiga que marca por mensagem):</p>
+    <div class="path"><span class="crumb">Clientes</span></div>
+    <ol class="steps">
+      <li><div>Toque em <span class="btn">+ Novo cliente</span>, no canto de cima.</div></li>
+      <li><div>Preencha os dados:
+        <dl class="fields">
+          <dt>Nome<span class="req">obrigatório</span></dt><dd>Como você chama a cliente.</dd>
+          <dt>WhatsApp<span class="req">obrigatório</span></dt><dd>Número com DDD. É por ele que saem os lembretes.</dd>
+          <dt>Aniversário</dt><dd>Opcional.</dd>
+          <dt>E-mail</dt><dd>Opcional.</dd>
+          <dt>Tags</dt><dd>Etiquetas para separar clientes, como VIP, Alongamento ou Indicação. Digite e toque em adicionar.</dd>
+          <dt>Observações privadas</dt><dd>Só você vê. Bom para alergias e preferências.</dd>
+        </dl>
+      </div></li>
+      <li><div>Toque em <span class="btn">Salvar</span>.</div></li>
+    </ol>
+
+    <h3>Trazer vários clientes de uma vez</h3>
+    <p>Se você já tem uma lista em planilha (Excel ou Google Planilhas), salve como <strong>CSV</strong> e toque em <span class="btn outline">Importar</span>. A planilha precisa ter estas colunas na primeira linha:</p>
+    <p><code>nome</code> · <code>whatsapp</code> · <code>e-mail</code> · <code>tags</code> · <code>observações</code></p>
+    <p>Também funciona com <code>telefone</code> ou <code>celular</code> no lugar de whatsapp. Quem já estiver cadastrado é atualizado, e campos vazios na planilha não apagam o que já existe. No fim aparece quantos clientes foram criados, atualizados e ignorados.</p>
+    <p><span class="btn outline">Exportar</span> faz o caminho contrário e baixa sua lista inteira em CSV.</p>
+    <div class="note"><strong>Para achar alguém</strong>Use a busca por nome ou telefone, ou filtre por tag. Tocando no cliente, você vê o histórico de agendamentos e pode editar os dados.</div>
+  </section>
+
+  <hr>
+
+  <!-- SINAL -->
+  <section id="sinal">
+    <p class="eyebrow">2 · Sinal</p>
+    <h2>Cobrar sinal para reservar o horário</h2>
+    <p>Com o sinal ligado, a cliente paga uma parte (ou o valor todo) para garantir o horário. O horário só é confirmado depois do pagamento. Se ela não pagar no prazo, o horário volta a ficar livre sozinho.</p>
+    <div class="note"><strong>Plano Premium</strong>O sinal faz parte do plano Premium. Se a opção aparecer apagada, toque em “Ver planos” ou vá em <strong>Assinatura</strong>.</div>
+    <div class="path"><span class="crumb">Regras e políticas</span><span class="sep">›</span><span class="crumb">Agendamento online</span></div>
+    <ol class="steps">
+      <li><div>Ligue a chave <span class="field">Recebe antecipado</span>. Aparece um quadro com as opções do sinal.</div></li>
+      <li><div>Em <span class="field">Quanto o cliente paga antes</span>, toque em <span class="btn outline">30%</span>, <span class="btn outline">50%</span> ou <span class="btn outline">Valor total</span>. Também dá para digitar qualquer número entre <strong>10%</strong> e <strong>100%</strong>.</div></li>
+      <li><div>Em <span class="field">Como você recebe</span>, escolha <strong>PIX com comprovante</strong> ou <strong>Mercado Pago</strong>. As duas opções estão explicadas logo abaixo.</div></li>
+      <li><div>Em <span class="field">Tempo para pagar</span>, escolha quanto tempo o horário fica segurado esperando o pagamento: de 15 minutos a 24 horas.</div></li>
+      <li><div>Toque em <span class="btn">Salvar regras</span>, no fim da página. Sem isso, nada muda.</div></li>
+    </ol>
+
+    <h3>Quanto fica o sinal?</h3>
+    <div class="calc" role="group" aria-label="Simulador de sinal">
+      <label for="preco">Preço do serviço (R$)
+        <input id="preco" type="number" inputmode="decimal" min="0" step="0.01" value="80">
+      </label>
+      <label for="pct">Sinal (%)
+        <input id="pct" type="number" inputmode="numeric" min="10" max="100" step="1" value="30">
+      </label>
+      <div class="out" aria-live="polite">
+        <div class="big" id="valor">R$ 24,00</div>
+        <small id="resto">A cliente paga o resto, R$ 56,00, no atendimento.</small>
+      </div>
+    </div>
+    <p style="color:var(--muted);font-size:0.95rem">Simulador só para conferir a conta. A porcentagem vale para todos os serviços.</p>
+    <p>Para desligar o sinal, desligue a mesma chave e salve.</p>
+  </section>
+
+  <hr>
+
+  <!-- FORMAS DE RECEBER -->
+  <section>
+    <p class="eyebrow">3 · Como receber</p>
+    <h2>PIX ou Mercado Pago?</h2>
+    <div class="split">
+      <div class="option">
+        <span class="tag">Mais simples</span>
+        <h3>PIX com comprovante</h3>
+        <ul>
+          <li>Só precisa da sua chave PIX.</li>
+          <li>A cliente paga e envia o comprovante pelo próprio Marcaí.</li>
+          <li>Você confere e aprova. Até aprovar, o horário fica pendente.</li>
+        </ul>
+      </div>
+      <div class="option">
+        <span class="tag">Automático</span>
+        <h3>Mercado Pago</h3>
+        <ul>
+          <li>Precisa de uma conta no Mercado Pago.</li>
+          <li>A cliente paga por PIX ou cartão na hora.</li>
+          <li>O horário confirma sozinho e o dinheiro cai na sua conta.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- PIX -->
+  <section id="pix">
+    <h3 style="font-size:1.6rem">Cadastrar a chave PIX</h3>
+    <div class="path"><span class="crumb">Regras e políticas</span><span class="sep">›</span><span class="crumb">Recebe antecipado</span><span class="sep">›</span><span class="crumb">Como você recebe: PIX com comprovante</span></div>
+    <ol class="steps">
+      <li><div>Em <span class="field">Chave PIX</span>, cole sua chave. Pode ser CPF, CNPJ, e-mail, chave aleatória ou celular.</div></li>
+      <li><div>Em <span class="field">Nome de quem recebe</span>, escreva o nome que aparece no banco. A cliente confere esse nome antes de pagar, então use o mesmo nome da conta.</div></li>
+      <li><div>Toque em <span class="btn">Salvar regras</span>.</div></li>
+    </ol>
+    <div class="note warn"><strong>Chave de celular</strong>Escreva com <code>+55</code> e DDD, tudo junto: <code>+5585999998888</code>. Sem o +55, o banco da cliente pode não achar a chave.</div>
+  </section>
+
+  <!-- MERCADO PAGO -->
+  <section id="mercadopago">
+    <h3 style="font-size:1.6rem">Conectar o Mercado Pago</h3>
+    <p>O Marcaí pede um código da sua conta chamado <strong>Access Token</strong>. Ele permite criar cobranças em seu nome.</p>
+    <p><strong>No Mercado Pago</strong> (pelo computador é mais fácil):</p>
+    <ol class="steps">
+      <li><div>Entre na sua conta e vá em <strong>Configurações → Negócios → Integrações</strong>.</div></li>
+      <li><div>Se o Mercado Pago pedir, faça a verificação da conta.</div></li>
+      <li><div>Abra <strong>Suas integrações</strong> e depois <strong>Credenciais de produção</strong>.</div></li>
+      <li><div>Copie o <strong>Access Token</strong>. Ele começa com <code>APP_USR-</code> e é o código mais comprido da tela.</div></li>
+    </ol>
+    <div class="note warn"><strong>Não confunda com a Public Key</strong>Na mesma tela aparece a <strong>Public Key</strong>, que também começa com <code>APP_USR-</code>. Ela não serve aqui: com ela o Marcaí não consegue criar a cobrança. Copie o campo <strong>Access Token</strong>.</div>
+    <p><strong>No Marcaí:</strong></p>
+    <ol class="steps">
+      <li><div>Em <span class="path" style="display:inline-flex"><span class="crumb">Regras e políticas</span></span>, deixe <span class="field">Recebe antecipado</span> ligado e escolha <strong>Mercado Pago</strong> em <span class="field">Como você recebe</span>.</div></li>
+      <li><div>Cole o código em <span class="field">Access Token do Mercado Pago</span> e toque em <span class="btn">Conectar</span>.</div></li>
+      <li><div>Quando der certo, aparece “Mercado Pago conectado” com o nome da sua conta.</div></li>
+      <li><div>Toque em <span class="btn">Salvar regras</span> para gravar a forma de receber.</div></li>
+    </ol>
+    <div class="note warn"><strong>Guarde esse código como uma senha</strong>Quem tem o Access Token consegue fazer cobranças em nome da sua conta. Não mande por WhatsApp, e-mail ou print. Cole só no campo do Marcaí. Se achar que ele vazou, gere um novo no Mercado Pago e conecte de novo.</div>
+    <p>Para trocar de conta ou parar de usar, toque em <span class="btn outline">Desconectar</span> no mesmo lugar.</p>
+  </section>
+
+  <hr>
+
+  <!-- APROVAR -->
+  <section id="aprovar">
+    <p class="eyebrow">4 · No dia a dia</p>
+    <h2>Aprovar o comprovante do PIX</h2>
+    <p>Só vale para quem escolheu PIX com comprovante. No Mercado Pago a confirmação é automática.</p>
+    <ol class="steps">
+      <li><div>A cliente agenda, paga pelo PIX e anexa o comprovante (foto ou PDF). Você recebe um aviso.</div></li>
+      <li><div>Abra o agendamento pela <strong>Agenda</strong> ou por <strong>Agendamentos</strong> e toque em <span class="btn outline">Abrir comprovante</span>.</div></li>
+      <li><div>Confira no seu banco se o dinheiro entrou mesmo.</div></li>
+      <li><div>Se entrou, toque em <span class="btn">Aprovar pagamento</span>. O horário fica confirmado.<br>Se não entrou ou o comprovante está errado, toque em <span class="btn outline">Recusar</span>. O horário é liberado para outra pessoa.</div></li>
+    </ol>
+    <div class="note"><strong>Sempre olhe o extrato</strong>Comprovante pode ser editado. Aprove só depois de ver o valor na sua conta.</div>
+  </section>
+
+  <hr>
+
+  <!-- OUTRAS -->
+  <section id="outras">
+    <p class="eyebrow">5 · Outras regras</p>
+    <h2>Outras opções em Regras e políticas</h2>
+    <dl class="fields">
+      <dt>Antecedência mínima</dt><dd>Impede marcação em cima da hora. Ex.: 2 horas.</dd>
+      <dt>Até quantos dias à frente</dt><dd>Quanto tempo da sua agenda fica aberto. Ex.: 30 dias.</dd>
+      <dt>Intervalo entre horários</dt><dd>De quanto em quanto tempo os horários aparecem para a cliente.</dd>
+      <dt>Confirmar manualmente</dt><dd>Cada agendamento chega como pendente até você confirmar.</dd>
+      <dt>Fechar nos feriados</dt><dd>Bloqueia os feriados nacionais.</dd>
+      <dt>Cancelamento</dt><dd>Até quantas horas antes a cliente pode cancelar ou remarcar sozinha, e o texto da sua política.</dd>
+      <dt>Lembretes</dt><dd>Quanto tempo antes a cliente recebe o lembrete no WhatsApp (planos Profissional e Premium).</dd>
+    </dl>
+    <p>Depois de mexer em qualquer uma, toque em <span class="btn">Salvar regras</span>.</p>
+  </section>
+
+  <hr>
+
+  <!-- DUVIDAS -->
+  <section id="duvidas">
+    <h2>Dúvidas comuns</h2>
+    <div class="faq">
+      <details>
+        <summary>A cliente não pagou o sinal. O que acontece?</summary>
+        <p>Quando acaba o “Tempo para pagar”, o horário é liberado sozinho e outra pessoa pode marcar.</p>
+      </details>
+      <details>
+        <summary>Posso cobrar o valor inteiro adiantado?</summary>
+        <p>Pode. Escolha “Valor total” (100%) em “Quanto o cliente paga antes”.</p>
+      </details>
+      <details>
+        <summary>A opção “Recebe antecipado” está apagada.</summary>
+        <p>O sinal é do plano Premium. Veja em Assinatura.</p>
+      </details>
+      <details>
+        <summary>O Mercado Pago não conecta.</summary>
+        <p>Confira se copiou o <strong>Access Token</strong> de <strong>produção</strong>, e não a Public Key nem a credencial de teste. Copie de novo, sem espaços no começo ou no fim.</p>
+      </details>
+      <details>
+        <summary>Mudei a chave PIX. Preciso fazer mais alguma coisa?</summary>
+        <p>Só salvar as regras. Os próximos agendamentos já mostram a chave nova.</p>
+      </details>
+      <details>
+        <summary>Não aparece o botão “Novo cliente”.</summary>
+        <p>Cadastrar, importar e exportar clientes é só para a dona da conta. Quem entra como equipe vê a lista, mas não cadastra.</p>
+      </details>
+    </div>
+  </section>
+
+  <footer>Os nomes de botões e menus neste guia são os mesmos que aparecem no painel.</footer>
+</div>
+
+<script>
+(function () {
+  var preco = document.getElementById('preco');
+  var pct = document.getElementById('pct');
+  var valor = document.getElementById('valor');
+  var resto = document.getElementById('resto');
+  var fmt = function (cents) {
+    return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+  function calc() {
+    var cents = Math.round(parseFloat(String(preco.value).replace(',', '.')) * 100);
+    var p = parseInt(pct.value, 10);
+    if (!isFinite(cents) || cents < 0 || !isFinite(p)) { valor.textContent = '—'; resto.textContent = 'Preencha o preço e a porcentagem.'; return; }
+    if (p < 10 || p > 100) { valor.textContent = '—'; resto.textContent = 'O sinal vai de 10% a 100%.'; return; }
+    var sinal = Math.ceil(cents * p / 100);
+    valor.textContent = fmt(sinal);
+    resto.textContent = p === 100 ? 'A cliente paga tudo para reservar.' : 'A cliente paga o resto, ' + fmt(cents - sinal) + ', no atendimento.';
+  }
+  preco.addEventListener('input', calc);
+  pct.addEventListener('input', calc);
+  calc();
+})();
+</script>
+</body>
+</html>

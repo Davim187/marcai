@@ -36,21 +36,34 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
             <ul className="space-y-0.5">
               {items.map((item) => (
                 <li key={item.to}>
-                  <NavLink
-                    to={item.to}
-                    end={item.to === '/painel'}
-                    onClick={onNavigate}
-                    className={({ isActive }) =>
-                      cn(
-                        'text-sidebar-muted hover:text-sidebar-foreground flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-white/[0.06]',
-                        isActive &&
-                          'bg-sidebar-active text-sidebar-active-foreground hover:bg-sidebar-active hover:text-sidebar-active-foreground font-semibold',
-                      )
-                    }
-                  >
-                    <item.icon className="h-[18px] w-[18px]" aria-hidden />
-                    {item.label}
-                  </NavLink>
+                  {item.external ? (
+                    <a
+                      href={item.to}
+                      target="_blank"
+                      rel="noopener"
+                      onClick={onNavigate}
+                      className="text-sidebar-muted hover:text-sidebar-foreground flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-white/[0.06]"
+                    >
+                      <item.icon className="h-[18px] w-[18px]" aria-hidden />
+                      {item.label}
+                    </a>
+                  ) : (
+                    <NavLink
+                      to={item.to}
+                      end={item.to === '/painel'}
+                      onClick={onNavigate}
+                      className={({ isActive }) =>
+                        cn(
+                          'text-sidebar-muted hover:text-sidebar-foreground flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-white/[0.06]',
+                          isActive &&
+                            'bg-sidebar-active text-sidebar-active-foreground hover:bg-sidebar-active hover:text-sidebar-active-foreground font-semibold',
+                        )
+                      }
+                    >
+                      <item.icon className="h-[18px] w-[18px]" aria-hidden />
+                      {item.label}
+                    </NavLink>
+                  )}
                 </li>
               ))}
             </ul>
@@ -88,6 +101,18 @@ export default function PanelLayout() {
     navigate('/entrar', { replace: true })
   }
 
+  /** Modo suporte: volta para a sessão do admin, na ficha do estabelecimento. */
+  async function exitSupport() {
+    const res = await api<{ restored: boolean; tenantId?: string | null }>('/auth/support/exit', {
+      method: 'POST',
+    }).catch(() => ({ restored: false, tenantId: null }))
+    qc.clear()
+    // Recarrega a página: a sessão (e o CSRF) agora são os do admin
+    window.location.href = res.restored
+      ? `/admin/estabelecimentos${res.tenantId ? `?id=${encodeURIComponent(res.tenantId)}` : ''}`
+      : '/entrar'
+  }
+
   async function copyLink() {
     if (await copyToClipboard(tenant.publicUrl))
       toast.success('Link copiado! Cole na bio do Instagram')
@@ -98,7 +123,7 @@ export default function PanelLayout() {
       {impersonating && (
         <div className="bg-warning text-warning-foreground sticky top-0 z-50 flex items-center justify-center gap-3 px-4 py-2 text-sm font-semibold">
           Modo suporte: você está vendo o painel de {tenant.name}.
-          <button className="underline" onClick={logout}>
+          <button className="underline" onClick={exitSupport}>
             Encerrar
           </button>
         </div>
@@ -178,8 +203,8 @@ export default function PanelLayout() {
                     </DropdownMenuItem>
                   ))}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={logout} destructive>
-                <LogOut /> Sair
+              <DropdownMenuItem onSelect={impersonating ? exitSupport : logout} destructive>
+                <LogOut /> {impersonating ? 'Sair do modo suporte' : 'Sair'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

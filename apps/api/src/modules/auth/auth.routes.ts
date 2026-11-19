@@ -9,22 +9,28 @@ import {
 } from '@marcai/shared'
 import { env, isSuperAdminEmail } from '../../config/env'
 import { hashToken, randomToken, safeEqual } from '../../lib/crypto'
-import { badRequest, forbidden } from '../../lib/errors'
+import { badRequest, forbidden, unauthorized } from '../../lib/errors'
 import { prisma } from '../../lib/prisma'
 import {
   clearSessionCookies,
+  clearSupportReturnCookie,
   cookieOptions,
+  REFRESH_COOKIE,
   requireAuth,
   setSessionCookies,
+  SUPPORT_RETURN_COOKIE,
 } from '../../plugins/auth'
+import { audit } from '../../lib/audit'
 import { getTenantSummary } from '../tenants/tenant.summary'
 import {
   buildMe,
   createSession,
+  exitSupportSession,
   hashPassword,
   registerUser,
   requestPasswordReset,
   resetPassword,
+  rotateRefreshToken,
   verifyLogin,
 } from './auth.service'
 import { exchangeGoogleCode, googleAuthUrl, googleEnabled } from './google'
@@ -45,13 +51,17 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
       if (env.APP_MODE === 'single_tenant')
         throw forbidden('Cadastro público desativado nesta instalação')
       const user = await registerUser(request.body)
-      const { token, csrfToken } = await createSession(user.id, {
+      const { issued } = await createSession(user.id, {
         tenantId: null,
         userAgent: request.headers['user-agent'],
         ip: request.ip,
       })
-      setSessionCookies(reply, token, csrfToken)
-      return reply.status(201).send({ ok: true, csrfToken })
+      setSessionCookies(reply, issued)
+      return reply.status(201).send({
+        ok: true,
+        csrfToken: issued.csrfToken,
+        accessExpiresAt: issued.accessExpiresAt.toISOString(),
+      })
     },
   )
 
@@ -63,19 +73,55 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
     },
     async (request, reply) => {
       const user = await verifyLogin(request.body.email, request.body.password)
-      const { token, csrfToken } = await createSession(user.id, {
+      const { issued } = await createSession(user.id, {
         userAgent: request.headers['user-agent'],
         ip: request.ip,
       })
-      setSessionCookies(reply, token, csrfToken)
-      return { ok: true, csrfToken }
+      setSessionCookies(reply, issued)
+      return {
+        ok: true,
+        csrfToken: issued.csrfToken,
+        accessExpiresAt: issued.accessExpiresAt.toISOString(),
+      }
+    },
+  )
+
+  /**
+   * Troca o refresh token (cookie) por um par novo. Sem CSRF: só gira os próprios cookies do
+   * navegador e devolve o token de CSRF para quem já está na origem certa (CORS).
+   */
+  app.post(
+    '/refresh',
+    {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+      schema: { tags: ['auth'], summary: 'Renovar a sessão (refresh token)' },
+    },
+    async (request, reply) => {
+      const refreshToken = request.cookies[REFRESH_COOKIE]
+      if (!refreshToken) throw unauthorized('Sua sessão expirou. Entre de novo.')
+      try {
+        const res = await rotateRefreshToken(refreshToken)
+        if (res.raced) return { ok: true, raced: true }
+        setSessionCookies(reply, res.tokens)
+        return {
+          ok: true,
+          csrfToken: res.tokens.csrfToken,
+          accessExpiresAt: res.tokens.accessExpiresAt.toISOString(),
+        }
+      } catch (err) {
+        clearSessionCookies(reply)
+        throw err
+      }
     },
   )
 
   app.post('/logout', { schema: { tags: ['auth'], summary: 'Sair' } }, async (request, reply) => {
+    const refreshToken = request.cookies[REFRESH_COOKIE]
     if (request.auth) {
       await prisma.session.deleteMany({ where: { id: request.auth.sessionId } })
-      // Ao sair de uma sessão de suporte, devolve a sessão do super admin? Não: encerra e volta ao login.
+    } else if (refreshToken) {
+      // Access token já vencido: acha a sessão pelo refresh token
+      await prisma.session.deleteMany({ where: { refreshTokenHash: hashToken(refreshToken) } })
     }
     clearSessionCookies(reply)
     return { ok: true }
@@ -87,6 +133,8 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
         authenticated: false as const,
         appMode: env.APP_MODE,
         googleEnabled: googleEnabled(),
+        /** Há refresh token: o front tenta renovar antes de mandar para o login */
+        canRefresh: Boolean(request.cookies[REFRESH_COOKIE]),
       }
     const me = await buildMe(request.auth.user.id, request.auth.tenantId)
     const tenant = request.auth.tenantId
@@ -97,6 +145,7 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
       appMode: env.APP_MODE,
       googleEnabled: googleEnabled(),
       csrfToken: request.auth.csrfToken,
+      accessExpiresAt: request.auth.accessExpiresAt.toISOString(),
       impersonating: Boolean(request.auth.impersonatorId),
       ...me,
       tenant,
@@ -123,6 +172,43 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
         data: { tenantId: member.tenantId },
       })
       return { ok: true }
+    },
+  )
+
+  /**
+   * Encerra o modo suporte ("entrar como") e volta para a sessão do admin, em vez de sair do
+   * sistema. Sem a sessão do admin (expirou, foi encerrada), apenas sai.
+   */
+  app.post(
+    '/support/exit',
+    { onRequest: requireAuth, schema: { tags: ['auth'], summary: 'Encerrar modo suporte' } },
+    async (request, reply) => {
+      const auth = request.auth!
+      if (!auth.impersonatorId) throw badRequest('Você não está no modo suporte')
+      await audit({
+        action: 'admin.impersonation_ended',
+        tenantId: auth.tenantId,
+        actorUserId: auth.user.id,
+        impersonatorId: auth.impersonatorId,
+        ip: request.ip,
+      })
+      const tokens = await exitSupportSession(
+        auth.sessionId,
+        request.cookies[SUPPORT_RETURN_COOKIE],
+      )
+      if (!tokens) {
+        clearSessionCookies(reply)
+        return { ok: true, restored: false as const }
+      }
+      setSessionCookies(reply, tokens)
+      clearSupportReturnCookie(reply)
+      return {
+        ok: true,
+        restored: true as const,
+        tenantId: auth.tenantId,
+        csrfToken: tokens.csrfToken,
+        accessExpiresAt: tokens.accessExpiresAt.toISOString(),
+      }
     },
   )
 
@@ -276,11 +362,11 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
         if (unverified) await prisma.session.deleteMany({ where: { userId: user.id } })
       }
       if (user.disabledAt) return reply.redirect(`${env.APP_URL}/entrar?erro=desativada`)
-      const { token, csrfToken, session } = await createSession(user.id, {
+      const { issued, session } = await createSession(user.id, {
         userAgent: request.headers['user-agent'],
         ip: request.ip,
       })
-      setSessionCookies(reply, token, csrfToken)
+      setSessionCookies(reply, issued)
       const isAdmin = user.isSuperAdmin || isSuperAdminEmail(user.email)
       const home = session.tenantId ? '/painel' : isAdmin ? '/admin' : '/onboarding'
       return reply.redirect(`${env.APP_URL}${home}`)

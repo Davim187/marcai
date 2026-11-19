@@ -13,6 +13,7 @@ import { badRequest, forbidden, notFound } from '../../lib/errors'
 import { ctx, requireTenant, type TenantContext } from '../../plugins/auth'
 import { daySlots } from './availability.service'
 import { createBooking, rescheduleBooking, setBookingStatus } from './booking.service'
+import { endSeries, seriesSummary } from './series.service'
 import { idParam } from '../../lib/route-schemas'
 
 export const bookingInclude = {
@@ -195,8 +196,32 @@ export const bookingPanelRoutes: FastifyPluginAsyncZod = async (app) => {
       },
     })
     if (!b) throw notFound('Agendamento não encontrado')
-    return b
+    return { ...b, series: b.seriesId ? await seriesSummary(c.tenant, b.seriesId) : null }
   })
+
+  app.post(
+    '/:id/end-series',
+    {
+      schema: {
+        tags: ['agendamentos'],
+        summary: 'Encerra o horário fixo a partir desta sessão',
+        params: idParam,
+      },
+    },
+    async (request) => {
+      const c = ctx(request)
+      const booking = await findBooking(c, request.params.id)
+      if (!booking.seriesId) throw badRequest('Esse agendamento não é de um horário fixo')
+      const now = new Date()
+      return endSeries({
+        tenant: c.tenant,
+        seriesId: booking.seriesId,
+        by: 'professional',
+        // Esta sessão e as seguintes (as que já passaram ficam no histórico)
+        from: booking.startsAt > now ? booking.startsAt : now,
+      })
+    },
+  )
 
   app.post(
     '/',
@@ -225,6 +250,7 @@ export const bookingPanelRoutes: FastifyPluginAsyncZod = async (app) => {
         priceCents: c.role === 'owner' ? b.priceCents : undefined,
         allowOutsideHours: b.allowOutsideHours,
         notifyCustomer: b.notifyCustomer,
+        recurring: b.recurring,
       })
       return reply.status(201).send(booking)
     },

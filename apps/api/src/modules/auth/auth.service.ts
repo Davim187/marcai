@@ -2,7 +2,8 @@ import { MINUTE_MS } from '@marcai/shared'
 import bcrypt from 'bcryptjs'
 import type { RegisterInput } from '@marcai/shared'
 import { env, isSuperAdminEmail } from '../../config/env'
-import { hashToken, randomToken } from '../../lib/crypto'
+import { hashToken, randomToken, safeEqual } from '../../lib/crypto'
+import { logger } from '../../lib/logger'
 import { bestEffort } from '../../lib/best-effort'
 import { badRequest, conflict, forbidden, tooMany, unauthorized } from '../../lib/errors'
 import { emailLayout, sendEmail } from '../../lib/mailer'
@@ -14,11 +15,42 @@ export async function hashPassword(password: string) {
   return bcrypt.hash(password, BCRYPT_ROUNDS)
 }
 
+/** Tokens que vão nos cookies (só os hashes ficam no banco). */
+export interface IssuedTokens {
+  token: string
+  refreshToken: string
+  csrfToken: string
+  accessExpiresAt: Date
+  expiresAt: Date
+}
+
+/**
+ * Janela em que reapresentar o refresh token anterior não é tratado como roubo: duas abas
+ * renovando ao mesmo tempo mandam o mesmo cookie.
+ */
+const REFRESH_RACE_WINDOW_MS = 60_000
+const SUPPORT_SESSION_MS = 86_400_000
+
+/** Fim da sessão: renovado a cada uso; a de suporte vale no máximo 1 dia desde o início. */
+function sessionExpiry(s: { impersonatorId: string | null; createdAt: Date }) {
+  return s.impersonatorId
+    ? new Date(s.createdAt.getTime() + SUPPORT_SESSION_MS)
+    : new Date(Date.now() + env.SESSION_TTL_DAYS * 86_400_000)
+}
+
+function accessExpiry(sessionEnd: Date) {
+  const t = Date.now() + env.ACCESS_TOKEN_TTL_MINUTES * MINUTE_MS
+  return new Date(Math.min(t, sessionEnd.getTime()))
+}
+
 export async function createSession(
   userId: string,
   opts: {
     tenantId?: string | null
     impersonatorId?: string | null
+    /** Modo suporte: sessão do admin para onde voltar ao encerrar */
+    parentSessionId?: string | null
+    returnTokenHash?: string | null
     userAgent?: string
     ip?: string
   } = {},
@@ -32,21 +64,126 @@ export async function createSession(
     tenantId = membership?.tenantId ?? null
   }
   const token = randomToken()
+  const refreshToken = randomToken(48)
   const csrfToken = randomToken(24)
-  const ttlDays = opts.impersonatorId ? 1 : env.SESSION_TTL_DAYS
+  const impersonatorId = opts.impersonatorId ?? null
+  const expiresAt = sessionExpiry({ impersonatorId, createdAt: new Date() })
+  const accessExpiresAt = accessExpiry(expiresAt)
   const session = await prisma.session.create({
     data: {
       tokenHash: hashToken(token),
+      accessExpiresAt,
+      refreshTokenHash: hashToken(refreshToken),
       userId,
       tenantId,
-      impersonatorId: opts.impersonatorId ?? null,
+      impersonatorId,
+      parentSessionId: opts.parentSessionId ?? null,
+      returnTokenHash: opts.returnTokenHash ?? null,
       csrfToken,
       userAgent: opts.userAgent?.slice(0, 300),
       ip: opts.ip,
-      expiresAt: new Date(Date.now() + ttlDays * 86_400_000),
+      expiresAt,
     },
   })
-  return { token, csrfToken, session }
+  const issued: IssuedTokens = { token, refreshToken, csrfToken, accessExpiresAt, expiresAt }
+  return { ...issued, issued, session }
+}
+
+/**
+ * Gera um par novo (access + refresh) para uma sessão existente. Com `expectedRefreshHash`,
+ * só gira se o refresh token ainda for o atual (duas renovações simultâneas não giram duas vezes).
+ */
+async function reissueTokens(
+  session: { id: string; csrfToken: string; impersonatorId: string | null; createdAt: Date },
+  expectedRefreshHash?: string,
+): Promise<IssuedTokens | null> {
+  const token = randomToken()
+  const refreshToken = randomToken(48)
+  const expiresAt = sessionExpiry(session)
+  const accessExpiresAt = accessExpiry(expiresAt)
+  const now = new Date()
+  const res = await prisma.session.updateMany({
+    where: {
+      id: session.id,
+      ...(expectedRefreshHash ? { refreshTokenHash: expectedRefreshHash } : {}),
+    },
+    data: {
+      tokenHash: hashToken(token),
+      accessExpiresAt,
+      refreshTokenHash: hashToken(refreshToken),
+      previousRefreshHash: expectedRefreshHash ?? null,
+      refreshedAt: now,
+      lastSeenAt: now,
+      expiresAt,
+    },
+  })
+  if (!res.count) return null
+  return { token, refreshToken, csrfToken: session.csrfToken, accessExpiresAt, expiresAt }
+}
+
+const SESSION_EXPIRED = 'Sua sessão expirou. Entre de novo.'
+
+/**
+ * Troca o refresh token por um par novo (rotação). `raced`: outra aba acabou de renovar com o
+ * mesmo token; os cookies novos já chegaram (ou vão chegar) por ela.
+ * Reuso de um token já girado fora da janela de corrida encerra a sessão inteira.
+ */
+export async function rotateRefreshToken(
+  refreshToken: string,
+): Promise<{ raced: true } | { raced: false; tokens: IssuedTokens }> {
+  const hash = hashToken(refreshToken)
+  const session = await prisma.session.findFirst({
+    where: { OR: [{ refreshTokenHash: hash }, { previousRefreshHash: hash }] },
+    include: { user: { select: { disabledAt: true } } },
+  })
+  if (!session) throw unauthorized(SESSION_EXPIRED)
+  if (session.refreshTokenHash !== hash) {
+    const recent =
+      session.refreshedAt && Date.now() - session.refreshedAt.getTime() < REFRESH_RACE_WINDOW_MS
+    if (recent) return { raced: true }
+    await prisma.session.deleteMany({ where: { id: session.id } })
+    logger.warn(
+      { userId: session.userId, sessionId: session.id },
+      'Reuso de refresh token detectado: sessão encerrada',
+    )
+    throw unauthorized(SESSION_EXPIRED)
+  }
+  if (session.expiresAt <= new Date() || session.user.disabledAt) {
+    await prisma.session.deleteMany({ where: { id: session.id } })
+    throw unauthorized(session.user.disabledAt ? DISABLED_MESSAGE : SESSION_EXPIRED)
+  }
+  const tokens = await reissueTokens(session, hash)
+  return tokens ? { raced: false, tokens } : { raced: true }
+}
+
+/**
+ * Encerra o modo suporte e devolve o admin à própria sessão. Exige o segredo do cookie de
+ * retorno (só o navegador que entrou como tem) e que a sessão do admin ainda esteja válida.
+ */
+export async function exitSupportSession(supportSessionId: string, returnToken?: string) {
+  const support = await prisma.session.findUnique({ where: { id: supportSessionId } })
+  await prisma.session.deleteMany({ where: { id: supportSessionId } })
+  if (
+    !support?.impersonatorId ||
+    !support.parentSessionId ||
+    !support.returnTokenHash ||
+    !returnToken ||
+    !safeEqual(hashToken(returnToken), support.returnTokenHash)
+  )
+    return null
+  const parent = await prisma.session.findUnique({
+    where: { id: support.parentSessionId },
+    include: { user: { select: { disabledAt: true } } },
+  })
+  if (
+    !parent ||
+    parent.userId !== support.impersonatorId ||
+    parent.impersonatorId ||
+    parent.expiresAt <= new Date() ||
+    parent.user.disabledAt
+  )
+    return null
+  return reissueTokens(parent)
 }
 
 export async function registerUser(input: RegisterInput) {

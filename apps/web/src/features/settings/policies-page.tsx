@@ -7,6 +7,7 @@ import {
   PREPAYMENT_PERCENT_MAX,
   PREPAYMENT_PERCENT_MIN,
   PREPAYMENT_PERCENT_SUGGESTIONS,
+  RECURRING_WEEKS_OPTIONS,
   type PrepaymentMethod,
   prepaymentAmount,
 } from '@marcai/shared'
@@ -37,6 +38,8 @@ export interface TenantFull extends BookingRulesInput {
   coverPositionX: number
   coverPositionY: number
   coverZoom: number
+  recurringEnabled: boolean
+  recurringWeeks: number
   faviconUrl: string | null
   timezone: string
   publicUrl: string
@@ -84,6 +87,8 @@ export default function PoliciesPage() {
         prepaymentHoldMinutes: data.prepaymentHoldMinutes,
         pixKey: data.pixKey ?? '',
         pixKeyHolder: data.pixKeyHolder ?? '',
+        recurringEnabled: data.recurringEnabled,
+        recurringWeeks: data.recurringWeeks,
       })
   }, [data])
   // Texto digitado no campo de horas (campo vazio ou "e" não pode virar 0 em silêncio)
@@ -228,6 +233,44 @@ export default function PoliciesPage() {
               checked={v.loadHolidays}
               onCheckedChange={(c) => set('loadHolidays', c)}
             />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Horário fixo semanal</CardTitle>
+            <CardDescription>
+              Para quem atende o mesmo cliente toda semana (terapia, aulas, tratamentos).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <SwitchRow
+              id="recurring"
+              label="Cliente pode reservar horário fixo"
+              description={
+                v.requirePrepayment
+                  ? 'Não aparece na página enquanto o sinal antecipado estiver ligado. Pelo painel você cria horário fixo normalmente.'
+                  : 'Ao agendar, o cliente marca "quero esse horário toda semana" e as próximas sessões já ficam reservadas.'
+              }
+              checked={!!v.recurringEnabled}
+              onCheckedChange={(c) => set('recurringEnabled', c)}
+            />
+            <Field
+              label="Semanas reservadas à frente"
+              htmlFor="recurring-weeks"
+              hint="A agenda renova sozinha: sempre ficam essas semanas reservadas, até alguém encerrar."
+            >
+              <NativeSelect
+                id="recurring-weeks"
+                value={v.recurringWeeks}
+                onChange={(e) => set('recurringWeeks', Number(e.target.value))}
+              >
+                {RECURRING_WEEKS_OPTIONS.map((w) => (
+                  <option key={w} value={w}>
+                    {w} semanas
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
           </CardContent>
         </Card>
         <Card>

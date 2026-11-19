@@ -32,6 +32,7 @@ const ACTIONS: Record<string, string> = {
   'admin.tenant_restored': 'Restaurou estabelecimento',
   'admin.subscription_changed': 'Ajustou assinatura',
   'admin.impersonated': 'Entrou como (suporte)',
+  'admin.impersonation_ended': 'Encerrou o modo suporte',
   'admin.session_revoked': 'Encerrou uma sessão',
   'admin.sessions_revoked': 'Desconectou de todos os aparelhos',
   'admin.user_created': 'Criou usuário',

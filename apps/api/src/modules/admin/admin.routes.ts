@@ -7,8 +7,9 @@ import { notifyOwners } from '../notifications/owners'
 import { badRequest, notFound } from '../../lib/errors'
 import { prisma } from '../../lib/prisma'
 import { env, isSuperAdminEmail } from '../../config/env'
-import { requireSuperAdmin, setSessionCookies } from '../../plugins/auth'
+import { requireSuperAdmin, setSessionCookies, setSupportReturnCookie } from '../../plugins/auth'
 import { createSession } from '../auth/auth.service'
+import { hashToken, randomToken } from '../../lib/crypto'
 import { publicUrlFor } from '../tenants/tenant.summary'
 import { idParam } from '../../lib/route-schemas'
 
@@ -216,9 +217,13 @@ export const adminRoutes: FastifyPluginAsyncZod = async (app) => {
       const tenant = await prisma.tenant.findUnique({ where: { id: request.params.id } })
       if (!tenant) throw notFound('Estabelecimento não encontrado')
       const userId = owner?.userId ?? request.auth!.user.id
-      const { token, csrfToken } = await createSession(userId, {
+      // A sessão do admin continua viva: "Encerrar" volta para ela (com o segredo do cookie)
+      const returnToken = randomToken()
+      const { issued } = await createSession(userId, {
         tenantId: tenant.id,
         impersonatorId: request.auth!.user.id,
+        parentSessionId: request.auth!.sessionId,
+        returnTokenHash: hashToken(returnToken),
         userAgent: request.headers['user-agent'],
         ip: request.ip,
       })
@@ -238,7 +243,8 @@ export const adminRoutes: FastifyPluginAsyncZod = async (app) => {
         path: '/painel',
         inApp: false,
       })
-      setSessionCookies(reply, token, csrfToken)
+      setSessionCookies(reply, issued)
+      setSupportReturnCookie(reply, returnToken, issued.expiresAt)
       return { ok: true }
     },
   )

@@ -2,6 +2,7 @@ import { ACCOUNT_SUB_INCLUDE, withAccountSub } from '../../lib/account'
 import type { Booking, BookingFieldAnswer, Customer, Professional, Tenant } from '@prisma/client'
 import {
   DEFAULT_TEMPLATES,
+  everyWeekAt,
   formatBRL,
   formatDateLong,
   formatPhone,
@@ -82,6 +83,22 @@ export function bookingVars(b: FullBooking, extra: Record<string, string> = {}) 
   }
 }
 
+/** Mensagens que ganham a linha do horário fixo quando o agendamento é de uma série. */
+const SERIES_KEYS = new Set<MessageTemplateKey>([
+  'customer_confirmation',
+  'customer_pending',
+  'professional_new_booking',
+])
+
+/**
+ * Linha do horário fixo, acrescentada ao fim do texto (vale mesmo para modelos que o
+ * estabelecimento personalizou antes de o recurso existir).
+ */
+function withSeriesLine(b: FullBooking, key: MessageTemplateKey, text: string) {
+  if (!b.seriesId || !SERIES_KEYS.has(key)) return text
+  return `${text}\n\n🔁 Horário fixo: ${everyWeekAt(b.startsAt, b.tenant.timezone)}. As próximas sessões já estão reservadas.`
+}
+
 /** Renderiza uma mensagem para a cliente (o {link} aponta para a área da cliente). */
 export async function renderForCustomer(
   b: FullBooking,
@@ -89,7 +106,11 @@ export async function renderForCustomer(
   extra: Record<string, string> = {},
 ) {
   const vars = bookingVars(b, extra)
-  return renderTemplate(await getTemplate(b.tenantId, key), { ...vars, link: vars.link_cliente })
+  const text = renderTemplate(await getTemplate(b.tenantId, key), {
+    ...vars,
+    link: vars.link_cliente,
+  })
+  return withSeriesLine(b, key, text)
 }
 
 export async function renderForProfessional(
@@ -97,7 +118,11 @@ export async function renderForProfessional(
   key: MessageTemplateKey,
   extra: Record<string, string> = {},
 ) {
-  return renderTemplate(await getTemplate(b.tenantId, key), bookingVars(b, extra))
+  return withSeriesLine(
+    b,
+    key,
+    renderTemplate(await getTemplate(b.tenantId, key), bookingVars(b, extra)),
+  )
 }
 
 export { formatBRL }

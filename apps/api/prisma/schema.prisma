@@ -79,18 +79,33 @@ model User {
   notifications     Notification[]
 }
 
+/// Uma sessão = um login (um aparelho). O access token (cookie curto) e o refresh token
+/// (cookie longo, só em /api/auth) giram a cada renovação; a linha continua a mesma.
 model Session {
-  id             String   @id @default(cuid())
-  tokenHash      String   @unique
-  userId         String
-  tenantId       String?
-  impersonatorId String?
-  csrfToken      String
-  userAgent      String?
-  ip             String?
-  expiresAt      DateTime
-  createdAt      DateTime @default(now())
-  lastSeenAt     DateTime @default(now())
+  id                  String    @id @default(cuid())
+  /// Hash do access token atual (cookie marcai_session)
+  tokenHash           String    @unique
+  /// Validade do access token atual (curta: ACCESS_TOKEN_TTL_MINUTES)
+  accessExpiresAt     DateTime
+  /// Hash do refresh token atual (cookie marcai_refresh)
+  refreshTokenHash    String?   @unique
+  /// Refresh token anterior: reapresentado logo após girar é corrida entre abas; depois, roubo
+  previousRefreshHash String?   @unique
+  refreshedAt         DateTime?
+  userId              String
+  tenantId            String?
+  impersonatorId      String?
+  /// Modo suporte: sessão do admin para onde "Encerrar" volta
+  parentSessionId     String?
+  /// Modo suporte: hash do segredo (cookie marcai_support_return) exigido para voltar
+  returnTokenHash     String?
+  csrfToken           String
+  userAgent           String?
+  ip                  String?
+  /// Fim da sessão (validade do refresh token, renovada a cada uso)
+  expiresAt           DateTime
+  createdAt           DateTime  @default(now())
+  lastSeenAt          DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -139,9 +154,14 @@ model Tenant {
   dailySummaryEnabled Boolean @default(false)
   loadHolidays        Boolean @default(true)
 
+  // Horário fixo semanal (terapias, aulas): o cliente reserva o mesmo dia e horário toda semana
+  recurringEnabled Boolean @default(false)
+  /// Quantas semanas à frente ficam reservadas (a série vai sendo renovada sozinha)
+  recurringWeeks   Int     @default(8)
+
   // Sinal antecipado (cliente paga antes; o horário só confirma depois do pagamento)
   requirePrepayment     Boolean   @default(false)
-  /// 50 ou 100 (% do valor do serviço)
+  /// % do valor do serviço (10 a 100)
   prepaymentPercent     Int       @default(50)
   /// mercadopago (confirma sozinho ao pagar) | pix_manual (cliente envia comprovante e a dona aprova)
   prepaymentMethod      String    @default("pix_manual")
@@ -183,6 +203,7 @@ model Tenant {
   services           Service[]
   customers          Customer[]
   bookings           Booking[]
+  bookingSeries      BookingSeries[]
   formFields         FormField[]
   workingHours       WorkingHours[]
   timeOffs           TimeOff[]
@@ -348,6 +369,30 @@ model Holiday {
   @@unique([tenantId, date])
 }
 
+/// Horário fixo semanal: as sessões são agendamentos normais ligados à série.
+/// Uma tarefa periódica mantém sempre `Tenant.recurringWeeks` semanas reservadas à frente.
+model BookingSeries {
+  id             String    @id @default(cuid())
+  tenantId       String
+  customerId     String
+  professionalId String
+  serviceId      String
+  /// Próximo horário a reservar (a série anda de 7 em 7 dias)
+  nextStartsAt   DateTime
+  /// Quem criou: 'customer' (página pública) ou 'professional' (painel)
+  createdBy      String
+  endedAt        DateTime?
+  endedBy        String?
+  createdAt      DateTime  @default(now())
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer  @relation(fields: [customerId], references: [id])
+  bookings Booking[]
+
+  @@index([endedAt, nextStartsAt])
+  @@index([tenantId, customerId])
+}
+
 model Customer {
   id        String    @id @default(cuid())
   tenantId  String
@@ -362,8 +407,9 @@ model Customer {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  bookings Booking[]
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bookings      Booking[]
+  bookingSeries BookingSeries[]
 
   @@unique([tenantId, phone])
   @@index([tenantId, name])
@@ -397,6 +443,8 @@ model Booking {
   completedAt         DateTime?
   rescheduledAt       DateTime?
   previousStartsAt    DateTime?
+  /// Sessão de um horário fixo semanal (null = agendamento avulso)
+  seriesId            String?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
@@ -406,8 +454,10 @@ model Booking {
   customer     Customer             @relation(fields: [customerId], references: [id])
   answers      BookingFieldAnswer[]
   payment      BookingPayment?
+  series       BookingSeries?       @relation(fields: [seriesId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, startsAt])
+  @@index([seriesId, startsAt])
   @@index([tenantId, customerId])
   @@index([professionalId, startsAt])
 }

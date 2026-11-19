@@ -135,7 +135,7 @@ worker (a cada WORKER_POLL_MS)
 
 ## Segurança
 
-- Sessão opaca em cookie `httpOnly` + `SameSite`. No banco fica só o **HMAC** do token. O CSRF usa double submit: o cookie `marcai_csrf` precisa ser igual ao header `x-csrf-token` em todo método que altera dados.
+- Sessão opaca em cookie `httpOnly` + `SameSite`. No banco fica só o **HMAC** do token. O access token (`marcai_session`) dura `ACCESS_TOKEN_TTL_MINUTES` (15 min); o refresh token (`marcai_refresh`, só enviado para `/api/auth`) dura `SESSION_TTL_DAYS`, renovado a cada uso. `POST /auth/refresh` gira os dois; reapresentar um refresh já girado depois de 60 s (fora da corrida entre abas) encerra a sessão. O front renova sozinho antes de vencer e ao receber 401. O CSRF usa double submit: o cookie `marcai_csrf` precisa ser igual ao header `x-csrf-token` em todo método que altera dados.
 - CORS restrito a `APP_URL` (+ `CORS_ORIGINS`). Rate limiting nas rotas públicas e no login (`@fastify/rate-limit`), além do limite por telefone na reserva.
 - Zod em todo corpo, query e params (via `fastify-type-provider-zod`) e nos webhooks.
 - Os uploads são validados pela assinatura dos bytes (não pela extensão), com limite de tamanho.
@@ -144,23 +144,23 @@ worker (a cada WORKER_POLL_MS)
 
 ## Decisões tomadas (onde o pedido era ambíguo)
 
-| Tema                       | Decisão                                                                                                                                                        |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Teste grátis               | Durante os 30 dias, o plano efetivo é o **Premium**, para experimentar tudo (WhatsApp, sinal antecipado, sem limites). Depois vale o plano escolhido.          |
-| Primeira cobrança          | Acontece **no fim do teste**. Assinar durante o teste não cobra na hora.                                                                                       |
-| Prazo de carência          | 7 dias contados do fim do período pago (ou do fim do teste).                                                                                                   |
-| Proteção de concorrência   | Exclusion constraint no Postgres (em vez de `SELECT … FOR UPDATE`): é atômica, mais simples e cobre também sobreposições parciais.                             |
-| Colunas de data            | `timestamp(3)` do Prisma, sempre em UTC, por isso a constraint usa `tsrange`.                                                                                  |
-| Intervalo de limpeza       | Conta só contra outros agendamentos (pode passar do fim do turno). Bloqueios só consideram a duração do serviço.                                               |
-| Escolha de profissional    | Se só uma profissional faz o serviço, a etapa é pulada. Não há opção "qualquer profissional" na v1.                                                            |
-| Confirmação manual         | Opcional por estabelecimento. Quando ligada, os agendamentos online chegam como `pendente`, mas **já ocupam o horário**.                                       |
-| Encaixe manual             | No painel, a profissional pode agendar fora do expediente: só o conflito com outra cliente é bloqueado.                                                        |
-| Lembrete                   | Enviado X horas antes (padrão 24h). Se o agendamento é criado depois desse ponto, sai na hora, desde que falte mais de 1h.                                     |
-| Resumo diário              | Agendado entre 07:00 e 12:00 no fuso do estabelecimento (com recuperação se o worker estava parado), deduplicado por dia.                                      |
-| WhatsApp na Meta           | O número é da plataforma, com um template de uma variável. Quebras de linha viram "·".                                                                         |
-| Exclusão de cliente (LGPD) | Os dados pessoais são **anonimizados** e o histórico financeiro é mantido sem identificação. Os agendamentos futuros são cancelados.                           |
-| Exclusão de conta          | Se a pessoa é a única dona, o estabelecimento inteiro é apagado (cascata) e a assinatura é cancelada no provedor.                                              |
-| "Entrar como"              | Cria uma sessão de 1 dia para a dona do tenant, marcada com `impersonatorId` e auditada. Ao sair, o admin entra de novo.                                       |
-| OG / SEO                   | A API gera as meta tags. Com o front na Vercel, os robôs são reescritos por user-agent para `/api/public/og`.                                                  |
-| Uploads                    | Armazenamento local atrás da interface `StorageProvider`. Para produção com várias instâncias, recomenda-se S3/R2.                                             |
-| Feriados                   | Os nacionais (incluindo Carnaval, Sexta-feira Santa e Corpus Christi) são carregados no onboarding para o ano atual e o próximo, e cada um pode ser desligado. |
+| Tema                       | Decisão                                                                                                                                                                                             |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Teste grátis               | Durante os 30 dias, o plano efetivo é o **Premium**, para experimentar tudo (WhatsApp, sinal antecipado, sem limites). Depois vale o plano escolhido.                                               |
+| Primeira cobrança          | Acontece **no fim do teste**. Assinar durante o teste não cobra na hora.                                                                                                                            |
+| Prazo de carência          | 7 dias contados do fim do período pago (ou do fim do teste).                                                                                                                                        |
+| Proteção de concorrência   | Exclusion constraint no Postgres (em vez de `SELECT … FOR UPDATE`): é atômica, mais simples e cobre também sobreposições parciais.                                                                  |
+| Colunas de data            | `timestamp(3)` do Prisma, sempre em UTC, por isso a constraint usa `tsrange`.                                                                                                                       |
+| Intervalo de limpeza       | Conta só contra outros agendamentos (pode passar do fim do turno). Bloqueios só consideram a duração do serviço.                                                                                    |
+| Escolha de profissional    | Se só uma profissional faz o serviço, a etapa é pulada. Não há opção "qualquer profissional" na v1.                                                                                                 |
+| Confirmação manual         | Opcional por estabelecimento. Quando ligada, os agendamentos online chegam como `pendente`, mas **já ocupam o horário**.                                                                            |
+| Encaixe manual             | No painel, a profissional pode agendar fora do expediente: só o conflito com outra cliente é bloqueado.                                                                                             |
+| Lembrete                   | Enviado X horas antes (padrão 24h). Se o agendamento é criado depois desse ponto, sai na hora, desde que falte mais de 1h.                                                                          |
+| Resumo diário              | Agendado entre 07:00 e 12:00 no fuso do estabelecimento (com recuperação se o worker estava parado), deduplicado por dia.                                                                           |
+| WhatsApp na Meta           | O número é da plataforma, com um template de uma variável. Quebras de linha viram "·".                                                                                                              |
+| Exclusão de cliente (LGPD) | Os dados pessoais são **anonimizados** e o histórico financeiro é mantido sem identificação. Os agendamentos futuros são cancelados.                                                                |
+| Exclusão de conta          | Se a pessoa é a única dona, o estabelecimento inteiro é apagado (cascata) e a assinatura é cancelada no provedor.                                                                                   |
+| "Entrar como"              | Cria uma sessão de 1 dia para a dona do tenant, marcada com `impersonatorId` e auditada. "Encerrar" (`/auth/support/exit`) volta para a sessão do admin, exigindo o cookie `marcai_support_return`. |
+| OG / SEO                   | A API gera as meta tags. Com o front na Vercel, os robôs são reescritos por user-agent para `/api/public/og`.                                                                                       |
+| Uploads                    | Armazenamento local atrás da interface `StorageProvider`. Para produção com várias instâncias, recomenda-se S3/R2.                                                                                  |
+| Feriados                   | Os nacionais (incluindo Carnaval, Sexta-feira Santa e Corpus Christi) são carregados no onboarding para o ano atual e o próximo, e cada um pode ser desligado.                                      |

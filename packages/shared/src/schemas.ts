@@ -179,6 +179,9 @@ export const mercadoPagoConnectSchema = z.object({
     .regex(/^(APP_USR|TEST)-[\w-]{20,300}$/, 'Cole o Access Token (começa com APP_USR- ou TEST-)'),
 })
 
+/** Quantas semanas à frente um horário fixo fica reservado (a série renova sozinha). */
+export const RECURRING_WEEKS_OPTIONS = [4, 8, 12] as const
+
 export const bookingRulesSchema = z.object({
   minAdvanceMinutes: z
     .number()
@@ -217,6 +220,16 @@ export const bookingRulesSchema = z.object({
     .optional(),
   pixKey: z.string().trim().max(120).optional().nullable(),
   pixKeyHolder: z.string().trim().max(80).optional().nullable(),
+  // Horário fixo semanal (opcional no corpo: quem não manda, não mexe)
+  recurringEnabled: z.boolean().optional(),
+  recurringWeeks: z
+    .number()
+    .int()
+    .refine(
+      (v) => (RECURRING_WEEKS_OPTIONS as readonly number[]).includes(v),
+      'Escolha 4, 8 ou 12 semanas',
+    )
+    .optional(),
 })
 export type BookingRulesInput = z.infer<typeof bookingRulesSchema>
 
@@ -334,6 +347,8 @@ export const publicBookingSchema = z.object({
   customerEmail: emailSchema.optional().or(z.literal('')),
   notes: z.string().trim().max(500).optional().or(z.literal('')),
   answers: z.array(fieldAnswerSchema).max(50).default([]),
+  /** Horário fixo: reserva o mesmo dia e horário toda semana. */
+  recurring: z.boolean().default(false),
   consent: z.literal(true, {
     errorMap: () => ({ message: 'Precisamos do seu consentimento para salvar seus dados' }),
   }),
@@ -416,6 +431,8 @@ export const manualBookingSchema = z.object({
   /** Permite encaixe fora do expediente (só checa conflito com outras clientes). */
   allowOutsideHours: z.boolean().default(false),
   notifyCustomer: z.boolean().default(true),
+  /** Horário fixo: reserva o mesmo dia e horário toda semana. */
+  recurring: z.boolean().default(false),
 })
 export type ManualBookingInput = z.infer<typeof manualBookingSchema>
 

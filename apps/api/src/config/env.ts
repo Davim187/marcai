@@ -17,7 +17,10 @@ const schema = z.object({
   CORS_ORIGINS: z.string().optional().default(''),
   DATABASE_URL: z.string().min(1),
   SESSION_SECRET: z.string().min(16),
+  /** Validade da sessão (refresh token), renovada a cada uso. */
   SESSION_TTL_DAYS: z.coerce.number().default(30),
+  /** Validade do access token (cookie de sessão). Curto: o front renova pelo refresh token. */
+  ACCESS_TOKEN_TTL_MINUTES: z.coerce.number().int().min(1).default(15),
   /** E-mails que são administradores do sistema (separados por vírgula) */
   SUPER_ADMIN_EMAILS: z
     .string()

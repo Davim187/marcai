@@ -11,13 +11,20 @@ import { requestContext } from '../lib/request-context'
 import { forTenant, type TenantDb } from '../lib/tenant-db'
 import { logger } from '../lib/logger'
 
+/** Access token (curto). Vai em toda requisição. */
 export const SESSION_COOKIE = 'marcai_session'
+/** Refresh token (longo). Só é enviado para /api/auth, onde é trocado por um par novo. */
+export const REFRESH_COOKIE = 'marcai_refresh'
+/** Modo suporte: segredo para voltar à sessão do admin ao encerrar. */
+export const SUPPORT_RETURN_COOKIE = 'marcai_support_return'
 export const CSRF_COOKIE = 'marcai_csrf'
+const AUTH_COOKIE_PATH = '/api/auth'
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 
 export interface AuthContext {
   sessionId: string
   csrfToken: string
+  accessExpiresAt: Date
   user: { id: string; email: string; name: string; isSuperAdmin: boolean }
   tenantId: string | null
   impersonatorId: string | null
@@ -41,9 +48,9 @@ declare module 'fastify' {
   }
 }
 
-export function cookieOptions(maxAgeSeconds?: number) {
+export function cookieOptions(maxAgeSeconds?: number, path = '/') {
   return {
-    path: '/',
+    path,
     httpOnly: true,
     secure: isProd || env.COOKIE_SAMESITE === 'none',
     sameSite: env.COOKIE_SAMESITE,
@@ -52,16 +59,42 @@ export function cookieOptions(maxAgeSeconds?: number) {
   } as const
 }
 
-export function setSessionCookies(reply: FastifyReply, token: string, csrfToken: string) {
-  const maxAge = env.SESSION_TTL_DAYS * 86_400
-  reply.setCookie(SESSION_COOKIE, token, cookieOptions(maxAge))
+const secondsUntil = (d: Date) => Math.max(1, Math.floor((d.getTime() - Date.now()) / 1000))
+
+export function setSessionCookies(
+  reply: FastifyReply,
+  t: {
+    token: string
+    refreshToken: string
+    csrfToken: string
+    accessExpiresAt: Date
+    expiresAt: Date
+  },
+) {
+  const sessionMaxAge = secondsUntil(t.expiresAt)
+  reply.setCookie(SESSION_COOKIE, t.token, cookieOptions(secondsUntil(t.accessExpiresAt)))
+  reply.setCookie(REFRESH_COOKIE, t.refreshToken, cookieOptions(sessionMaxAge, AUTH_COOKIE_PATH))
   // httpOnly: o front recebe o token pelo corpo de /auth/me e /auth/login (JS de terceiros não lê)
-  reply.setCookie(CSRF_COOKIE, csrfToken, cookieOptions(maxAge))
+  reply.setCookie(CSRF_COOKIE, t.csrfToken, cookieOptions(sessionMaxAge))
+}
+
+export function setSupportReturnCookie(reply: FastifyReply, token: string, expiresAt: Date) {
+  reply.setCookie(
+    SUPPORT_RETURN_COOKIE,
+    token,
+    cookieOptions(secondsUntil(expiresAt), AUTH_COOKIE_PATH),
+  )
+}
+
+export function clearSupportReturnCookie(reply: FastifyReply) {
+  reply.clearCookie(SUPPORT_RETURN_COOKIE, cookieOptions(undefined, AUTH_COOKIE_PATH))
 }
 
 export function clearSessionCookies(reply: FastifyReply) {
   reply.clearCookie(SESSION_COOKIE, cookieOptions())
+  reply.clearCookie(REFRESH_COOKIE, cookieOptions(undefined, AUTH_COOKIE_PATH))
   reply.clearCookie(CSRF_COOKIE, cookieOptions())
+  clearSupportReturnCookie(reply)
 }
 
 /** Lê o cookie de sessão em toda requisição e popula `request.auth`. */
@@ -75,7 +108,14 @@ export const authPlugin = fp(async (app) => {
       where: { tokenHash: hashToken(token) },
       include: { user: true },
     })
-    if (!session || session.expiresAt < new Date() || session.user.disabledAt) return
+    const now = new Date()
+    if (
+      !session ||
+      session.expiresAt < now ||
+      session.accessExpiresAt < now ||
+      session.user.disabledAt
+    )
+      return
     // Quem está em SUPER_ADMIN_EMAILS vira admin no banco também (aparece na gestão de acessos)
     const isSuperAdmin = session.user.isSuperAdmin || isSuperAdminEmail(session.user.email)
     if (isSuperAdmin && !session.user.isSuperAdmin) {
@@ -86,6 +126,7 @@ export const authPlugin = fp(async (app) => {
     request.auth = {
       sessionId: session.id,
       csrfToken: session.csrfToken,
+      accessExpiresAt: session.accessExpiresAt,
       user: {
         id: session.user.id,
         email: session.user.email,

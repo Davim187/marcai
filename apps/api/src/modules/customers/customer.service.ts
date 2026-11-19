@@ -213,6 +213,11 @@ export async function importCustomersCsv(db: TenantDb, csv: string) {
 /** LGPD: anonimiza os dados pessoais, mantém o histórico financeiro sem identificação. */
 export async function anonymizeCustomer(db: TenantDb, customerId: string) {
   const now = new Date()
+  // Horário fixo para de reservar semanas novas
+  await db.bookingSeries.updateMany({
+    where: { customerId, endedAt: null },
+    data: { endedAt: now, endedBy: 'professional' },
+  })
   await db.booking.updateMany({
     where: { customerId, status: { in: [...OPEN_BOOKING_STATUSES] }, startsAt: { gte: now } },
     data: {

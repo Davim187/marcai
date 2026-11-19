@@ -19,6 +19,8 @@ export interface PublicTenant {
   maxAdvanceDays: number
   whiteLabel: boolean
   available: boolean
+  /** Horário fixo semanal (null quando o estabelecimento não oferece) */
+  recurring: { weeks: number } | null
   /** Sinal antecipado (null quando o estabelecimento não cobra) */
   prepayment: { percent: number; method: 'mercadopago' | 'pix_manual'; holdMinutes: number } | null
   categories: Array<{ id: string; name: string }>
@@ -62,6 +64,8 @@ export interface BookingResult {
   manageUrl: string
   icsUrl: string
   payment: PrepaymentView | null
+  /** Horário fixo: semanas reservadas e as que não couberam */
+  series: { created: string[]; skipped: string[] } | null
 }
 
 /** Sinal antecipado visto pela cliente (página de sucesso e área da cliente). */

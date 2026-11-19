@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  BookOpen,
   Bell,
   CalendarDays,
   ClipboardList,
@@ -24,6 +25,8 @@ export interface NavItem {
   icon: LucideIcon
   ownerOnly?: boolean
   saasOnly?: boolean
+  /** Página estática fora do SPA (abre em nova aba) */
+  external?: boolean
 }
 
 export const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
@@ -67,6 +70,7 @@ export const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
         saasOnly: true,
       },
       { to: '/painel/conta', label: 'Minha conta', icon: UserCircle },
+      { to: '/guia.html', label: 'Guia de uso', icon: BookOpen, ownerOnly: true, external: true },
     ],
   },
 ]

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, setCsrfToken } from './api'
+import { api, refreshSession, setCsrfToken } from './api'
 import type { Session } from './types'
 
 export const SESSION_KEY = ['session'] as const
@@ -8,7 +8,10 @@ export function useSession() {
   return useQuery({
     queryKey: SESSION_KEY,
     queryFn: async () => {
-      const s = await api<Session>('/auth/me')
+      let s = await api<Session>('/auth/me')
+      // Access token vencido (aba parada, computador hibernado): renova antes de ir para o login
+      if (!s.authenticated && s.canRefresh && (await refreshSession()))
+        s = await api<Session>('/auth/me')
       if (s.authenticated) setCsrfToken(s.csrfToken)
       return s
     },

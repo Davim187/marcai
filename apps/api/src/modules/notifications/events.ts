@@ -1,5 +1,5 @@
 import type { Subscription, Tenant } from '@prisma/client'
-import { formatDateLong, toLocalTime } from '@marcai/shared'
+import { everyWeekAt, formatDateLong, toLocalTime } from '@marcai/shared'
 import { env } from '../../config/env'
 import { logger } from '../../lib/logger'
 import { prisma } from '../../lib/prisma'
@@ -199,6 +199,11 @@ async function load(bookingId: string) {
   return b as (FullBooking & { tenant: TenantWithSub }) | null
 }
 
+/** "toda quinta-feira às 14:00" (para o horário fixo semanal). */
+function weekly(b: FullBooking) {
+  return everyWeekAt(b.startsAt, b.tenant.timezone)
+}
+
 function when(b: FullBooking) {
   return `${formatDateLong(b.startsAt, b.tenant.timezone)} às ${toLocalTime(b.startsAt, b.tenant.timezone)}`
 }
@@ -221,8 +226,14 @@ export function onBookingCreated(bookingId: string, opts: { notifyCustomer?: boo
     if (b.source === 'online') {
       await notifyProfessional(b, {
         type: 'booking_created',
-        title: b.status === 'pending' ? 'Novo pedido de agendamento' : 'Novo agendamento!',
-        summary: `${b.customer.name} · ${b.serviceName} · ${when(b)}`,
+        title: b.seriesId
+          ? b.status === 'pending'
+            ? 'Novo pedido de horário fixo'
+            : 'Novo horário fixo semanal!'
+          : b.status === 'pending'
+            ? 'Novo pedido de agendamento'
+            : 'Novo agendamento!',
+        summary: `${b.customer.name} · ${b.serviceName} · ${b.seriesId ? weekly(b) : when(b)}`,
         template: 'professional_new_booking',
       })
     }
@@ -293,6 +304,40 @@ export function onBookingApproved(bookingId: string) {
     if (!b) return
     await notifyCustomer(b, 'customer_confirmation', `Horário confirmado — ${b.tenant.name}`)
     await scheduleReminder(b)
+  })
+}
+
+/** Sessão nova de um horário fixo: sem mensagem (o cliente já sabe), só o lembrete. */
+export function onSeriesOccurrenceCreated(bookingId: string) {
+  return safely('series.occurrence', async () => {
+    const b = await load(bookingId)
+    if (b) await scheduleReminder(b)
+  })
+}
+
+/**
+ * Horário fixo encerrado: cancela os lembretes de todas as sessões e manda UM aviso para o
+ * outro lado (a profissional, se foi o cliente; o cliente, se foi a profissional).
+ */
+export function onSeriesEnded(bookingIds: string[], by: 'customer' | 'professional') {
+  return safely('series.ended', async () => {
+    for (const id of bookingIds) await cancelJobs(id, REMINDER_KINDS)
+    const b = await load(bookingIds[0]!)
+    if (!b) return
+    const sessions = bookingIds.length === 1 ? '1 sessão' : `${bookingIds.length} sessões`
+    if (by === 'customer') {
+      await notifyProfessional(b, {
+        type: 'booking_canceled',
+        title: 'Horário fixo encerrado',
+        summary: `${b.customer.name} encerrou o horário fixo de ${weekly(b).replace(/^tod[ao] /, '')} (${sessions} canceladas)`,
+        template: 'professional_booking_canceled',
+        extra: { motivo: `Encerrou o horário fixo semanal (${sessions} canceladas)` },
+      })
+    } else {
+      await notifyCustomer(b, 'customer_canceled', `Horário fixo encerrado — ${b.tenant.name}`, {
+        motivo: `O horário fixo (${weekly(b)}) foi encerrado. As próximas sessões (${sessions}) foram canceladas.`,
+      })
+    }
   })
 }
 
